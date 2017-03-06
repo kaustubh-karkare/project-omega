@@ -1,0 +1,4 @@
+- This directory will contain the results of the assignments submitted by the various participents of this exercise.
+- If a subdirectory with your name does not exist, create one using the same naming scheme as others (lower-case-separated-by-dashes).
+- While I have no way of enforcing this, I ask that you do not look at other people's work for a given assignment, unless you've completed it yourself.
+- Within your subdirectory, please use a reasonable naming scheme, like "assignment-1.py" or "assignment-2/index.js" that makes it easy to figure out which assignment your code is for.
