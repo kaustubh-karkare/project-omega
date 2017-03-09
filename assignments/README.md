@@ -11,7 +11,7 @@ I recommend using Python or JavaScript (since I'm most familiar with them right 
 
 ---
 
-Please abide by the style guide for your preferred language: [Python](https://www.python.org/dev/peps/pep-0008/), [JavaScript](https://github.com/airbnb/javascript).
+Please abide by the style guide for your preferred language ([Python](https://www.python.org/dev/peps/pep-0008/), [JavaScript](https://github.com/airbnb/javascript), etc) and write clean, well-structured, easy to understand code.
 
 *Code is written only once, but read many many times, and so we want to optimize for that. If everyone follows the same conventions while writing code, it makes other people's code look like your own, and therefore, easier to understand.*
 
@@ -20,4 +20,4 @@ Please abide by the style guide for your preferred language: [Python](https://ww
 If I do not provide sample input/output in the problem, make reasonable assumptions.
 If I do, they are still just guidelines, so feel free to make reasonable changes.
 
-*Your goal isn't to pass some automated test-case checker: instead, it is to build something that will be **intuitively useful** to other people, and so use your best judgement.*
+*Your goal isn't to pass some automated test-case checker: instead, it is to build something that will be __intuitively useful__ to other people, and so use your best judgement.*
