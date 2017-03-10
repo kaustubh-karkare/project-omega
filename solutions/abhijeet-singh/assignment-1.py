@@ -1,4 +1,4 @@
-# python assign_week1_1_2.py --key 123 --name abhijeet
+# python assignment-1.py --key 123 --name abhijeet
 import sys, json
 
 total = len(sys.argv)
