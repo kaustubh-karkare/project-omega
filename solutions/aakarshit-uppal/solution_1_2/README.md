@@ -1,0 +1,30 @@
+## Solution Description
+
+[**solution.py**](./solution.py) : Module facilitating parsing of command line arguments.
+
+Supports positional and optional arguments, and more features, like:
+- Arguments can be added with specific paramters:
+    - `alias` (to add short name for argument)
+    - `required` (to make argument compulsory)
+    - `type` (to specify type of value for argument)
+    - `nvals` (to specify number of values for argument)
+    - `set_value` (to specify value to be set on argument use)
+- Multiple values can be passed for argument
+- Values passed on call can be accessed as ordered or simple dictionary in:
+    - Long form (including none-valued)
+    - Short form (excluding none-valued)
+- Values can be printed in JSON format
+
+[**solution_test.py**](./solution_test.py) : Tests for solution module.
+
+Testing functions:
+- test_duplicate_addition
+- test_positional_args
+- test_short_name
+- test_multiple_values
+- test_required_arg_not_used
+- test_multiple_exclusive_args_used
+- test_too_few_values
+- test_invalid_value_type
+- test_allowed_posargs_exceeded
+- test_undefined_arg_used
