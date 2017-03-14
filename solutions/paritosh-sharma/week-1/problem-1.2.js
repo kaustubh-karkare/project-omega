@@ -1,77 +1,127 @@
-var arg  = process.argv.slice(2);
-var arg_cons = function(command, subcommand,key, name, local, remote, v)
-{
-   this.command  = command;
-   this.subcommand = subcommand;
-   this.name = name;
-   this.key = key;
-   this.local = local;
-   this.remote = remote;
-   this.verbrose = v;
-};
-var com_args = new arg_cons();
-var err = [];
 
-com_parser(arg, print_json);
+// add new argument entries here
+
+var command_args  = [
+   {
+      key: 'command',
+      arg: null,
+      type: 'String',
+      required: false,
+      position: 0
+   },
+   {
+      key: 'subcommand',
+      arg: null,
+      type: 'String',
+      required: false,
+      position: 1
+   },
+   {
+      key: 'key',
+      arg: '--key',
+      type: 'Int',
+      required: true,
+      position: null
+   },
+   {
+      key: 'name',
+      arg: '--name',
+      type: 'String',
+      required: false,
+      position: null
+   },
+   {
+      key: 'verbrose',
+      arg: '-v',
+      type: 'Boolean',
+      required: false,
+      position: null
+   },
+   {
+      key: 'local',
+      arg: '--local',
+      type: 'Boolean',
+      required: false,
+      position: null
+   },
+   {
+      key: 'remote',
+      arg: '--remote',
+      type: 'Boolean',
+      required: false,
+      position: null
+   }
+];
+
+var parsed_json = {};
+var err = [],flag,j;
+var entered_args = process.argv.slice(2);
+
 
 function print_json(err){
-   if(err.length!==0)
-      console.log("ERROR\n"+err);
-   else if(com_args.key === undefined)
-      console.log("ERROR: Must have a key value");
-   else console.log(com_args);
+   if(err)
+   {
+      console.log('ERROR: ' + err);
+      return;
+   }
+   for(i=0;i<command_args.length;i++)
+   {
+      if(command_args[i].required === true && !(command_args[i].key in parsed_json)){
+         console.log( "ERROR: Value of " + command_args[i].arg + " required");
+         return;
+      }
+   }
+   console.log(parsed_json);
+   return;
 }
 
-function com_parser(arg, callback){
+arg_parser(entered_args, print_json);
 
-   var i;
-   for(i=0;i<arg.length;i++){
-      arg[i]=arg[i].toLowerCase();
-
-      if(arg[i].search('-') === -1){
-         if(i === 0)
-            com_args.command = arg[i];
-         else if(i === 1)
-            com_args.subcommand = arg[i];
-         else
-            err.push("Invalid argument at position");
-      }
-     else if(arg[i].search('=')!=-1){
-         var strarr = arg[i].split('=');
-         if(strarr[0] === '--key'){
-            com_args.key = strarr[1];
-            if( isNaN(strarr[1]) || strarr[1]*1<0 ){
-               err.push("Invalid value of key. Must be a positive integer");
+function arg_parser(entered_args, callback){
+   for(var i=0; i<entered_args.length; i++){
+      var str = entered_args[i];
+      flag = 0;
+      if(str.search('-') === -1){
+         for(j=0; j<command_args.length; j++)
+         {
+            if(command_args[j].position === i){
+               flag = 1;
+               parsed_json[command_args[j].key] = str;
             }
          }
-         else if(strarr[0] === '--name'){
-            com_args.name = strarr[1];
-         }
-         else{
-            err.push("Invalid argument passed");
+         if(flag === 0){
+            console.log(`ERROR: Invalid argument '${str}' entered`);
+            return;
          }
       }
-
-
-      else if(arg[i] === '-v'){
-         com_args.verbrose = true;
-      }
-
-
-      else if(arg[i] === '--local'){
-         com_args.local = true;
-         if(com_args.remote === true){
-            err.push("Remote and Local cannot come together");
+      else{
+         str = str.split('=');
+         for(j=0; j<command_args.length; j++)
+         {
+            if(command_args[j].arg === str[0]){
+               flag=1;
+               if(command_args[j].type === 'String'){
+                  parsed_json[command_args[j].key] = str[1];
+               }
+               else if(command_args[j].type === 'Boolean'){
+                  parsed_json[command_args[j].key] = true;
+               }
+               else if(command_args[j].type === 'Int'){
+                  if( isNaN(str[1]) || str[1]*1<0 ){
+                     console.log(`ERROR: Invalid value of argument '${str[0]}'. Must be a positive integer`);
+                     return;
+                  }
+                  else{
+                     parsed_json[command_args[j].key] = str[1];
+                  }
+               }
+            }
          }
-      }
-
-
-      else if(arg[i] === '--remote'){
-         com_args.remote = true;
-         if(com_args.local === true){
-            err.push("Remote and Local cannot come together");
+         if(flag === 0){
+            console.log(`ERROR: Invalid argument '${str[0]}' entered`);
+            return;
          }
       }
    }
-   callback(err);
+   callback();
 }
