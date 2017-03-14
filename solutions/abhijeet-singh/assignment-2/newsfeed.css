@@ -1,6 +1,6 @@
 body{ 
 	background: #bcbdc4;
-	height:4000px;
+	height:1000px;
 }
 .header1{
 	position:fixed;
@@ -10,7 +10,7 @@ body{
 	top:0;
 	left:0;
 	color:white;
-	z-index:7;
+	z-index:2;
 }
 #img{
 	left:100px;
@@ -34,24 +34,24 @@ body{
 	height:40px;
 	color:grey;
 }
-#profile2{
+#home{
 	top:20px;
 	left:880px;
 	font-size:20px;
 	height:40px;
 	color:grey;
 }
-#profile3{
+#notification{
 	top:15px;
 	left:970px;
 	height:40px;
 }
-#profile4{
+#setting{
 	top:15px;
 	left:1040px;
 	height:40px;
 }
-#profile5{
+#logout{
 	top:15px;
 	left:1110px;
 	height:40px;
@@ -63,134 +63,13 @@ body{
 	width:200px;
 	height:740px;
 }
-#side1{
-	top:0;
-	left:10px;
-	width:150px;
-	height:30px;
-	font-size:20px;
-	padding-top:5px;
+li{
+    	padding-top:5px;
+	padding-bottom:5px;
+	margin-left:-15px;
 }
-#side2{
-	top:30px;
-	left:10px;
-	width:150px;
-	height:30px;
-	font-size:20px;
-	padding-top:5px;
-}
-#side3{
-	top:60px;
-	left:10px;
-	width:150px;
-	height:30px;
-	font-size:20px;
-	padding-top:5px;
-}
-#side4{
-	top:90px;
-	left:10px;
-	width:150px;
-	height:30px;
-	font-size:20px;
-	padding-top:5px;
-}
-#side5{
-	top:120px;
-	left:10px;
-	width:150px;
-	height:30px;
-	font-size:20px;
-	padding-top:5px;
-}
-#side6{
-	top:150px;
-	left:10px;
-	width:150px;
-	height:20px;
-	font-size:15px;
-	padding-left:15px;
-	padding-top:5px;
-}
-#side7{
-	top:180px;
-	left:10px;
-	width:150px;
-	height:20px;
-	font-size:15px;
-	padding-left:15px;
-	padding-top:5px;
-}
-#side8{
-	top:210px;
-	left:10px;
-	width:150px;
-	height:20px;
-	font-size:15px;
-	padding-left:15px;
-	padding-top:5px;
-}
-#side9{
-	top:240px;
-	left:10px;
-	width:150px;
-	height:20px;
-	font-size:15px;
-	padding-left:15px;
-	padding-top:5px;
-}
-#side10{
-	top:270px;
-	left:10px;
-	width:150px;
-	height:30px;
-	font-size:20px;
-	padding-top:5px;
-}
-#side11{
-	top:300px;
-	left:10px;
-	width:150px;
-	height:20px;
-	font-size:15px;
-	padding-left:15px;
-	padding-top:5px;
-}
-#side12{
-	top:330px;
-	left:10px;
-	width:150px;
-	height:20px;
-	font-size:15px;
-	padding-left:15px;
-	padding-top:5px;
-}
-#side13{
-	top:360px;
-	left:10px;
-	width:150px;
-	height:20px;
-	font-size:15px;
-	padding-left:15px;
-	padding-top:5px;
-}
-#side14{
-	top:390px;
-	left:10px;
-	width:150px;
-	height:20px;
-	font-size:15px;
-	padding-left:15px;
-	padding-top:5px;
-}
-#side15{
-	top:420px;
-	left:10px;
-	width:150px;
-	height:20px;
-	font-size:15px;
-	padding-left:15px;
-	padding-top:5px;
+ul{
+	padding-top:3px;
 }
 .post{
 	top:70px;
