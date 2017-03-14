@@ -8,14 +8,18 @@ comp_args = []
 
 
 def add_argument(*args, **kwargs):
-    # Format (arg name,short name(if any),type = int(if required),value = True(if required))
-    # Example : add_argument("--key",type = int,value = True)
     # Creates a new argument
+    # Format (arg name,short name(if any),
+    #           type = int(if a specific data type is required),
+    #           value = True(if a value is required))
+    # Example : add_argument("--key",type = int,value = True)
+    if(len(args)>2):
+        raise ValueError('More arguments were supplied than allowed.')
     arguments[str(args[0]).lower()] = {}
     arguments[str(args[0])]["value"]=False
     if(len(args)==2):
         arguments[str(args[0])]["arg_shortname"] = str(args[1].lower())
-        shortnotation[str(args[1].lower())] = str(args[0]).lower() 
+        shortnotation[str(args[1].lower())] = str(args[0]).lower()
     for k,v in kwargs.items():
         if(k == 'type'):
             arguments[str(args[0])][type] = v
@@ -24,7 +28,7 @@ def add_argument(*args, **kwargs):
 
 
 def group_args(*args):
-    # Add conflicting arguments to common group
+    # Add conflicting arguments to a common group
     group.append([])
     for arg in args:
         group[len(group)-1].append(arg)
