@@ -1,1 +1,1 @@
-# project-omega
+# Project Omega
