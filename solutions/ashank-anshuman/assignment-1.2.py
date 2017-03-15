@@ -68,7 +68,7 @@ def parser():
                 arg[0] = shortnotation[arg[0].lower()]
             if arguments[arg[0]]["value"] is True:
                 if len(arg) == 2:
-                    if "type" in arguments[arg[0]]:                                  # Checks if value type of argument is correct
+                    if "type" in arguments[arg[0]]:                                # Checks if value type of argument is correct
                         try:
                             temp = arguments[arg[0]]["type"](arg[1])
                         except:
@@ -87,7 +87,7 @@ def parser():
                 if len(arg) == 2:
                     print("Error: argument '",arg[0],"' does not require any value.")
                     exit(0)
-                if arg[0][0] == '-':                                                 # Adds argument to json type object (dictionary in this case)
+                if arg[0][0] == '-':                                                # Adds argument to json type object (dictionary in this case)
                     json_output[arg[0]] = "True"
                 else:
                     json_output["sub"*counter+"command"] = arg[0]
@@ -97,12 +97,12 @@ def parser():
             print("Error: argument '",arg[0],"' not found.")
             exit(0)
 
-    for arg in comp_args:                                                               # Checks for presence of required arguments
+    for arg in comp_args:                                                            # Checks for presence of required arguments
         if arg not in json_output:
             print("Error: '",arg,"' argument is required, but missing from input.")
             exit(0)
 
-    for g in group:                                                                     # Checks if conflicting arguments are present
+    for g in group:                                                                  # Checks if conflicting arguments are present
         count = 0
         temp_list = []
         for arg in json_output:
@@ -114,7 +114,7 @@ def parser():
                        temp_list[1],"' cannot be used together.")
                 exit(0)
 
-    for arg in json_output:                                                             # Formats argument name for returing as json type
+    for arg in json_output:                                                          # Formats argument name for returing as json type
         temp = re.sub('[-]', '', arg)
         json_output[temp] = json_output.pop(arg)
 
