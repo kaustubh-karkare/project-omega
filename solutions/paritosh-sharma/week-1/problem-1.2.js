@@ -55,7 +55,7 @@ function argParser(inputArgs) {
                if(argTypeEnum[argList[j].type] === 0)  {
                   parsedJson[argList[j].key] = str[1];
                }
-               else if(argTypeEnum[argList[j].type] === 1){
+               else if(argTypeEnum[argList[j].type] === 1) {
                   parsedJson[argList[j].key] = true;
                }
                else if(argTypeEnum[argList[j].type] === 2) {
@@ -92,7 +92,7 @@ function argParser(inputArgs) {
       return;
    }
    for(i = 0; i < argList.length; i++) {
-      if(argList[i].required === true && !(argList[i].key in parsedJson)){
+      if(argList[i].required === true && !(argList[i].key in parsedJson)) {
          console.log(`ERROR: Value of ${argList[i].arg}  required`);
          return;
       }
