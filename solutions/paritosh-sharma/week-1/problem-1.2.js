@@ -1,127 +1,121 @@
 
-// add new argument entries here
+// add new argument entries here.
+var argList = [];
 
-var command_args  = [
-   {
-      key: 'command',
-      arg: null,
-      type: 'String',
-      required: false,
-      position: 0
-   },
-   {
-      key: 'subcommand',
-      arg: null,
-      type: 'String',
-      required: false,
-      position: 1
-   },
-   {
-      key: 'key',
-      arg: '--key',
-      type: 'Int',
-      required: true,
-      position: null
-   },
-   {
-      key: 'name',
-      arg: '--name',
-      type: 'String',
-      required: false,
-      position: null
-   },
-   {
-      key: 'verbrose',
-      arg: '-v',
-      type: 'Boolean',
-      required: false,
-      position: null
-   },
-   {
-      key: 'local',
-      arg: '--local',
-      type: 'Boolean',
-      required: false,
-      position: null
-   },
-   {
-      key: 'remote',
-      arg: '--remote',
-      type: 'Boolean',
-      required: false,
-      position: null
+// add aditional argument types here
+
+argTypeEnum = {
+   'String': 0,
+   'Boolean': 1,
+   'Int': 2,
+   '+Int': 3, // represents + integers
+};
+
+function argBuilder(key, arg, type, required, position) {
+   if(key === null){
+      console.log(`ERROR: Key of argument ${arg} cannot be null`);
+      process.exit(1);
    }
-];
-
-var parsed_json = {};
-var err = [],flag,j;
-var entered_args = process.argv.slice(2);
-
-
-function print_json(err){
-   if(err)
-   {
-      console.log('ERROR: ' + err);
-      return;
+   if(!(type in argTypeEnum)){
+      console.log(`ERROR: Invalid type of argument ${arg}`);
+      process.exit(1);
    }
-   for(i=0;i<command_args.length;i++)
-   {
-      if(command_args[i].required === true && !(command_args[i].key in parsed_json)){
-         console.log( "ERROR: Value of " + command_args[i].arg + " required");
-         return;
-      }
-   }
-   console.log(parsed_json);
-   return;
+   var tempObj = {};
+   tempObj.key = key;
+   tempObj.arg = arg;
+   tempObj.type = type;
+   tempObj.position = position;
+   tempObj.required = required;
+   argList.push(tempObj);
 }
 
-arg_parser(entered_args, print_json);
+function argParser(inputArgs) {
 
-function arg_parser(entered_args, callback){
-   for(var i=0; i<entered_args.length; i++){
-      var str = entered_args[i];
+   for(var i = 0; i < inputArgs.length; i++) {
+      var str = inputArgs[i];
       flag = 0;
-      if(str.search('-') === -1){
-         for(j=0; j<command_args.length; j++)
-         {
-            if(command_args[j].position === i){
+      if(str.search('-') !== 0) {
+         for(j = 0; j < argList.length; j++) {
+            if(argList[j].position === i) {
                flag = 1;
-               parsed_json[command_args[j].key] = str;
+               parsedJson[argList[j].key] = str;
             }
          }
-         if(flag === 0){
+         if(flag === 0) {
             console.log(`ERROR: Invalid argument '${str}' entered`);
             return;
          }
       }
-      else{
+      else {
          str = str.split('=');
-         for(j=0; j<command_args.length; j++)
+         for(j = 0; j < argList.length; j++)
          {
-            if(command_args[j].arg === str[0]){
-               flag=1;
-               if(command_args[j].type === 'String'){
-                  parsed_json[command_args[j].key] = str[1];
+            if(argList[j].arg === str[0]) {
+               flag = 1;
+               if(argTypeEnum[argList[j].type] === 0)  {
+                  parsedJson[argList[j].key] = str[1];
                }
-               else if(command_args[j].type === 'Boolean'){
-                  parsed_json[command_args[j].key] = true;
+               else if(argTypeEnum[argList[j].type] === 1){
+                  parsedJson[argList[j].key] = true;
                }
-               else if(command_args[j].type === 'Int'){
-                  if( isNaN(str[1]) || str[1]*1<0 ){
+               else if(argTypeEnum[argList[j].type] === 2) {
+                  if(isNaN(str[1])) {
                      console.log(`ERROR: Invalid value of argument '${str[0]}'. Must be a positive integer`);
                      return;
                   }
-                  else{
-                     parsed_json[command_args[j].key] = str[1];
+                  else {
+                     parsedJson[argList[j].key] = str[1];
+                  }
+               }
+               else if(argTypeEnum[argList[j].type] === 3) {
+                  if( isNaN(str[1]) || str[1] * 1 < 0) {
+                     console.log(`ERROR: Invalid value of argument '${str[0]}'. Must be a positive integer`);
+                     return;
+                  }
+                  else {
+                     parsedJson[argList[j].key] = str[1];
                   }
                }
             }
          }
-         if(flag === 0){
+         if(flag === 0) {
             console.log(`ERROR: Invalid argument '${str[0]}' entered`);
             return;
          }
       }
    }
-   callback();
+
+   // validating. Add aditional validations here
+
+   if(err.length > 0) {
+      console.log('ERROR: ' + err);
+      return;
+   }
+   for(i = 0; i < argList.length; i++) {
+      if(argList[i].required === true && !(argList[i].key in parsedJson)){
+         console.log(`ERROR: Value of ${argList[i].arg}  required`);
+         return;
+      }
+   }
+
+   // output parsedJson
+
+   console.log(parsedJson);
+   return;
 }
+
+// add new arguments here in the format argBuilder('key', 'argumentName', 'type', 'required(Boolean)', position);
+
+argBuilder('command', null, 'String', false, 0);
+argBuilder('subcommand', null, 'String', false, 1);
+argBuilder('key', '--key', '+Int', true, null);
+argBuilder('name', '--name', 'String', false, null);
+argBuilder('verbrose', '-v', 'Boolean', false, null);
+argBuilder('local', '--local', 'Boolean', false, null);
+argBuilder('remote', '--remote', 'Boolean', false, null);
+
+var parsedJson = {};
+var err = [], flag, j;
+var inputArgs = process.argv.slice(2);
+
+argParser(inputArgs);
