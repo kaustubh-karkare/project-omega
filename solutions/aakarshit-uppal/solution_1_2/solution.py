@@ -1,28 +1,30 @@
 """Module facilitating parsing of command line arguments.
 
 Supports positional and optional arguments, and more features, like:
-    - Arguments can be added with specific paramters:
+    - Arguments can be added with specific attributes:
         - alias (to add short name for argument)
         - required (to make argument compulsory)
         - type (to specify type of value for argument)
         - nvals (to specify number of values for argument)
-        - set_value (to specify value to be set on argument use)
+        - setval (to specify value to be set on argument use)
     - Multiple values can be passed for argument
     - Values passed on call can be accessed as ordered or simple dictionary in:
-        - Long form (including none-valued)
-        - Short form (excluding none-valued)
+        - Long form (all arguments)
+        - Short form (excluding arguments with none value)
+    - Usage string can be printed, showing value types, count etc.
     - Values can be printed in JSON format
 
 Usage Example::
-    solution.add_arg('command', type=str)
-    solution.add_arg('subcommand', type=str)
-    solution.add_arg('--keys', type=int, nvals=2, required=True)
-    solution.add_arg('--verbose', '-V', set_value=True)
-    solution.add_arg('--local', set_value=True)
-    solution.add_arg('--remote', set_value=True)
-    solution.make_args_exclusive('--local', '--remote')
-    solution.parse('alpha beta --keys 1 2 -V')
-    solution.print_json()
+    parser = solution.Parser()
+    parser.add_arg('command', type=str)
+    parser.add_arg('subcommand', type=str)
+    parser.add_arg('--keys', type=int, nvals=2, required=True)
+    parser.add_arg('--verbose', '-V', setval=True)
+    parser.add_arg('--local', setval=True)
+    parser.add_arg('--remote', setval=True)
+    parser.make_args_exclusive('--local', '--remote')
+    parser.parse('alpha beta --keys 1 2 -V')
+    parser.print_json()
 Output::
     {"command": "alpha", "subcommand": "beta", "keys": [1, 2], "verbose": true}
 """
@@ -30,251 +32,316 @@ import sys as _sys  # For argv (to read arguments from command line)
 import json as _json  # For dumps (to convert dict to JSON)
 import collections as _collections  # For OrderedDict (For ordered values)
 
-_arg_params = {}
-_positional_args = []
-_optional_args = []
-_required_args = []
-_exclusive_groups = []
-_arg_values = _collections.OrderedDict()
+
+class DuplicateArgError(Exception):
+    def __init__(self, arg_name):
+        error_message = 'The argument \'' + arg_name + '\' already exists.'
+        super().__init__(error_message)
 
 
-def _get_new_params_list():
-    # Returns initial params list
-    return {'alias': None,
-            'required': False,
-            'type': None,
-            'nvals': 1,
-            'value': None,
-            'set_value': None}
+class ParsingError(Exception):
+    # Superclass for all parsing errors
+    def __init__(self, error_message):
+        super().__init__(error_message)
 
 
-def _get_arg_params(arg_name):
-    # Returns param list of arg_name (if existent)
-    if arg_name in _arg_params:
-        return _arg_params[arg_name]
-    else:
-        for arg in _arg_params:
-            if _arg_params[arg]['alias'] == arg_name:
-                return _arg_params[arg]
-    _handle_error('no_such_arg', arg_name)
+class RequiredArgError(ParsingError):
+    def __init__(self, arg_name):
+        error_message = 'The argument \'' + arg_name + '\' is required.'
+        super().__init__(error_message)
 
 
-def _handle_error(type_of_error, *arg_names):
-    # Handles all parsing related errors
-    if type_of_error is 'duplicate_arg':
-        print('Error: The argument', arg_names[0], 'already exists.')
-    if type_of_error is 'missing_required':
-        print('Error: The ', arg_names[0],
-              'argument is required, but missing from input.')
-    if type_of_error is 'exclusive':
-        print('Error:', str(arg_names)[1:-1], 'cannot be used together.')
-    if type_of_error is 'no_such_arg':
-        print('Error: Invalid argument', arg_names[0])
-    if type_of_error is 'too_few_values':
-        print('Error: Too few values supplied for', arg_names[0])
-    if type_of_error is 'invalid_type':
-        print('Error: Invalid value type(s) for', arg_names[0])
-    if type_of_error is 'too_many_posargs':
-        print('Error: Too many positional arguments.')
-    print_usage()
-    _sys.exit(0)
+class ExclusiveArgError(ParsingError):
+    def __init__(self, args):
+        error_message = str(args)[1:-1] + ' cannot be used together.'
+        super().__init__(error_message)
 
 
-def _check_required(cli_args):
-    # Checks if all required arguments were used
-    for arg in _required_args:
-        if arg not in cli_args:
-            _handle_error('missing_required', arg)
+class UnknownArgError(ParsingError):
+    def __init__(self, arg_name):
+        error_message = 'The argument \'' + arg_name + '\' is invalid'
+        super().__init__(error_message)
 
 
-def _check_exclusive(cli_args):
-    # Checks if two or more exclusive arguments were used
-    for arg_group in _exclusive_groups:
-        common_args = set.intersection(set(arg_group), set(cli_args))
-        common_args = list(common_args)
-        common_args.sort()
-        if len(common_args) > 1:
-            _handle_error('exclusive', *common_args)
+class ValueCountError(ParsingError):
+    def __init__(self, arg_name):
+        error_message = 'Too few values supplied for \'' + arg_name + '\''
+        super().__init__(error_message)
 
 
-def _check_and_assign_values(cli_args):
-    # Checks values with params and assigns them
-    i = 0
-    positional_tracker = 0
+class ValueTypeError(ParsingError):
+    def __init__(self, arg_name):
+        error_message = 'Invalid value type(s) for \'' + arg_name + '\''
+        super().__init__(error_message)
 
-    while i < len(cli_args):
-        curr_arg = cli_args[i]
 
-        if curr_arg[0] is '-':
-            params = _get_arg_params(curr_arg)
-            if params is None:
-                return
-            if params['nvals'] is 0:
-                params['value'] = params['set_value']
-            elif params['nvals'] is 1:
-                i += 1
-                try:
-                    params['value'] = params['type'](cli_args[i])
-                except IndexError:
-                    _handle_error('too_few_values', curr_arg)
-                except ValueError:
-                    _handle_error('invalid_type', curr_arg)
-            else:
-                i += 1
-                l = []
-                for j in range(params['nvals']):
-                    try:
-                        l.append(params['type'](cli_args[i]))
-                        i += 1
-                    except IndexError:
-                        _handle_error('too_few_values', curr_arg)
-                    except ValueError:
-                        _handle_error('invalid_type', curr_arg)
-                i -= 1
-                params['value'] = l
+class PosargCountError(ParsingError):
+    def __init__(self):
+        error_message = 'Too many positional arguments (or values).'
+        super().__init__(error_message)
+
+
+class PosargTypeError(ParsingError):
+    def __init__(self, arg_name):
+        error_message = 'Invalid value type for \'' + arg_name + '\''
+        super().__init__(error_message)
+
+
+class _Argument:
+    # Defines attributes for arguments.
+    def __init__(self):
+        self.alias = None
+        self.required = False
+        self.type_ = None
+        self.nvals = 1
+        self.value = None
+        self.setval = None
+        self.excl_tuple = -1
+
+
+class Parser:
+    """Parses arguments."""
+
+    def __init__(self, test=False):
+        """Initialize lists and dictionaries."""
+        self._args = {}
+        self._positional_args = []
+        self._optional_args = []
+        self._required_args = []
+        self._exclusive_groups = []
+        self._arg_values = _collections.OrderedDict()
+        self.test = test
+
+    def _get_arg(self, arg_name):
+        # Returns _Argument object corresponding to arg_name (if existent)
+        if arg_name in self._args:
+            return self._args[arg_name]
         else:
-            try:
-                curr_posarg = _positional_args[positional_tracker]
-                posarg_params = _arg_params[curr_posarg]
-                posarg_params['value'] = posarg_params['type'](curr_arg)
-                positional_tracker += 1
-            except IndexError:
-                _handle_error('too_many_posargs')
-            except ValueError:
-                _handle_error('invalid_type', curr_posarg)
-        i += 1
-    _put_values()
+            for arg in self._args:
+                if self._args[arg].alias == arg_name:
+                    return self._args[arg]
+        self._show_usage_and_raise(UnknownArgError(arg_name))
 
+    def _show_usage_and_raise(self, exception):
+        # Calls print_usage and raises exception
+        if not self.test:
+            self.print_usage()
+        # Uncomment to print single - line errors for exceptions
+        # _sys.excepthook = lambda exctype, exc, traceback: \
+        #     print("{}: {}".format(exctype.__name__, exc))
+        raise exception
 
-def _put_values():
-    # Populates _arg_values with argument names and corresponding values
-    for arg in _positional_args:
-        _arg_values[arg] = _arg_params[arg]['value']
-    for arg in _optional_args:
-        clean_arg = arg[2:]
-        _arg_values[clean_arg] = _arg_params[arg]['value']
+    def _check_required(self, cli_args):
+        # Checks if all required arguments were used
+        for arg in self._required_args:
+            if arg not in cli_args:
+                if self._args[arg].alias not in cli_args:
+                    self._show_usage_and_raise(RequiredArgError(arg))
 
+    def _check_exclusive(self, cli_args):
+        # Checks if two or more exclusive arguments were used
+        for arg_group in self._exclusive_groups:
+            common_args = set.intersection(set(arg_group), set(cli_args))
+            common_args = list(common_args)
+            common_args.sort()
+            if len(common_args) > 1:
+                self._show_usage_and_raise(ExclusiveArgError(common_args))
 
-def add_arg(name, *alias, **params):
-    """Add new argument.
+    def _check_and_assign_values(self, cli_args):
+        # Checks values with argument attributes and assigns them
+        i = 0
+        positional_tracker = 0
 
-    name -- name of argument
-    alias -- alias/short name for argument
-    params -- one or more of:
-        required=(boolean)
-        type=(python type)
-        nvals=(number of values)
-        set_value=(value to set)
-    """
-    if name in _positional_args or name in _optional_args:
-        _handle_error('duplicate_arg', name)
+        while i < len(cli_args):
+            curr_arg = cli_args[i]
 
-    new_arg_params = _get_new_params_list()
+            if curr_arg[0] is '-':
+                arg = self._get_arg(curr_arg)
+                if arg.nvals is 0:
+                    arg.value = arg.setval
+                else:
+                    try:
+                        l = []
+                        for j in range(arg.nvals):
+                            i += 1
+                            l.append(arg.type_(cli_args[i]))
+                        if arg.nvals is 1:
+                            l = l[0]
+                        arg.value = l
+                    except IndexError:
+                        self._show_usage_and_raise(ValueCountError(curr_arg))
+                    except ValueError:
+                        self._show_usage_and_raise(ValueTypeError(curr_arg))
+            else:
+                try:
+                    curr_posarg = self._positional_args[positional_tracker]
+                    posarg = self._args[curr_posarg]
+                    posarg.value = posarg.type_(curr_arg)
+                    positional_tracker += 1
+                except IndexError:
+                    self._show_usage_and_raise(PosargCountError())
+                except ValueError:
+                    self._show_usage_and_raise(PosargTypeError(curr_posarg))
+            i += 1
+        self._put_values()
 
-    if len(alias):
-        new_arg_params['alias'] = alias[0]
-    for key in params:
-        new_arg_params[key] = params[key]
-    _arg_params[name] = new_arg_params
+    def _put_values(self):
+        # Populates self._arg_values with argument names and corresponding
+        # values
+        for posarg_name in self._positional_args:
+            self._arg_values[posarg_name] = self._args[posarg_name].value
+        for optarg_name in self._optional_args:
+            clean_arg = optarg_name[2:]
+            self._arg_values[clean_arg] = self._args[optarg_name].value
 
-    if name[0] is '-':
-        _optional_args.append(name)
-    else:
-        _positional_args.append(name)
-    if new_arg_params['required'] is True:
-        _required_args.append(name)
-    if _arg_params[name]['set_value'] is not None:
-        _arg_params[name]['nvals'] = 0
-        _arg_params[name]['type'] = type(_arg_params[name]['set_value'])
+    def add_arg(self, name, *alias,
+                required=False,
+                type=None,
+                nvals=1,
+                setval=None):
+        """Add new argument.
 
+        name -- name of argument
+        alias -- alias/short name for argument
+        attributes -- one or more of:
+            required=(boolean)
+            type=(python type)
+            nvals=(number of values)
+            setval=(value to set)
+        """
+        if name in self._positional_args or name in self._optional_args:
+            raise DuplicateArgError(name)
 
-def make_args_exclusive(*exclusive_args):
-    """Make (already added) arguments exclusive.
+        new_arg = _Argument()
 
-    exclusive_args -- list of arguments to add to exclusive group
-    """
-    new_exclusive_group = tuple(exclusive_args)
-    _exclusive_groups.append(new_exclusive_group)
+        if len(alias):
+            new_arg.alias = alias[0]
+        new_arg.required = required
+        new_arg.type_ = type
+        new_arg.nvals = nvals
+        new_arg.setval = setval
+        if new_arg.setval is not None:
+            new_arg.nvals = 0
+            new_arg.type_ = __builtins__['type'](new_arg.setval)
 
+        if name[0] is '-':
+            self._optional_args.append(name)
+        else:
+            self._positional_args.append(name)
+        if new_arg.required is True:
+            self._required_args.append(name)
+        self._args[name] = new_arg
 
-def print_usage():
-    """Print usage string."""
-    usage = 'usage: '
-    for arg in _positional_args:
-        if not _arg_params[arg]['required']:
-            usage += '['
-        usage += arg
-        if not _arg_params[arg]['required']:
-            usage += ']'
-        usage += ' '
-    for arg in _optional_args:
-        if not _arg_params[arg]['required']:
-            usage += '['
-        usage += arg
-        if _arg_params[arg]['alias'] is not None:
-            usage += '/' + _arg_params[arg]['alias']
-        if _arg_params[arg]['nvals']:
-            usage += '=' + str(_arg_params[arg]['type'])[8:-2]
-        if not _arg_params[arg]['required']:
-            usage += ']'
-        usage += ' '
-    print(usage)
-    if len(_exclusive_groups):
-        exclusives_list = 'exclusive groups: '
-        for arg_group in _exclusive_groups:
-            exclusives_list += str(arg_group) + ' '
-        print(exclusives_list)
+    def make_args_exclusive(self, *exclusive_args):
+        """Make (already added) arguments exclusive.
 
+        exclusive_args -- list of argument names to add to exclusive group
+        """
+        exclusive_tuple_index = len(self._exclusive_groups)
+        for arg_name in exclusive_args:
+            self._args[arg_name].excl_tuple = exclusive_tuple_index
+        new_exclusive_group = tuple(exclusive_args)
+        self._exclusive_groups.append(new_exclusive_group)
 
-def parse(*cli_args):
-    """Parse command line arguments.
+    def print_usage(self):
+        """Print usage string."""
+        usage = 'usage: '
 
-    cli_args -- string containing arguments to parse
-    """
-    if not len(cli_args):
-        cli_args = _sys.argv
-        cli_args.remove(cli_args[0])
-    else:
-        cli_args = cli_args[0].split()
-    for i in range(len(cli_args)):
-        cli_args[i] = cli_args[i].split('=')
-    cli_args = sum(cli_args, [])
+        # Handle posargs
+        for posarg_name in self._positional_args:
+            posarg = self._args[posarg_name]
+            if not posarg.required:
+                usage += '['
+            usage += posarg_name
+            if not posarg.required:
+                usage += ']'
+            usage += ' '
 
-    _check_required(cli_args)
-    _check_exclusive(cli_args)
-    _check_and_assign_values(cli_args)
+        # Handle optargs
+        excl_optargs_to_skip = []
+        for optarg_name in self._optional_args:
 
+            # Prevent duplication of exclusive optargs
+            if optarg_name in excl_optargs_to_skip:
+                continue
 
-def get_values():
-    """Return dictionary containing values of arguments."""
-    return dict(_arg_values)
+            optarg = self._args[optarg_name]
+            if not optarg.required:
+                usage += '['
+            usage += optarg_name
 
+            # Handle alias
+            if optarg.alias is not None:
+                usage += '/' + optarg.alias
 
-def get_ordered_values():
-    """Return ordered dictionary containing values of arguments."""
-    return _collections.OrderedDict(_arg_values)
+            # Handle exclusive optargs
+            exclusive_tuple_index = optarg.excl_tuple
+            if exclusive_tuple_index is not -1:
+                excl_args = self._exclusive_groups[exclusive_tuple_index]
+                other_excl_args = [x for x in excl_args if x != optarg_name]
+                for arg_name in other_excl_args:
+                    usage += '|' + arg_name
+                    if self._args[arg_name].alias is not None:
+                        usage += '/' + self._args[arg_name].alias
+                    excl_optargs_to_skip.append(arg_name)
 
+            # Handle optargs having nval > 0
+            no_of_values = optarg.nvals
+            if no_of_values:
+                while no_of_values:
+                    usage += ' ' + str(optarg.type_)[8:-2]
+                    no_of_values -= 1
 
-def get_non_none_values():
-    """Return dictionary containing non-none values of arguments."""
-    non_none_values = dict(_arg_values)
-    for arg in _arg_values:
-        if _arg_values[arg] is None:
-            del non_none_values[arg]
-    return dict(non_none_values)
+            if not optarg.required:
+                usage += ']'
+            usage += ' '
 
+        print(usage)
 
-def get_ordered_non_none_values():
-    """Return ordered dictionary containing non-none values of arguments."""
-    non_none_values = _collections.OrderedDict(_arg_values)
-    for arg in _arg_values:
-        if _arg_values[arg] is None:
-            del non_none_values[arg]
-    return _collections.OrderedDict(non_none_values)
+    def parse(self, *cli_args):
+        """Parse command line arguments.
 
+        cli_args -- string containing arguments to parse
+        """
+        if not len(cli_args):
+            cli_args = _sys.argv
+            cli_args.remove(cli_args[0])
+        else:
+            cli_args = cli_args[0].split()
+        for i in range(len(cli_args)):
+            cli_args[i] = cli_args[i].split('=')
+        cli_args = sum(cli_args, [])
 
-def print_json():
-    """Print non-none values in JSON format."""
-    non_none_values = get_ordered_non_none_values()
-    arg_json = _json.dumps(non_none_values)
-    print(arg_json)
+        self._check_required(cli_args)
+        self._check_exclusive(cli_args)
+        self._check_and_assign_values(cli_args)
+
+    def get_values(self):
+        """Return dictionary containing values of arguments."""
+        return dict(self._arg_values)
+
+    def get_ordered_values(self):
+        """Return ordered dictionary containing values of arguments."""
+        return _collections.OrderedDict(self._arg_values)
+
+    def get_non_none_values(self):
+        """Return dictionary containing args with non-none values."""
+        non_none_values = dict(self._arg_values)
+        for arg in self._arg_values:
+            if self._arg_values[arg] is None:
+                del non_none_values[arg]
+        return dict(non_none_values)
+
+    def get_ordered_non_none_values(self):
+        """Return ordered dictionary containing args with non-none values."""
+        non_none_values = _collections.OrderedDict(self._arg_values)
+        for arg in self._arg_values:
+            if self._arg_values[arg] is None:
+                del non_none_values[arg]
+        return _collections.OrderedDict(non_none_values)
+
+    def print_json(self):
+        """Print non-none values in JSON format."""
+        non_none_values = self.get_ordered_non_none_values()
+        arg_json = _json.dumps(non_none_values)
+        print(arg_json)
