@@ -1,112 +1,117 @@
 
 var argList = [];
-var parsedJson = {};
 
-// add aditional argument types here e.g 'Type': 'Conditions on argValue'.
+// add aditional argument types here e.g 'Type': function(argValue) [{ return condition; }, 'Data Type'.
 // Enter 'true' if no conditions
 
 argTypeConditions = {
-   'String': 'true',
-   'Boolean': 'true',
-   'Int': '!isNaN(argValue)',
-   '+Int': '!isNaN(argValue) && argValue * 1 >= 0' // represents + integers.
+  'String': [function(argValue) { return true; }, 'String'],
+  'Boolean': [function(argValue) { return true; }, 'Boolean'],
+  'Int': [function(argValue) { return !isNaN(argValue); }, 'Number'],
+  '+Int': [function(argValue) { return (!isNaN(argValue) && argValue * 1 >= 0); }, 'Number'] // represents + integers.
 };
 
-function argBuilder(key, arg, type, required, position) {
-   if (key === null) {
-      console.log(`ERROR: Key of argument '${arg}' cannot be null`);
-      process.exit(1);
-   }
-   if (!(type in argTypeConditions)) {
-      console.log(`ERROR: Invalid type of argument '${arg}'`);
-      process.exit(1);
-   }
-   var tempObj = {};
-   tempObj.key = key;
-   tempObj.arg = arg;
-   tempObj.type = type;
-   tempObj.position = position;
-   if (required === 'required')
-      tempObj.required = true;
-   else if (required === 'notRequired')
-      tempObj.required = false;
-   else {
-      console.log(`ERROR: Invalid require parameter for argumnet '${arg}'`);
-      process.exit(1);
-   }
-   argList.push(tempObj);
+argTypeEnum  = {
+  'String': 0,
+  'Boolean': 1,
+  'Number': 2
+};
+
+function argTypeCaster(argType, argValue) {
+  switch (argTypeEnum[argType]) {
+    case 0:
+      return argValue;
+    case 1:
+      return true;
+    case 2:
+      return Number(argValue);
+  }
 }
 
-//argument validator function. Add additional validations here.
-//Pass printCheck = true to print parsed arguments.
-
-function argValidator(printCheck) {
-   for (i = 0; i < argList.length; i++) {
-      if (argList[i].required === true && !(argList[i].key in parsedJson)) {
-         console.log(`ERROR: Value of '${argList[i].arg}'  required`);
-         return;
-      }
-   }
-   if (printCheck === true)
-      printParsedArgs();
+function argBuilder(argObj) {
+  if (argObj.key === null) {
+    console.log(`Error: Key of argument '${arg}' cannot be null`);
+    process.exit(1);
+  }
+  if (!(argObj.type in argTypeConditions)) {
+    console.log(`Error: Invalid type of argument '${arg}'`);
+    process.exit(1);
+  }
+  argList.push(argObj);
 }
 
-function printParsedArgs() {
-   console.log(parsedJson);
+// argument validator function. Add additional validations here.
+
+function parsedObjValidator(tempObj) {
+
+  for (i = 0; i < argList.length; i++) {
+    if (argList[i].isRequired === true && !(argList[i].key in tempObj)) {
+      return new Error(`Value of '${argList[i].arg}'  required`);
+    }
+  }
+
+  if (tempObj.remote === true && tempObj.local === true) {
+    return new Error(`Remote and Local arguments cannot be true at the same time`);
+  }
+  return true;
+}
+
+function printParsedArgs(parsedObj) {
+  console.log(parsedObj);
 }
 
 function argParser(inputArgs) {
-   var  ii, jj, flag, argValue;
-   for (ii = 0; ii < inputArgs.length; ii++) {
-      var str = inputArgs[ii];
-      flag = 0;
-      if (str.search('-') !== 0) {
-         for (jj = 0; jj < argList.length; jj++) {
-            if (argList[jj].position === ii) {
-               flag = 1;
-               parsedJson[argList[jj].key] = str;
-            }
-         }
-         if (flag === 0) {
-            console.log(`ERROR: Invalid argument '${str}' entered`);
-            return;
-         }
+  var  ii, jj, argValue, arg, tempObj = {};
+  outerLoop:
+    for (ii = 0; ii < inputArgs.length; ii++) {
+      arg = inputArgs[ii];
+      if (arg.indexOf('-') !== 0) {
+        for (jj = 0; jj < argList.length; jj++) {
+          if (argList[jj].position === ii) {
+            tempObj[argList[jj].key] = arg;
+            continue outerLoop;
+          }
+        }
       } else {
-         str = str.split('=');
-         for (jj = 0; jj < argList.length; jj++) {
-            if (argList[jj].arg === str[0]) {
-               flag = 1;
-               argValue = str[1];
-               if (eval(argTypeConditions[argList[jj].type]))  {
-                  if (argList[jj].type === 'Boolean')
-                     parsedJson[argList[jj].key] = true;
-                  else
-                     parsedJson[argList[jj].key] = argValue;
-               } else {
-                  console.log(`ERROR: Invalid value for argument '${argList[jj].arg}'. Must be of type '${argList[jj].type}'`);
-                  return;
-               }
+          arg = arg.split('=');
+          for (jj = 0; jj < argList.length; jj++) {
+            if (argList[jj].arg === arg[0]) {
+              flag = 1;
+              argValue = arg[1];
+              if ( argTypeConditions[argList[jj].type][0](argValue)) {
+                argValue = argTypeCaster(argTypeConditions[argList[jj].type][1], argValue);
+                tempObj[argList[jj].key] = argValue;
+                continue outerLoop;
+              }
             }
-         }
-         if (flag === 0) {
-            console.log(`ERROR: Invalid argument '${str[0]}' entered`);
-            return;
-         }
-      }
+          }
+        }
+        return new Error(`Invalid argument '${inputArgs[ii]}' entered. Check Type and Key`)
+    }
+   var validationResult = parsedObjValidator(tempObj);
+   if (validationResult instanceof Error) {
+     return validationResult;
    }
-   argValidator(true);
+  return tempObj;
 }
 
-// add new arguments here in the format argBuilder('key', 'argumentName', 'type', 'required/notRequired', position(if necessary));
+// add new arguments here in the format argBuilder({key: 'argKey', arg: argName, type: 'argType', isRequired: true/false, position: index});
 
-argBuilder('command', null, 'String', 'notRequired', 0);
-argBuilder('subcommand', null, 'String', 'notRequired', 1);
-argBuilder('key', '--key', '+Int', 'required');
-argBuilder('name', '--name', 'String', 'notRequired');
-argBuilder('verbrose', '-v', 'Boolean', 'notRequired');
-argBuilder('local', '--local', 'Boolean', 'notRequired');
-argBuilder('remote', '--remote', 'Boolean', 'notRequired');
+argBuilder({ key: 'command', arg: null, type: 'String', isRequired: false, position: 0 });
+argBuilder({ key: 'subcommand', arg: null, type: 'String', isRequired: false, position: 1 });
+argBuilder({ key: 'key', arg: '--key', type: '+Int', isRequired: true, position: null });
+argBuilder({ key: 'name', arg: '--name', type: 'String', isRequired: false, position: null });
+argBuilder({ key: 'verbrose', arg: '-v', type: 'Boolean', isRequired: false, position: null });
+argBuilder({ key: 'local', arg: '--local', type: 'Boolean', isRequired: false, position: null });
+argBuilder({ key: 'remote', arg: '--remote', type: 'Boolean', isRequired: false, position: null });
 
 var inputArgs = process.argv.slice(2);
 
-argParser(inputArgs);
+var parsedObj = argParser(inputArgs);
+
+if (parsedObj instanceof Error) {
+  console.log(parsedObj);
+  process.exit(1);
+}
+else
+  printParsedArgs(parsedObj);
