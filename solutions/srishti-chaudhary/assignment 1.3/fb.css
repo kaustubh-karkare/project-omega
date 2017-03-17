@@ -130,39 +130,6 @@ li{
 	color:#363030;
 
 }
-.post0{
-	top:70px;
-	left:240px;
-	position:absolute;
-	width:600px;
-	height:210px;
-	-webkit-box-shadow:0 3px 8px rgba(0, 0, 0, .25);
-}
-.post1{
-	top:290px;
-	left:240px;
-	-webkit-box-shadow:0 3px 8px rgba(0, 0, 0, .25);
-	position:absolute;
-	background:white;
-	width:580px;
-	height:600px;
-	border-radius:3px/3px;
-	padding-left:10px;
-	padding-right:10px;
-	padding-top:10px;
-}
-
-.header01{
-	position:fixed;
-	width:100%;
-	height:60px;
-	background:#142170;
-	top:0;
-	left:0;
-	color:white;
-	z-index:6;
-	-webkit-box-shadow:0 3px 8px rgba(0, 0, 0, .25);
-}
 .post{
 	top:70px;
 	left:240px;
