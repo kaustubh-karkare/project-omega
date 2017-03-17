@@ -8,31 +8,37 @@
   </head>
 
   <body>
-    <div class="header1">
-      <div id="img" class="header1"><img src="main_logo.png" height="50px" /></div>
-      <div id="search_area" class="header1">
+    <div class="header">
+      <div id="main_logo" class="header"><img src="main_logo.png"/></div>
+      <div id="search_area" class="header">
         <input placeholder="Search Here..." type="text"/>
       </div>
-      <div id="profile" class="header1"><img src="prof.png" height="40px"></div>
-      <div id="profile1" class="header1">
+      <div id="profile_logo" class="header"><img src="prof.png"></div>
+      <div id="profile" class="header">
         Profile
       </div>
-      <div id="Home" class="header1">
+      <div id="Home" class="header">
         Home
       </div>
-      <div id="notification" class="header1"><img src="noti.png" height="40px"></div>
-      <div id="setting" class="header1"><img src="set.png" height="40px"></div>
-      <div id="logout" class="header1"><img src="lo.png" height="40px"></div>
+      <div id="notification" class="header">
+        <img src="noti.png">
+      </div>
+      <div id="setting" class="header">
+        <img src="set.png">
+      </div>
+      <div id="logout" class="header">
+        <img src="lo.png">
+      </div>
     </div>
 
     <div class="side">
-      <ul style="list-style-type:none">
+      <ul>
         <li>Profile</li>
         <li>Edit Profile</li>
         <li>News Feed</li>
         <li>Messenger</li>
         <li>Shortcuts
-        <ul style="list-style-type:none">
+        <ul>
           <li>ACM BIT Mesra</li>
           <li>IET BIT Mesra</li>
           <li>EDC BIT Mesra</li>
@@ -40,7 +46,7 @@
         </ul>
        </li>
        <li>Explore
-       <ul style="list-style-type:none">
+       <ul>
          <li>Events</li>
          <li>Saved</li>
          <li>Pages</li>
@@ -50,13 +56,24 @@
       </ul>
     </div>
 
-    <div class="post"></div>
+    <div class="post">
+      <div id="column" class="postbox">
+        Create a Post | Photo/Video Album<hr><br><br><br><br><br><br><hr>
+      </div>
+      <div id="postpost" class="postbox">
+        <input type="submit" value="post"/>
+      </div>
+      <div id="postbox" class="postbox">
+        <textarea placeholder="What's on your mind?" type="text" id="boxs">
+        </textarea>
+      </div>
+    </div>
 
     <div class="sidenews">
       <div id="sidecolumn">
-        Event<hr>
+        Event<br>
         <p1>Today is Ankur's birthday<br>1 Event invite</p1><br><br>
-        Trending<hr>
+        Trending<br>
         <p1>Emma Watson</p1><br>
         <p2>310K people are talking about this</p2><br><br>
         <p1>Shakib Al Hasan</p1><br>
@@ -66,22 +83,22 @@
       </div>
     </div>
 
-    <div class="post1">
-      <div id="column" class="post1">Create a Post | Photo/Video Album<hr><br><br><br><br><br><br><hr></div>
-      <div id="postpost" class="post1"><input type="submit" value="post"/></div>
-      <div id="postbox" class="post1"><textarea placeholder="What's on your mind?" type="text" id="boxs"></textarea></div>
-    </div>
 
     <div class="newsfeed">
       <img src="prof.png" height="40px"/><br><br>
       <img src="wall.jpg" height="411" width="580"/><br><br>
-      <p1>LIKE COMMENT SHARE</p1><hr><p1>Abhijeet Singh and 20 others like this</p1>
-      <div id="posttext" class="newsfeed">
+      <p1>LIKE COMMENT SHARE</p1><hr>
+      <p1>Abhijeet Singh and 20 others like this</p1>
+      <div id="posttext" class="newsfeedbox">
         <p1>Gurmail Singh with Anil khamba and 10 others<br></p1>
         <p2>4hrs</p2>
       </div>
-      <div id="commentpic"><img src="prof.png" height="40px"/></div>
-      <div id="commentbox" class="newsfeed"><input type="textarea" placeholder="comment" id="commentbox2"/></div>
+      <div id="commentpic" class="newsfeedbox">
+        <img src="prof.png" height="40px"/>
+      </div>
+      <div id="commentbox" class="newsfeedbox">
+        <input type="textarea" placeholder="comment"/>
+      </div>
     </div>
   </body>
 </html>

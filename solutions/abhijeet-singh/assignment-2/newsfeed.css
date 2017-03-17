@@ -2,7 +2,7 @@ body{
 	background: #bcbdc4;
 	height:1000px;
 }
-.header1{
+.header{
 	position:fixed;
 	width:100%;
 	height:60px;
@@ -12,7 +12,11 @@ body{
 	color:white;
 	z-index:2;
 }
-#img{
+.header img{
+	padding-top:5px;
+	height:40px;
+}
+#main_logo{
 	left:100px;
 	height:50px;
 	top:5px;
@@ -22,54 +26,55 @@ body{
 	left:250px;
 	height:40px;
 }
-#profile{
-	top:15px;
+#profile_logo{
+	top:5px;
 	left:750px;
 	height:40px;
 }
-#profile1{
-	top:20px;
+#profile{
+	top:15px;
 	left:800px;
 	font-size:20px;
 	height:40px;
 	color:grey;
 }
 #home{
-	top:20px;
+	top:15px;
 	left:880px;
 	font-size:20px;
 	height:40px;
 	color:grey;
 }
 #notification{
-	top:15px;
+	top:5px;
 	left:970px;
 	height:40px;
 }
 #setting{
-	top:15px;
+	top:5px;
 	left:1040px;
 	height:40px;
 }
 #logout{
-	top:15px;
+	top:5px;
 	left:1110px;
 	height:40px;
 }
 .side{
 	top:70px;
-	position:absolute;
+	padding-top:50px;
 	left:30px;
 	width:200px;
 	height:740px;
 }
-li{
+.side li{
     	padding-top:5px;
 	padding-bottom:5px;
 	margin-left:-15px;
 }
-ul{
+.side ul{
 	padding-top:3px;
+	list-style-type:none;
 }
 .post{
 	top:70px;
@@ -83,18 +88,26 @@ ul{
 .newsfeed{
 	top:300px;
 	left:250px;
-	position:absolute;
 	width:580px;
 	height:600px;
 	background:white;
+	margin-top:-280px;
+	margin-left:240px;
 	padding-top:10px;
 	padding-left:10px;
 	padding-right:10px;
 	box-shadow:0 3px 7px grey;
 }
+.newsfeedbox{
+	top:300px;
+	left:240px;
+	width:580px;
+	height:600px;
+}
 .sidenews{
 	top:70px;
-	position:absolute;
+	margin-left:880px;
+	margin-top:-720px;
 	width:220px;
 	left:880px;
 	height:500px;
@@ -102,10 +115,9 @@ ul{
 	box-shadow:0 3px 7px grey;
 	font-size:15px;
 }
-.post1{
+.postbox{
 	top:70px;
 	left:240px;
-	position:absolute;
 	width:600px;
 	height:210px;
 }
@@ -122,14 +134,18 @@ ul{
 #postpost{
 	left:450px;
 	top:170px;
+	margin-top:-45px;
+	margin-left:500px;
 	width:85px;
 	height:30px;
 }
 #postbox{
+	margin-top:-150px;
+	margin-left:20px;
 	top:45px;
 	left:20px;
 	height:105px;
-	width:580px;
+	width:560px;
 }
 #boxs{
 	height:105px;
@@ -138,24 +154,29 @@ ul{
 #posttext{
 	left:55px;
 	top:0px;
+	margin-top:-550px;
+	margin-left:50px;
 	padding-top:10px;
 	height:40px;
 	width:400px;
 }
 #commentpic{
-	top:580px;
-	left:0px;
+	top:560px;
+	left:10px;
+	margin-top:510px;
 	padding-top:0px;
 	width:30px;
 	height:30px;	
 }
 #commentbox{
+	margin-left:50px;
+	margin-top:-30px;
 	top:560px;
 	left:50px;
 	width:520px;
 	height:30px;
 }
-#commentbox2{
+#commentbox input{
 	width:520px;
 	height:30px;
 }
