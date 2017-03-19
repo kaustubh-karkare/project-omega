@@ -1,69 +1,119 @@
 #include <bits/stdc++.h>
 using namespace std;
-// Global vector storing the JSON converted data.
-vector<pair<string, string> > json;
-// Attributes of the parameter.
-struct parameter_node {
-  string parameter_name;
-  string parameter_shorthand;
-  string parameter_data_type;
-  pair<bool, string> parameter_data;
-  set<string> parameter_exclusive_list;
-  string parameter_help;
+
+class parser {
+ private:
+  // Attributes of the parameter.
+  struct parameter_node {
+    string name;
+    string shorthand;
+    string data_type;
+    string value;
+    bool is_data_required;
+    set<string> exclusive_list;
+    string help_instruction;
+  };
+  int number_of_commands_recieved;
+  vector<pair<string, string> > json;
+
+ public:
+  // Constructor for specifying instances at the time of creation
+  parser() {
+    number_of_commands_recieved = 0;
+  } 
+  // structure to store at any instance the parameter and the argument under
+  // consideration
+
+  struct parameter_and_argument_node {
+    bool is_argument_available;
+    string parameter_name;
+    string parameter_argument;
+  } parameter_and_argument;
+  
+  // Vector of object of struct parameter_node to store all parameters.
+
+  vector<struct parameter_node> parameter_list;
+
+  void argument_assignment(
+    string name_argument, string data_type_argument, string argument_existence,
+    string shorthand_argument);
+  int find_index(string parameter);
+  void create_exclusive_parameters_set(string ex_list[], int size_of_ex_list);
+  void extract_parameter_and_argument(string current_parameter);
+  bool is_integer(string num);
+  bool is_floating(string num);
+  bool is_boolean(string num);
+  void if_valid_data_type(int parameter_index, string current_argument);
+  void parameter_and_argument_parsing(string current_parameter);
+  void check_exclusivity_of_json();
+  void help_function();
+  void display_without_hyphen(string parameter);
+  void display_json();
 };
-void parameter_declaration(vector<struct parameter_node> &parameter, string
-    p_name, string p_shorthand, string p_data_type, string p_help) {
+
+void parser::argument_assignment(
+    string name_argument, string data_type_argument, string argument_existence,
+    string shorthand_argument) {
+
+  // Temporary object ob creation.
+
   struct parameter_node ob;
-  ob.parameter_name = p_name;
-  ob.parameter_shorthand = p_shorthand;
-  ob.parameter_data_type = p_data_type;
-  ob.parameter_help = p_help;
-  ob.parameter_data.first = false;
-  ob.parameter_data.second = '\n';
-  parameter.push_back(ob);
+  ob.name = name_argument;
+  ob.shorthand = shorthand_argument;
+  ob.data_type = data_type_argument;
+  if (argument_existence == "compulsory") {
+    ob.is_data_required = true;
+  }
+  else {
+    ob.is_data_required = false;
+  }
+  if (ob.is_data_required == true) {
+    ob.help_instruction = "Compulsory argument";
+  }
+  else {
+    ob.help_instruction = "Optional argument";
+  }
+  ob.help_instruction += " of type " + data_type_argument;
+  parameter_list.push_back(ob);
 }
-// Index of a parameter in the structure object vector
-int find_index(vector<struct parameter_node> parameter, string dummy) {
-  for (int i = 0; i < parameter.size(); ++i) {
+
+// Index of the parameter in the parameter_list
+int parser::find_index(string current_parameter) {
+  if (current_parameter.length() == 0) {
+    return -1;
+  }
+  for (int i = 0; i < parameter_list.size(); ++i) {
     if (
-      parameter[i].parameter_name == dummy || 
-      parameter[i].parameter_shorthand == dummy) {
+      parameter_list[i].name == current_parameter ||
+      parameter_list[i].shorthand == current_parameter ) {
       return i;
     }
   }
   return -1;
 }
-void create_exclusive_parameters(vector<struct parameter_node> parameter,
-    string ex_list[], int s) {
-  for (int i = 0; i < s; ++i) {
-    int index = find_index(parameter, ex_list[i]);
+
+void parser::create_exclusive_parameters_set
+    (string ex_list[], int size_of_ex_list) {
+  if (size_of_ex_list == 0) {
+    return;
+  }
+  for (int i = 0; i < size_of_ex_list; ++i) {
+    int index = find_index(ex_list[i]);
     if (index == -1) {
-      cout << "Undefined parameter\n" ;
+      display_without_hyphen(ex_list[i]);
+      cout << " is an undefined parameter\n" ;
       exit(1);
     }
-    for (int j = 0; j < s; ++j) {
+    for (int j = 0; j < size_of_ex_list; ++j) {
       if (i == j) {
         continue;
       }
-    parameter[index].parameter_exclusive_list.insert(ex_list[j]);
+      parameter_list[index].exclusive_list.insert(ex_list[j]);
     }
   }
 }
-// Extract the string content without '-' at any index of argv
-string extract_string(char *argv[], int index) {
-  int i = 0;
-  string curr_temp = argv[index];
-  while (curr_temp[i] == '-') {
-    ++i;
-  }
-  string dummy;
-  while (curr_temp[i] != '\n' && i < curr_temp.length() && curr_temp[i] != '=') {
-    dummy +=  curr_temp[i];
-    ++i;
-  }
-  return dummy;
-}
-bool is_integer(string num) {
+
+bool parser::is_integer(string num) {
   bool is_integer = true;
   for (int i = 0; i < num.length() && is_integer; ++i) {
     if (!(num[i] >= '0' && num[i] <= '9')) {
@@ -72,7 +122,8 @@ bool is_integer(string num) {
   }
   return is_integer;
 }
-bool is_floating(string num) {
+
+bool parser::is_floating(string num) {
   bool is_float = true;
   int decimal = 0;
   for (int i = 0; i < num.length() && is_float; ++i) {
@@ -89,13 +140,14 @@ bool is_floating(string num) {
   }
   return is_float;
 }
-bool is_boolean(string num) {
+
+bool parser::is_boolean(string num) {
   if (
     num == "true" ||
     num == "TRUE" ||
     num == "True" ||
     num == "false" ||
-    num == "FALSE" || 
+    num == "FALSE" ||
     num == "False") {
     return true;
   }
@@ -103,122 +155,194 @@ bool is_boolean(string num) {
     return false;
   }
 }
-// To check for the argument along with the parameter given by the user.
-void parameter_argument(vector<struct parameter_node> parameter, int argc,
-    char *argv[], int &index) {
-  string dummy = extract_string(argv, index);
-  int option_index = find_index(parameter, dummy);
-  if (option_index == -1) {
-    cout << dummy << " ";
-    cout << "parameter does not exist\n";
+
+void parser::if_valid_data_type(int parameter_index, string current_argument) {
+  bool valid_data_type = true;
+  if (parameter_list[parameter_index].data_type == "int") {
+    valid_data_type = is_integer(current_argument);
+  }
+  else if (parameter_list[parameter_index].data_type == "float") {
+    valid_data_type = is_floating(current_argument);
+  }
+  else if (parameter_list[parameter_index].data_type == "bool") {
+    valid_data_type = is_boolean(current_argument);
+  }
+  else {
+    // By default all are considered to be string.
+    valid_data_type = true;
+  }
+  if (valid_data_type == false) {
+    display_without_hyphen(parameter_list[parameter_index].name);
+    cout << " has an invalid data\n";
     exit(1);
   }
-  if (parameter[option_index].parameter_data.first == false) {
-    string data_dummy;
-    int k = 0;
-    string curr_temp =  argv[index];
-    while (k < curr_temp.length() && 
-        curr_temp[k] != '\n' && curr_temp[k] != '=') {
-      ++k;
+}
+
+void parser::extract_parameter_and_argument(
+    string current_parameter) {
+  int i = 0;
+  string current_extracted_parameter;
+
+  // If the input is of the form --key=1234
+  // Extract only parameter i.e --key
+
+  while (i < current_parameter.length() && current_parameter[i] != '=') {
+      current_extracted_parameter +=  current_parameter[i];
+    ++i;
+  }
+  ++i;
+  string current_extracted_argument;
+  while (i < current_parameter.length()) {
+      current_extracted_argument += current_parameter[i];
+    ++i;
+  }
+  parameter_and_argument.parameter_name =
+      current_extracted_parameter;
+  parameter_and_argument.parameter_argument =
+      current_extracted_argument;
+  if (current_extracted_argument.length() == 0) {
+    parameter_and_argument.is_argument_available = false;
+  }
+  else {
+    parameter_and_argument.is_argument_available = true;
+  }
+}
+// To check for the argument along with the parameter given by the user.
+void parser::parameter_and_argument_parsing(string current_parameter) {
+  if (current_parameter == "--help" || current_parameter == "-h") {
+    help_function();
+  }
+  extract_parameter_and_argument(current_parameter);
+  int parameter_index = find_index(parameter_and_argument.parameter_name);
+  if (parameter_index == -1) {
+    display_without_hyphen(parameter_and_argument.parameter_name);
+    cout <<" is undefined\n";
+    exit(1);
+  }
+  parameter_list[parameter_index].value = 
+      parameter_and_argument.parameter_argument;
+  // If a command or a sub-command
+  
+  if (current_parameter.length() > 0 && current_parameter[0] != '-') {
+    string current_id_value ;
+    for (int i = 0; i < number_of_commands_recieved; ++i) {
+      current_id_value += "sub-";
     }
-    if (k < curr_temp.length() && curr_temp[k] != '\n') {
-      ++k;
-      while (k < curr_temp.length() && curr_temp[k] != '\n') {
-        data_dummy += curr_temp[k];
-        ++k;
-      }
-    ++index;
-    }
-    else {
-      ++index;
-      data_dummy = extract_string(argv, index);
-      ++index;
-    }	
-    bool valid_data_type = true;
-    if (parameter[option_index].parameter_data_type == "int") {
-      valid_data_type = is_integer(data_dummy);
-    }
-    else if (parameter[option_index].parameter_data_type == "float") {
-      valid_data_type = is_floating(data_dummy);
-    }
-    else if (parameter[option_index].parameter_data_type == "bool") {
-      valid_data_type = is_boolean(data_dummy);
-    }
-    else {
-      valid_data_type = true;
-    }
-    if (valid_data_type == false) {
-      cout << "Argument is either invalid or not provided\n";
-      exit(1);
-    }
-    json.push_back(make_pair(dummy, data_dummy));
+    current_id_value += "command";
+    json.push_back(make_pair(current_id_value, current_parameter));
+    ++number_of_commands_recieved;
     return;
   }
-  ++index;
-}
-//  To check if a command is valid or not.
-bool check_command(vector<string> command_list, string dummy) {
-  for (int i = 0; i < dummy.size(); ++i){
-    if (dummy == command_list[i]){
-      return true;
+  if (parameter_and_argument.is_argument_available == false) {
+    if (parameter_list[parameter_index].is_data_required == true) {
+      display_without_hyphen(parameter_list[parameter_index].name);
+      cout << "is missing argument\n";
+    }
+    else {
+      json.push_back(make_pair(parameter_list[parameter_index].name,
+          "null"));
     }
   }
-  return false;
+  else {
+    if_valid_data_type(parameter_index,
+        parameter_list[parameter_index].value);
+    json.push_back(make_pair(parameter_list[parameter_index].name,
+        parameter_list[parameter_index].value));
+  }
 }
-// To check for exclusivity of parameters.
-void exclusivity(vector<struct parameter_node> parameter) {
+
+// To check for check_exclusivity_of_json of parameters.
+
+void parser::check_exclusivity_of_json() {
   for (int i = 0; i < json.size(); ++i) {
-    string dummy = json[i].first;
-    int index = find_index(parameter, dummy);
+    // The first element of json pair contains the parameter name.
+    string current_parameter = json[i].first;
+    // If the parameter is a command the second element of the json pair is the
+    // parameter.
+    if (current_parameter.length() > 0 && current_parameter[0] != '-') {
+      current_parameter = json[i].second;
+    }
+    int parameter_index = find_index(current_parameter);
     for (int j = 0; j < json.size(); ++j) {
       if (i == j) {
         continue;
       }
-      set <string> :: iterator it = 
-          parameter[index].parameter_exclusive_list.begin();
-      int option_index = find_index(parameter, json[j].first);
-      while (it != parameter[index].parameter_exclusive_list.end()) {
-        if (*it == dummy) {
-          cout<< dummy << " and " << *it << " cannot be together\n";
-	  exit(1);
+      set <string>::iterator it =
+        parameter_list[parameter_index].exclusive_list.begin();
+      int current_parameter_index = find_index(json[j].first);
+      while (it != parameter_list[parameter_index].exclusive_list.end()) {
+        if (*it == json[j].first) {
+          display_without_hyphen(json[i].first);
+          cout << " and ";
+          display_without_hyphen(*it);
+          cout  << " cannot be used simultaeously\n";
+          exit(1);
         }
-      ++it;
+        ++it;
       }
     }
   }
 }
-void help_function(vector<struct parameter_node> parameter) {
-  for (int i = 0; i < parameter.size(); ++i) {
-    cout << "--" << parameter[i].parameter_name << " -" << 
-        parameter[i].parameter_shorthand << " " << 
-        parameter[i].parameter_help << endl;
+
+void parser::help_function() {
+  for (int i = 0; i < parameter_list.size(); ++i) {
+    cout << parameter_list[i].name;
+    if (parameter_list[i].shorthand.length() > 0) {
+      cout << " " << parameter_list[i].shorthand;
+    }
+    cout << " " << parameter_list[i].help_instruction << "\n";
   }
+  exit(1);
 }
-void display() {
-  cout << "{ ";
-  for (int i = 0; i < json.size() - 1; ++i) {
-    cout << "\"" << json[i].first << "\":" << "\"" << json[i].second << "\",";
+
+void parser::display_without_hyphen(string parameter) {
+  int i = 0;
+  while (i < parameter.length() && parameter[i] == '-' && i <= 1) {
+    ++i;
   }
-  cout << "\"" << json[json.size() - 1].first << "\":" << 
-      "\"" << json[json.size() - 1].second << "\"";
+  cout << parameter.substr(i, parameter.length() - i);
+}
+void parser::display_json() {
+  if (json.size() == 0) {
+    return;
+  }
+  cout << "{";
+  for (int i = 0; i < json.size() - 1; ++i) {
+    cout << "\"";
+    display_without_hyphen(json[i].first);
+    cout <<  "\": " << "\"" << json[i].second << "\", ";
+  }
+  cout << "\"";
+  display_without_hyphen(json[json.size() - 1].first);
+  cout << "\": " << "\"" << json[json.size() - 1].second << "\"";
   cout << "}\n";
 }
+
+
 int main(int argc, char *argv[]) {
-  vector<struct parameter_node> parameter;
+  // Test class parser object
+  class parser parser_object;
+
   // Input the parameter with the argument;
-  // Enter the parameter name, shorthand representaion(optional), data type and
-  // the help message to be displayed;
-  // Function definition:- 
-  // void parameter_declaration(vector <struct parameter_node> &parameter,
-  // string p_name, string p_shorthand, string p_data_type, 
-  // string p_help);
-  // Data types supported are "int", "float", "bool", "string".
-  // The data type is case sensitive and by default all parameters are string. 	
+  // Enter the parameter name, data type, existence status of argument,
+  // shorthand representaion(optional).
+  // Function definition:-
+  // void argument_assignment(
+  // string name_argument, string data_type_argument,
+  // string argument_existence, string shorthand_argument);
+  // Data types supported are "int", "float", "bool", "string", "none"
+  // The data type is case sensitive and by default all parameters are string.
+  // Argument existence states are "optional" and "compulsory"
   // Test data
-  parameter_declaration(parameter, "key", "\n", "int",
-      "--key to initialise key");
-  parameter_declaration(parameter, "name", "\n", "string",
-      "--name to initilase name");
+
+  parser_object.argument_assignment("--help", "none", "optional", "-h");
+  parser_object.argument_assignment("--key", "int", "compulsory", "\n");
+  parser_object.argument_assignment("--name", "string", "optional", "\n");
+  parser_object.argument_assignment("alpha", "none", "optional", "\n");
+  parser_object.argument_assignment("beta", "none", "optional", "\n");
+  parser_object.argument_assignment("--local", "bool", "optional", "\n");
+  parser_object.argument_assignment("--remote", "bool", "optional", "\n");
+
   // Enter parameters here.
   // ...
 
@@ -226,66 +350,27 @@ int main(int argc, char *argv[]) {
   // Enter the list of mutually exclusive elements in an array of string.
   // Also define the number of elements pushed in the array.
   // Function definition:-
-  // void create_exclusive_parameters(
-  // vector <struct parameter_node> parameter, string ex_list[], int size);
-  // Test data 
-  string ex_list[] = {"local", "remote"};
-  create_exclusive_parameters(parameter, ex_list, 2);
+  // void create_exclusive_parameters_set(string ex_list[], int size);
+  // Test data
+
+  string ex_list[] = {"--local", "--remote"};
+  parser_object.create_exclusive_parameters_set(ex_list,
+      sizeof(ex_list) / sizeof(ex_list[0]));
+
   // Enter mutually exclusive elements.
   // ...
 
-  // Enter the command list for the parser
-  vector<string> command_list;
-  // Push back the command in the command list.
-  // Test data
-  command_list.push_back("alpha");
-  command_list.push_back("beta");
-  // ...
-  // Enter the commands here.
-  
   int index = 1;
   if (argc < 2) {
     cout << "No parameter or command given\n";
     exit(1);
   }
-  int counter = 0;
   while (index < argc) {
-    string curr_temp = argv[index];
-    if (curr_temp == "-h" || curr_temp == "--help") {
-      help_function(parameter);
-      ++index;
-      continue;
-    }
-    // If a parameter.
-    if (curr_temp[0] == '-') {
-      parameter_argument(parameter, argc, argv, index);
-    }
-    else {	
-      // If a command or a sub command.
-      string dummy = extract_string(argv, index);
-      bool command_possible = check_command(command_list, dummy);
-      if (command_possible == false) {
-        cout << "Invalid command\n" ;
-        exit(1);
-      }
-      string id = "\n";
-      // Primary command
-      if (counter == 0) {
-      json.push_back(make_pair("command", dummy));
-      ++counter;
-      }
-      // Sub - command
-      else {
-        for (int i = 0; i < counter; ++i) {
-          id += "sub-";
-        }
-      id += "command";
-      json.push_back(make_pair(id, dummy));
-      }
+    string current_parameter = argv[index];
+    parser_object.parameter_and_argument_parsing(current_parameter);
     ++index;
-    }  
   }
-  exclusivity(parameter);
-  display();
+  parser_object.check_exclusivity_of_json();
+  parser_object.display_json();
   return 0;
 }
