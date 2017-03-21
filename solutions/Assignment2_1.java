@@ -38,7 +38,7 @@ class Server extends Thread {
 // Class which is responsible for processing Client request
 class ClientServiceThread extends Thread {
   Socket socket;
-  //Constructor
+  // Constructor
   public ClientServiceThread(Socket socket) {
     this.socket = socket;
   }
@@ -202,5 +202,8 @@ class Assignment2_1 {
       client[i].start();
     }
     logger.log(Level.INFO, "All clients served");
+    try {
+      server.join(); // To ensure that main thread does not end till server is running
+    } catch(Exception e) {}  
   }
 }
