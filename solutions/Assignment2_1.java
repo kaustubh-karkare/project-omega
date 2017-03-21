@@ -27,7 +27,7 @@ class Server extends Thread {
       logger.log(Level.INFO, "Waiting for client to connect");
       try {
         socket = serverSocket.accept();
-      } catch(Exception e){}
+      } catch(Exception e) {}
       logger.log(Level.INFO, "Client connected");
       ClientServiceThread worker = new ClientServiceThread(socket);
       worker.start();
@@ -155,7 +155,7 @@ class Assignment2_1 {
   static Client[] client;
   static String[] input;
   // Method to create log file
-  public static void initLog(){
+  public static void initLog() {
     try {
       fh = new FileHandler("Status.log", false);
     }
