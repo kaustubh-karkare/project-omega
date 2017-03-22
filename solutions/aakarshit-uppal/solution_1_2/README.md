@@ -10,7 +10,7 @@ Supports positional and optional arguments, and more features, like:
     - `nvals` (to specify number of values for argument)
     - `set_value` (to specify value to be set on argument use)
 - Multiple values can be passed for argument
-- Values passed on call can be accessed as ordered or simple dictionary in:
+- Values passed on call can be accessed as a dictionary in:
     - Long form (all arguments)
     - Short form (excluding arguments with none value)
 - Values can be printed in JSON format

@@ -7,7 +7,7 @@ import solution
 class TestArgAddition(unittest.TestCase):
 
     def setUp(self):
-        self.parser = solution.Parser(test=True)
+        self.parser = solution.Parser()
 
     def test_duplicate_addition(self):
         self.parser.add_arg('--first', setval=True)
@@ -18,7 +18,7 @@ class TestArgAddition(unittest.TestCase):
 class TestArgParsing(unittest.TestCase):
 
     def setUp(self):
-        self.parser = solution.Parser(test=True)
+        self.parser = solution.Parser()
         self.parser.add_arg('command', type=str)
 
     def test_positional_args(self):
@@ -26,7 +26,7 @@ class TestArgParsing(unittest.TestCase):
         self.parser.parse('alpha beta')
         expected_values = {'command': 'alpha', 'subcommand': 'beta'}
         real_values = self.parser.get_non_none_values()
-        self.assertEqualDict(expected_values, real_values)
+        self.assertDictEqual(expected_values, real_values)
 
     def test_short_name(self):
         self.parser.add_arg('--verbose', '-V', setval=True)
@@ -34,14 +34,14 @@ class TestArgParsing(unittest.TestCase):
         self.parser.parse('alpha -V')
         expected_values = {'command': 'alpha', 'verbose': True}
         real_values = self.parser.get_non_none_values()
-        self.assertEqualDict(expected_values, real_values)
+        self.assertDictEqual(expected_values, real_values)
 
     def test_multiple_values(self):
         self.parser.add_arg('--dimen', type=int, nvals=2)
         self.parser.parse('area --dimen 12 10')
         expected_values = {'command': 'area', 'dimen': [12, 10]}
         real_values = self.parser.get_non_none_values()
-        self.assertEqualDict(expected_values, real_values)
+        self.assertDictEqual(expected_values, real_values)
 
     def test_required_arg_not_used(self):
         self.parser.add_arg('--key', type=int, required=True)
@@ -73,10 +73,6 @@ class TestArgParsing(unittest.TestCase):
     def test_undefined_arg_used(self):
         with self.assertRaises(solution.UnknownArgError):
             self.parser.parse('alpha --real')
-
-    def assertEqualDict(self, dict_a, dict_b):
-        for key in dict_a:
-            self.assertEqual(dict_a[key], dict_b[key])
 
 
 if __name__ == '__main__':
