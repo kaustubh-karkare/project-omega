@@ -10,10 +10,10 @@ net.createServer((socket) => {
     console.log(`Connected to client: ${socket.remoteAddress}:${socket.remotePort}`);
 
     socket.on('data', (data) => {
-      console.log(`Received data: ${data.toString()} from ${socket.remoteAddress}:${socket.remotePort}`);
+      console.log(data.toString());
       data = (data.toString()).split(' ');
       setTimeout(() => {
-        if(isNaN(data[0]) || isNaN(data[1])) {
+        if (isNaN(data[0]) || isNaN(data[1])) {
           socket.write(`{ "success": "false", "message": "Invalid data entered. Data must be of type 'Number'." }`);
         } else {
           var ans = Number(data[0]) + Number(data[1]);
