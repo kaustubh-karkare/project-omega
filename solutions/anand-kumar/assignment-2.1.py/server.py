@@ -16,8 +16,8 @@ class server:
         self.second_number = numbers_to_add['second_number']
 
     def calculate_sum(self):
-        v = self.first_number + self.second_number
-        sum_of_numbers = {'sum': v}
+        sum_value = self.first_number + self.second_number
+        sum_of_numbers = {'sum': sum_value}
         encode_sum_of_numbers = json.dumps(sum_of_numbers)
         return encode_sum_of_numbers
 
