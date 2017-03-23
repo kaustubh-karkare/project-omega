@@ -41,7 +41,7 @@ class DownloadManager {
   private int fileSize;
   private int remainingByte;
   private RandomAccessFile outputFile;
-  private boolean downloadPossible = true;
+  private boolean isDownloadPossible = true;
   private int threadCount;
   // Constructor
   public DownloadManager(String downloadUrl, int threadCount) {
@@ -69,14 +69,14 @@ class DownloadManager {
       outputFile = new RandomAccessFile(fileName, "rw");
     } catch(MalformedURLException e) {
         System.out.println("Invalid URL");
-        downloadPossible = false;
+        isDownloadPossible = false;
     } catch(IOException e) {
         System.out.println("IO failed");
-        downloadPossible = false;
+        isDownloadPossible = false;
     }
     int first = 0;
     int last = fileSize - 1;
-    if(downloadPossible) {
+    if(isDownloadPossible) {
       System.out.println("Downloading...");
       Downloader downloadParts[] = new Downloader[threadCount];
       // Creating and starting threads to download different parts of the file
