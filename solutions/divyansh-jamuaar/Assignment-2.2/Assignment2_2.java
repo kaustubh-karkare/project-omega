@@ -127,7 +127,7 @@ class Downloader extends Thread {
   public void run() {
     try {
       HttpURLConnection httpURLConnection = (HttpURLConnection) downloadURL.openConnection();
-      httpURLConnection.setRequestProperty("Range", "bytes = " + startByte + " - " + endByte);
+      httpURLConnection.setRequestProperty("Range", "bytes="+startByte+"-"+endByte);
       httpURLConnection.connect();
       outputFile.seek(startByte);
       stream = httpURLConnection.getInputStream();
@@ -138,6 +138,17 @@ class Downloader extends Thread {
           outputFile.write(nextByte);
         }
     } catch(IOException e) {}
+    finally {
+      if (outputFile != null) {
+        try {
+          outputFile.close();
+        } catch(IOException e) {}
+      }
+      if (stream != null) {
+        try {
+          stream.close();
+        } catch(IOException e) {}
+      }
+    }
   }
-
 }
