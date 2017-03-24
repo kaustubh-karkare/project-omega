@@ -1,47 +1,68 @@
-// jshint esversion: 6
+// jshint esversion: 6, node: true
 
+"use strict";
 const net = require('net');
 const readLine = require('readline');
-
-const client = new net.Socket();
-
 const host = '127.0.0.1';
 const port = 3000;
-var ans;
+let ans;
 
-function inputFunction() {
+
+function inputFunction(client) {
   var read = readLine.createInterface({
     input: process.stdin,
     output: process.stdout
   });
-  read.question(`Enter the numbers seperated by a space: `, (numbers) => {
-        client.write(`${numbers}`);
-        numbers = numbers.split(' ');
-        ans = Number(numbers[0]) + Number(numbers[1]);
-        read.close();
+  read.question(`Enter the numbers seperated by a space: `, (inputString) => {
+    if (client.writable) {
+      client.write(inputString);
+    } else client.destroy();
+    inputString = inputString.split(' ');
+    ans = Number(inputString[0]) + Number(inputString[1]);
+    read.close();
   });
 }
 
-client.connect(port, host, () => {
-    console.log(`Connected to server at: ${host}:${port}`);
-    inputFunction();
-});
 
-client.on('data', (data) => {
+function connectToServer() {
+  const client = new net.Socket();
+  let serverActive = false;
+  client.connect(port, host, () => {
+      console.log(`Connected to server at: ${host}:${port}`);
+      serverActive = true;
+      inputFunction(client);
+  });
+
+  client.on('data', (data) => {
     data = JSON.parse(data.toString());
-    if(data.success === 'true') {
-      if(Number(data.message) === ans) {
-        console.log(`Status: Success, Ans: ${data.message}`);
+      if (data.success === true) {
+        if (Number(data.message) === ans) {
+          console.log(`Success. Ans: ${data.message}`);
+        } else {
+          console.log(`Wrong Answer. Server returned wrong ans ${data.message}. Correct ans: ${ans}.`);
+        }
+        client.destroy();
       } else {
-        console.log(`Status: Wrong Answer. Server returned wrong ans ${data.message}. Correct ans: ${ans}.`);
+        console.log(`Error: ${data.message}`);
+          inputFunction(client);
       }
-      client.destroy();
-    } else {
-      console.log(`Status: Error, ${data.message}`);
-        inputFunction();
-    }
-});
+  });
 
-client.on('close',() => {
-    console.log(`Connection closed`);
-});
+  client.on('error', (error) => {
+    console.log('Connection Error');
+    serverActive = false;
+  });
+
+  client.on('close',() => {
+    if (serverActive === false) {
+      console.log('Attempting to reconnect...');
+      setTimeout( () => {
+        connectToServer();
+      }, 2000);
+    } else {
+      console.log(`Connection closed`);
+    }
+  });
+}
+
+connectToServer();
