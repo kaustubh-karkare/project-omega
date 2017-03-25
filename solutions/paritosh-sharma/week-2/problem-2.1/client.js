@@ -1,11 +1,12 @@
 // jshint esversion: 6, node: true
 
 "use strict";
+
 const net = require('net');
 const readLine = require('readline');
 const host = '127.0.0.1';
 const port = 3000;
-let ans;
+let ans = 0;
 
 
 function inputFunction(client) {
@@ -25,8 +26,10 @@ function inputFunction(client) {
 
 
 function connectToServer() {
+
   const client = new net.Socket();
   let serverActive = false;
+  
   client.connect(port, host, () => {
       console.log(`Connected to server at: ${host}:${port}`);
       serverActive = true;

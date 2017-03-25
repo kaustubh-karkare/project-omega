@@ -1,6 +1,7 @@
 // jshint esversion: 6, node: true
 
 "use strict";
+
 var net = require('net');
 
 const host = '127.0.0.1';
@@ -27,8 +28,9 @@ class sum {
 net.createServer((socket) => {
 
     console.log(`Connected to client: ${socket.remoteAddress}:${socket.remotePort}`);
-
+    let completeData = '';
     socket.on('data', (data) => {
+      completeData += data.toString();
       console.log(`Received data: ${data.toString()} from ${socket.remoteAddress}:${socket.remotePort}`);
       let sumObj = new sum(data);
       setTimeout(() => {
@@ -36,6 +38,13 @@ net.createServer((socket) => {
       }, 2000);
     });
 
+    socket.on('end', () => {
+      console.log(`Received data: ${completeData.toString()} from ${socket.remoteAddress}:${socket.remotePort}`);
+      let sumObj = new sum(completeData);
+      setTimeout(() => {
+        socket.write(sumObj.calcSum());
+      }, 2000);
+    });
     socket.on('close', (data) => {
         console.log(`Disconnected from client: ${socket.remoteAddress}:${socket.remotePort}`);
     });
