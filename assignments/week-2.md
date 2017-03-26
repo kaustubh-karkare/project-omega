@@ -10,4 +10,12 @@ Using the basic socket library for your preferred language, create a TCP server 
 
 ## Problem 2.2
 
-Write a program that takes a URL as input, and downloads the file into the current directory. You are still only allowed to use the basic socket library like in the previous assignment. As a result of that restriction, you will need to study the [HTTP protocol](https://www.httpwatch.com/httpgallery/introduction/), and figure how to make the necessary request.
+Using the same basic socket library as the previous assignment, write a program that takes a URL as input, and downloads the file into the current directory.
+
+Since you're not allowed to use Python's `urllib` module, JavaScript's `http` module, or any other similar ones, you will need to study the [HTTP protocol](https://www.httpwatch.com/httpgallery/introduction/), and figure how to make the necessary request.
+
+## Problem 2.3
+
+Using the same basic socket library as the previous assignment, implement a webserver that can handle basic `GET` requests.
+- If the requested path is a directory, check to see if there is an `index.html` file in that directory, and return that. If not, generate a list of files and return those instead.
+- If the requested path is a file, check to see if it actually exists in a given directory. If yes, provide that, or else return a `404` error.
