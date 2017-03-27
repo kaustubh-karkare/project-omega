@@ -1,57 +1,67 @@
-# The server requires the server_host_name
-# and the server_port_number number for its creation
+# The server requires the server_host name
+# and the server port number number as arguments.
 
-
+import logging
 import sys
 import socket
 import json
 import time
-import thread
+import threading
 
 
-class server:
-    first_number = 0
-    second_number = 0
-    data_from_client = ''
+class Server:
 
-    def __init__(self, client_socket_object):
-        self.data_from_client = client_socket_object.recv(255)
+        def __init__(self, server_host, server_port):
+            self.address = (server_host, server_port)
 
-    def extract_numbers_from_client_data(self):
-        self.numbers_to_add = json.loads(self.data_from_client)
-        self.first_number = self.numbers_to_add['first_number']
-        self.second_number = self.numbers_to_add['second_number']
+        def start_surveying(self):
+            self.server_socket = socket.socket()
+            self.server_socket.bind(self.address)
+            self.server_socket.listen(1)
+            while True:
+                client_socket, client_address = self.server_socket.accept()
+                ClientThread(client_socket, client_address).start()
+            self.server_socket.close()
 
-    def calculate_and_send_the_client_sum(self):
-        self.sum_value = self.first_number + self.second_number
-        self.sum_of_numbers = {'sum': self.sum_value}
-        self.encode_sum_of_numbers = json.dumps(self.sum_of_numbers)
+
+class ClientThread(threading.Thread):
+
+    def __init__(self, client_socket, client_address):
+        self.client_socket = client_socket
+        self.client_address = client_address
+        threading.Thread.__init__(self)
+
+    def run(self):
+        print('Client connection received from:'), self.client_address
+        self.recieve_numbers_to_sum()
+        self.decode_received_data()
+        self.calculate_the_sum()
+        self.encode_and_send_sum()
+
+    def recieve_numbers_to_sum(self):
+        self.numbers_to_sum = self.client_socket.recv(255)
+
+    def decode_received_data(self):
+        self.numbers_to_sum = json.loads(self.numbers_to_sum)
+        self.first_number = self.numbers_to_sum['first_number']
+        self.second_number = self.numbers_to_sum['second_number']
+
+    def calculate_the_sum(self):
+        self.sum_of_numbers = {'sum': self.first_number + self.second_number}
         time.sleep(2)
-        return self.encode_sum_of_numbers
 
-
-def thread_of_a_client(client_socket_object, client_address):
-    print('Connection received from ', client_address)
-    server_object = server(client_socket_object)
-    server_object.extract_numbers_from_client_data()
-    client_socket_object.send(
-        server_object.calculate_and_send_the_client_sum())
+    def encode_and_send_sum(self):
+        self.encode_sum_of_numbers = json.dumps(self.sum_of_numbers)
+        self.client_socket.send(self.encode_sum_of_numbers)
 
 
 def main():
     if (len(sys.argv) < 3):
-        print('Insuffcient argument')
-        sys.exit(2)
-    server_socket_object = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_host_name = sys.argv[1]
-    server_port_number = int(sys.argv[2])
-    server_socket_object.bind((server_host_name, server_port_number))
-    server_socket_object.listen(5)
-    while True:
-        client_socket_object, client_address = server_socket_object.accept()
-        thread.start_new_thread(thread_of_a_client,
-                                (client_socket_object, client_address))
-    server_socket_object.close()
+        logging.error('Host name or port number(or both) missing')
+        exit(2)
+    Server(
+        server_host=sys.argv[1],
+        server_port=int(sys.argv[2])).start_surveying()
 
 if __name__ == '__main__':
     main()
