@@ -3,6 +3,7 @@ import socket
 import json
 import time
 import threading
+import logging
 
 
 class Server:
@@ -17,15 +18,16 @@ class Server:
             socket.IPPROTO_TCP)
         self.server_socket.bind(self.address)
         self.server_socket.listen(1)
-        server_is_listening = True
-        while server_is_listening:
+        self.server_is_listening = True
+        self.close_time = time.time() + 5
+        while self.server_is_listening and time.time() < self.close_time:
             try:
                 client_socket, client_address = self.server_socket.accept()
                 ReceiveNumbersAndReturnSum(
                     client_socket, client_address).start()
             except KeyboardInterrupt:
                 # ctrl+C was hit - server stopped listening
-                server_is_listening = False
+                self.server_is_listening = False
         self.server_socket.close()
 
 
@@ -37,7 +39,7 @@ class ReceiveNumbersAndReturnSum(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-        print('Client connection received from:'), self.client_address
+        logging.info('Client connection received from:', self.client_address)
         self.recieve_numbers_and_return_sum()
 
     def recieve_numbers_and_return_sum(self):
@@ -54,9 +56,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', type=str, required=True, help='Server host')
     parser.add_argument('--port', type=int, required=True, help='Server port')
-    req_arguments = parser.parse_args()
+    parsed_arguments = parser.parse_args()
 
-    Server(host=req_arguments.host, port=req_arguments.port).start_serving()
+    Server(host=parsed_arguments.host, port=parsed_arguments.port)\
+        .start_serving()
 
 if __name__ == '__main__':
     main()
