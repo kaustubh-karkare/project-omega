@@ -11,9 +11,14 @@ class SumAndVerify:
         self.client_socket = client_socket
 
     def send_numbers_and_verify_sum(self):
-        self.client_socket.send(json.JSONEncoder().encode({
-            'first_number': self.first_number,
-            'second_number': self.second_number}))
+        self.client_socket.send(
+            json.JSONEncoder().encode(
+                {
+                    'first_number': self.first_number,
+                    'second_number': self.second_number
+                }
+            )
+        )
         self.sum_received = json.JSONDecoder()\
             .decode(self.client_socket.recv(255))
         if (
@@ -23,7 +28,8 @@ class SumAndVerify:
         ):
             print(
                 'The server gives the correct sum: ',
-                self.sum_received['sum'])
+                self.sum_received['sum']
+            )
         else:
             print('The server does not give the correct sum')
 
@@ -32,7 +38,8 @@ def create_and_connect_client_socket(host, port):
     client_socket = socket.socket(
         socket.AF_INET,
         socket.SOCK_STREAM,
-        socket.IPPROTO_TCP)
+        socket.IPPROTO_TCP
+    )
     client_socket.connect((host, port))
     return client_socket
 
@@ -46,13 +53,15 @@ def main():
         '-num1',
         type=int,
         required=True,
-        help='First number for summation')
+        help='First number for summation'
+    )
     parser.add_argument(
         '--second_number',
         '-num2',
         type=int,
         required=True,
-        help='Second number for summation')
+        help='Second number for summation'
+    )
     parsed_argument = parser.parse_args()
 
     SumAndVerify(
@@ -60,8 +69,8 @@ def main():
             host=parsed_argument.host,
             port=parsed_argument.port),
         first_number=parsed_argument.first_number,
-        second_number=parsed_argument.second_number)\
-        .send_numbers_and_verify_sum()
+        second_number=parsed_argument.second_number
+    ).send_numbers_and_verify_sum()
 
 if __name__ == '__main__':
     main()
