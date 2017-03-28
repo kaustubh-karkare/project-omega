@@ -1,59 +1,65 @@
-# The client is expected to enter the server host name, server port number,
-# and the two numbers to be added as argument.
-
-import sys
+import argparse
 import socket
 import json
-import logging
 
 
-class Client:
+class SumAndVerify:
 
-    def __init__(self, server_host, server_port, first_number, second_number):
-        self.server_host = server_host
-        self.server_port = server_port
-        self.numbers_to_be_added = {
-            'first_number': first_number,
-            'second_number': second_number
-        }
-        self.create_client_socket()
-        self.send_numbers_to_add()
-        self.receive_sum_from_the_server()
-        self.verify_received_sum()
+    def __init__(self, client_socket, first_number, second_number):
+        self.first_number = first_number
+        self.second_number = second_number
+        self.client_socket = client_socket
 
-    def create_client_socket(self):
-        self.client_socket_object = socket.socket(
-            socket.AF_INET,
-            socket.SOCK_STREAM)
-
-    def send_numbers_to_add(self):
-        self.client_socket_object.connect((self.server_host, self.server_port))
-        self.client_socket_object.send(json.dumps(self.numbers_to_be_added))
-
-    def receive_sum_from_the_server(self):
-        self.sum_received = self.client_socket_object.recv(255)
-        self.sum_received = json.loads(self.sum_received)
-
-    def verify_received_sum(self):
+    def send_numbers_and_verify_sum(self):
+        self.client_socket.send(json.JSONEncoder().encode({
+            'first_number': self.first_number,
+            'second_number': self.second_number}))
+        self.sum_received = json.JSONDecoder().decode(
+            self.client_socket.recv(255))
         if (
-                self.numbers_to_be_added['first_number'] +
-                self.numbers_to_be_added['second_number'] ==
+                self.first_number +
+                self.second_number ==
                 self.sum_received['sum']):
-            print('The server gives the correct sum: ',
-                  self.sum_received['sum'])
+            print(
+                'The server gives the correct sum: ',
+                self.sum_received['sum'])
         else:
             print('The server does not give the correct sum')
 
 
+def client_socket_description(host, port):
+    client_socket = socket.socket(
+        socket.AF_INET,
+        socket.SOCK_STREAM,
+        socket.IPPROTO_TCP)
+    client_socket.connect((host, port))
+    return client_socket
+
+
 def main():
-    if(len(sys.argv) < 5):
-        logging.error('Argument(s) missing')
-        sys.exit(2)
-    Client(
-        server_host=sys.argv[1],
-        server_port=int(sys.argv[2]),
-        first_number=int(sys.argv[3]),
-        second_number=int(sys.argv[4]))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--host', type=str, required=True, help='Server host')
+    parser.add_argument('--port', type=int, required=True, help='Server port')
+    parser.add_argument(
+        '--first_number',
+        '-num1',
+        type=int,
+        required=True,
+        help='First number for summation')
+    parser.add_argument(
+        '--second_number',
+        '-num2',
+        type=int,
+        required=True,
+        help='Second number for summation')
+    req_argument = parser.parse_args()
+
+    SumAndVerify(
+        client_socket=client_socket_description(
+            host=req_argument.host,
+            port=req_argument.port),
+        first_number=req_argument.first_number,
+        second_number=req_argument.second_number).send_numbers_and_verify_sum()
 
 if __name__ == '__main__':
     main()
