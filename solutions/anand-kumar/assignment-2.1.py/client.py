@@ -14,12 +14,13 @@ class SumAndVerify:
         self.client_socket.send(json.JSONEncoder().encode({
             'first_number': self.first_number,
             'second_number': self.second_number}))
-        self.sum_received = json.JSONDecoder().decode(
-            self.client_socket.recv(255))
+        self.sum_received = json.JSONDecoder()\
+            .decode(self.client_socket.recv(255))
         if (
-                self.first_number +
-                self.second_number ==
-                self.sum_received['sum']):
+            self.first_number +
+            self.second_number ==
+            self.sum_received['sum']
+        ):
             print(
                 'The server gives the correct sum: ',
                 self.sum_received['sum'])
@@ -27,7 +28,7 @@ class SumAndVerify:
             print('The server does not give the correct sum')
 
 
-def client_socket_description(host, port):
+def create_and_connect_client_socket(host, port):
     client_socket = socket.socket(
         socket.AF_INET,
         socket.SOCK_STREAM,
@@ -52,14 +53,15 @@ def main():
         type=int,
         required=True,
         help='Second number for summation')
-    req_argument = parser.parse_args()
+    parsed_argument = parser.parse_args()
 
     SumAndVerify(
-        client_socket=client_socket_description(
-            host=req_argument.host,
-            port=req_argument.port),
-        first_number=req_argument.first_number,
-        second_number=req_argument.second_number).send_numbers_and_verify_sum()
+        client_socket=create_and_connect_client_socket(
+            host=parsed_argument.host,
+            port=parsed_argument.port),
+        first_number=parsed_argument.first_number,
+        second_number=parsed_argument.second_number)\
+        .send_numbers_and_verify_sum()
 
 if __name__ == '__main__':
     main()
