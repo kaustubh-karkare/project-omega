@@ -28,7 +28,6 @@ class Server(threading.Thread):
         self.server_socket.listen(1)
         self.server_is_listening = True
         self.server_socket.settimeout(1)
-        self.server_socket_available = True
         while self.server_is_listening:
             try:
                 client_socket, client_address = self.server_socket.accept()
@@ -40,11 +39,11 @@ class Server(threading.Thread):
                 # ctrl+C was hit - server stopped listening
                 self.server_is_listening = False
             except socket.timeout:
-                if self.server_socket_available is False:
-                    self.server_is_listening = False
+                if self.server_is_listening is False:
+                    break
 
     def stop(self):
-        self.server_socket_available = False
+        self.server_is_listening = False
 
 
 class ReceiveNumbersAndReturnSum(threading.Thread):
