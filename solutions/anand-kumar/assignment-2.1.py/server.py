@@ -6,6 +6,9 @@ import threading
 import logging
 
 
+BLOCK_SIZE = 255
+
+
 class Server(threading.Thread):
 
     def __init__(self, host, port):
@@ -24,18 +27,24 @@ class Server(threading.Thread):
         self.server_socket.bind(self.address)
         self.server_socket.listen(1)
         self.server_is_listening = True
+        self.server_socket.settimeout(1)
+        self.server_socket_available = True
         while self.server_is_listening:
             try:
                 client_socket, client_address = self.server_socket.accept()
                 ReceiveNumbersAndReturnSum(
-                    client_socket, client_address
+                    client_socket,
+                    client_address
                 ).start()
             except KeyboardInterrupt:
                 # ctrl+C was hit - server stopped listening
                 self.server_is_listening = False
+            except socket.timeout:
+                if self.server_socket_available is False:
+                    self.server_is_listening = False
 
     def stop(self):
-        self.server_socket.close()
+        self.server_socket_available = False
 
 
 class ReceiveNumbersAndReturnSum(threading.Thread):
@@ -51,13 +60,14 @@ class ReceiveNumbersAndReturnSum(threading.Thread):
 
     def recieve_numbers_and_return_sum(self):
         self.numbers_to_sum = json.JSONDecoder().decode(
-            self.client_socket.recv(255)
+            self.client_socket.recv(BLOCK_SIZE)
         )
         self.first_number = self.numbers_to_sum['first_number']
         self.second_number = self.numbers_to_sum['second_number']
         time.sleep(2)
-        self.client_socket.send(json.JSONEncoder().encode(
-            {'sum': self.first_number + self.second_number}
+        self.client_socket.send(
+            json.JSONEncoder().encode(
+                {'sum': self.first_number + self.second_number}
             )
         )
 
@@ -69,7 +79,6 @@ def main():
     parsed_arguments = parser.parse_args()
 
     server = Server(host=parsed_arguments.host, port=parsed_arguments.port)
-    server.daemon = True
     server.start()
     time.sleep(5)
     server.stop()
