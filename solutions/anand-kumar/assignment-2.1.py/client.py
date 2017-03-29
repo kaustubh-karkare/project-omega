@@ -31,7 +31,9 @@ class SumAndVerify:
             self.response['sum']
         ):
             logging.info(
-                'The server gives the correct sum', self.response['sum'])
+                'The server gives the correct sum',
+                self.response['sum']
+            )
         else:
             logging.info('The server does not give the correct sum')
 
@@ -66,7 +68,9 @@ def main():
     )
     parsed_argument = parser.parse_args()
     client_socket = connect_to_server(
-        parsed_argument.host, parsed_argument.port)
+        parsed_argument.host,
+        parsed_argument.port
+    )
 
     SumAndVerify(
         client_socket,
