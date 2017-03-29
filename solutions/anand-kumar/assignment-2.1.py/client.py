@@ -1,6 +1,10 @@
 import argparse
 import socket
 import json
+import logging
+
+
+BLOCK_SIZE = 255
 
 
 class SumAndVerify:
@@ -19,22 +23,20 @@ class SumAndVerify:
                 }
             )
         )
-        self.sum_received = json.JSONDecoder()\
-            .decode(self.client_socket.recv(255))
+        self.response = json.JSONDecoder() \
+            .decode(self.client_socket.recv(BLOCK_SIZE))
         if (
             self.first_number +
             self.second_number ==
-            self.sum_received['sum']
+            self.response['sum']
         ):
-            print(
-                'The server gives the correct sum: ',
-                self.sum_received['sum']
-            )
+            logging.info(
+                'The server gives the correct sum', self.response['sum'])
         else:
-            print('The server does not give the correct sum')
+            logging.info('The server does not give the correct sum')
 
 
-def create_and_connect_client_socket(host, port):
+def connect_to_server(host, port):
     client_socket = socket.socket(
         socket.AF_INET,
         socket.SOCK_STREAM,
@@ -63,11 +65,11 @@ def main():
         help='Second number for summation'
     )
     parsed_argument = parser.parse_args()
+    client_socket = connect_to_server(
+        parsed_argument.host, parsed_argument.port)
 
     SumAndVerify(
-        client_socket=create_and_connect_client_socket(
-            host=parsed_argument.host,
-            port=parsed_argument.port),
+        client_socket,
         first_number=parsed_argument.first_number,
         second_number=parsed_argument.second_number
     ).send_numbers_and_verify_sum()
