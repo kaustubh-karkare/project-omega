@@ -68,16 +68,21 @@ class DownloadThread (threading.Thread):
 def parse_url(url):
 	url_pattern = re.compile("(https?)?(\:\/\/)?([a-zA-Z0-9.]+)\:?(\d+)?(.*)")
 	url_group = url_pattern.match(url)
-	return url_group
+	url_object = {}
+	url_object["scheme"] = url_group.group(0)
+	url_object["hostname"] = url_group.group(3)
+	url_object["port"] = url_group.group(4)
+	url_object["path"] = url_group.group(5).split('#')[0].split('?')[0]
+	return url_object
 
 """ GET contents from a URL in multiple threads. 
 Accepts URL as command line argument. 
 """
 def get(url):
 	url = parse_url(url)
-	hostname = url.group(3)
-	port = url.group(4) or 80
-	path = url.group(5)
+	hostname = url["hostname"]
+	port = url["port"] or 80
+	path = url["path"]
 	logging.info("[Host: %s port: %s path: %s]", hostname, port, path)
 	# Establish Socket Connection
 	with SocketConnection(hostname, port) as sock:
