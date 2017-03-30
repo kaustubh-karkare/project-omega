@@ -43,9 +43,9 @@ public class HttpServer {
         }
       }
     } catch (NumberFormatException e) {
-        System.out.println("Port number should be a positive integer");
+        logger.warning("Port number should be a positive integer");
     } catch (ArrayIndexOutOfBoundsException e) {
-        System.out.println("Port number must be entered as command line argument");
+        logger.warning("Port number must be entered as command line argument");
     }
 
   }
