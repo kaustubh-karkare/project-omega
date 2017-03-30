@@ -6,11 +6,12 @@ import time
 import logging
 import threading 
 
-#For maintaining a log of events
+# For maintaining a log of events
 LOG_FILENAME = 'server.log'
-logging.basicConfig(filename=LOG_FILENAME,
-                    level=logging.DEBUG,
-                    )
+logging.basicConfig(
+  filename=LOG_FILENAME,
+  level=logging.DEBUG,
+)
 
 class ClientThread(threading.Thread):
 
@@ -32,7 +33,6 @@ class ClientThread(threading.Thread):
 			server_sum = int(data[0]) + int(data[1])
 			connection.send(str(server_sum))
 
-
 # Creating TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # Binding the socket to the port
@@ -43,7 +43,7 @@ sock.bind(server_address)
 # For multiple clients
 threads = []
 
-#For incoming connections
+# For incoming connections
 sock.listen(1)
 
 while True:
@@ -55,4 +55,3 @@ while True:
 
 for t in threads
         t.join()
-	
