@@ -54,7 +54,7 @@ class HTTPClient(SimpleClient.SimpleClient):
 
         SimpleClient.SimpleClient.__init__(self, host, port)
 
-    def httpcmd(self, command, document):srishti
+    def httpcmd(self, command, document):
         "Send command, and return status code and list of headers."
 
         self.writeline("%s %s HTTP/1.0" % (command, document or "/"))
