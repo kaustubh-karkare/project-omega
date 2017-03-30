@@ -28,6 +28,17 @@ module.exports.addArgGroup = function (argObj) {
   groupList.push(argObj);
 };
 
+module.exports.addArg = function(argObj) {
+  if(argObj.key === null) {
+    throw new Error(`Key of argument '${argObj.arg}' cannot be null`);
+  }
+  if (!(argObj.type in argTypeConditions)) {
+    throw new Error(`Invalid type of argument '${argObj.arg}'`);
+  }
+  var argGroupObj = { isRequired: argObj.isRequired || false, argList: [ { key: argObj.key, arg: argObj.arg, type: argObj.type, position: argObj.position || null } ] };
+  groupList.push(argGroupObj);
+};
+
 // argument validator function. Add additional validations here.
 
 function parsedObjValidator(parseObj) {

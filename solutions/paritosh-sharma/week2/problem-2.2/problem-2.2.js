@@ -5,47 +5,64 @@
 const parser = require('./argParser');
 const fs = require('fs');
 const path = require('path');
-const request = require('request');
+const net = require('net');
 const exec = require('child_process').exec;
 
-function getCommandLine() {
-   switch (process.platform) {
-      case 'darwin' : return 'open';
-      case 'win32' : return 'start';
-      case 'win64' : return 'start';
-      default : return 'xdg-open';
-   }
+class openFile {
+
+  constructor(filePath) {
+    this.filePath = filePath;
+  }
+
+  getCommandLine() {
+     switch (process.platform) {
+        case 'darwin' : return 'open';
+        case 'win32' : return 'start';
+        case 'win64' : return 'start';
+        default : return 'xdg-open';
+     }
+  }
+
+  open() {
+      exec(this.getCommandLine() + ' ' + this.filePath);
+  }
 }
 
-function showProgress(receivedSize, totalSize) {
-  var percentage = (receivedSize / totalSize) * 100;
-  process.stdout.clearLine();
-  process.stdout.cursorTo(0);
-  process.stdout.write(`Downloaded: ${receivedSize} bytes of ${totalSize} bytes -  ${Math.ceil(percentage)}%`);
+class downloadProgress {
+
+  showProgress(receivedSize, totalSize) {
+    let percentage = (receivedSize / totalSize) * 100;
+    process.stdout.clearLine();
+    process.stdout.cursorTo(0);
+    process.stdout.write(`Downloaded: ${receivedSize} bytes of ${totalSize} bytes -  ${Math.ceil(percentage)}%`);
+  }
+
 }
 
-function download(dlURL, dlPath, callback) {
+function download(callback) {
 
-  var totalSize, receivedSize = 0;
-  var file = fs.createWriteStream(dlPath);
-  var sendReq = request.get(dlURL);
+  let totalSize, receivedSize = 0;
+  const file = fs.createWriteStream(filePath);
+  const client = new net.Socket();
+  const progressObj = new downloadProgress();
 
-  sendReq.on('response', (response) => {
-    if (response.statusCode !== 200) {
-        return callback(`ERROR: response Code ${response.statusCode}`);
-    }
-    totalSize = Number(response.headers[ 'content-length']);
+  client.connect(80, parsedObj.dlURL, () => {
+    console.log(`Connected to server at ${parsedObj.dlURL}`);
   });
 
-  sendReq.pipe(file);
+  client.on('data', (data) => {
+    console.log(data.length());
+    data.pipe(file);
+  });
+
 
   sendReq.on('data', (chunk) => {
     receivedSize += chunk.length;
-    showProgress(receivedSize, totalSize);
+    progressObj.showProgress(receivedSize, totalSize);
   });
-  
+
   sendReq.on('error', (error) => {
-    fs.unlink(dlPath);
+    fs.unlink(filePath);
     return callback('Connection Error');
   });
 
@@ -54,7 +71,7 @@ function download(dlURL, dlPath, callback) {
   });
 
   file.on('error', (error) => {
-    fs.unlink(dlPath);
+    fs.unlink(filePath);
     return callback(error.message);
   });
 
@@ -63,27 +80,28 @@ function download(dlURL, dlPath, callback) {
 parser.addArgType({ name: 'String', condition: function(argValue) { return true; }, dataType: 'String', castFunction: function(argValue) { return argValue; } });
 parser.addArgType({ name: 'Boolean', condition: function(argValue) { return true; }, dataType: 'Boolean', castFunction: function(argValue) { return true; } });
 
-parser.addArgGroup({ isRequired: false, argList: [ { key: 'dlPath', arg: '--dlPath', type: 'String', position: null } ] });
-parser.addArgGroup({ isRequired: true, argList: [ { key: 'dlURL', arg: '--dlURL', type: 'String', position: null } ] });
-parser.addArgGroup({ isRequired: false, argList: [ { key: 'open', arg: '-o', type: 'Boolean', position: null } ] });
-parser.addArgGroup({ isRequired: false, argList: [ { key: 'name', arg: '--name', type: 'String', position: null } ] });
+parser.addArg({ key: 'dlPath', arg: '--dlPath', type: 'String' });
+parser.addArg({ isRequired: true, key: 'dlURL', arg: '--dlURL', type: 'String' });
+parser.addArg({ key: 'open', arg: '-o', type: 'Boolean' });
+parser.addArg({ key: 'name', arg: '--name', type: 'String' });
 
-var parsedObj = parser.parse();
+const parsedObj = parser.parse();
 
-var fileName = parsedObj.dlURL.split('/');
+let fileName = parsedObj.dlURL.split('/');
 fileName = fileName[fileName.length-1];
 fileName = parsedObj.name || fileName;
 
-var dlPath = path.join((parsedObj.dlPath || __dirname), fileName);
+const filePath = path.join((parsedObj.dlPath || __dirname), fileName);
 
-download(parsedObj.dlURL, dlPath, (error) => {
+download((error) => {
   if (error) {
-    console.log(error);
+    console.error(error);
     process.exit(1);
   }
   console.log('\nFile downloaded successfully');
   if (parsedObj.open === true) {
     console.log(`Opening File`);
-    exec(getCommandLine() + ' ' + dlPath);
+    const openFileObj = new openFile(filePath);
+    openFileObj.open();
   }
 });
