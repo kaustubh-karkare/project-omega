@@ -4,20 +4,20 @@ import socket
 import sys
 import logging
 
-port = 2004
 # Creating TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 #For maintaining a log of events
 LOG_FILENAME = 'client.log'
-logging.basicConfig(filename=LOG_FILENAME,
-                    level=logging.DEBUG,
-                    )
+logging.basicConfig(
+  filename=LOG_FILENAME,
+  level=logging.DEBUG,
+)
 
 # Connecting the socket to the port where the server is listening 
 server_address = ('localhost', 10000)
 logging.info('connecting to %s port %s' % server_address)
-sock.connect(server_address,port)
+sock.connect(server_address, 10000)
 
 first_number = int(sys.argv[1])
 second_number = int(sys.argv[2])
@@ -35,6 +35,3 @@ try:
 finally:
 	logging.info('Closing socket')
 	sock.close()
-
-		
-	
