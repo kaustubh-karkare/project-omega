@@ -2,42 +2,39 @@ import threading
 import socket
 import time
 import cPickle
+import logging
 
-class server() :
-	lock = threading.Lock()
-	def connection(self) :
+class Server():
+	
+	def connection(self, port):
+		self.logger = logging.getLogger("Server")
+		logging.basicConfig(level=logging.INFO)
 		server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		ip = socket.gethostbyname(socket.gethostname())
-		port = 1144
-		address = (ip, port)
+		address = (ip, int(port))
 		server.bind(address)
 		server.listen(1)
-		print "Started listening on ", ip, " - ", port
-		while True : 
-			try :
-				client, clientAddress = server.accept()
-				self.lock.acquire()
-				print "Got a connection from ", clientAddress[0], " - ", clientAddress[1]
-				thread = threading.Thread(target=self.additionThread, args=(client, clientAddress))
+		self.logger.info("Started listing on {} - {}".format(ip, port))
+		while True: 
+			try:
+				client, client_address = server.accept()
+				self.logger.info("Got a connection from {} - {}".format(client_address[0], client_address[1]))
+				thread = threading.Thread(target=self.addition_thread, args=(client, client_address))
 				thread.start()
-				self.lock.release()
-			except EOFError :
+			except EOFError:
 				time.sleep(2)
-				print "Nothing Received"
+				self.logger.warn("Nothing Received")
 	
-	def additionThread(self, client, clientAddress) :
-		self.lock.acquire()
+	def addition_thread(self, client, client_address):
 		data_recv = client.recv(1024)
 		data = cPickle.loads(data_recv)
-		print "Received ", data, " from the client"
-		self.lock.release()
+		self.logger.info("Received {} from client".format(data))
 		time.sleep(2)
-		self.lock.acquire()
 		sum_data = int(data[0]) + int(data[1])
 		client.send(str(sum_data))
-		print "Result sent to ", clientAddress[0]
-		self.lock.release()
+		self.logger.info("Result sent to {}".format(client_address[0]))
 		
 
-if __name__ == '__main__' :
-	server().connection()
+if __name__ == '__main__':
+	port = raw_input("Enter port on which server will listen ")
+	Server().connection(port)

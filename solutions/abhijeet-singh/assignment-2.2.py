@@ -1,72 +1,79 @@
 import os
-import urllib2
 import socket
 import threading
+from urlparse import urlparse
+import logging
 
-class downloader() :
-	threads = []
-	saveFile = None
-	#init the class and divide the download for the thread
-	def __init__(self, url, part, size, name) :
+class DownloadManager():
+	
+	def __init__(self, url):
+		self.lock = threading.Lock()
+		self.threads = []
+		self.logger = logging.getLogger("Download manager")
+		logging.basicConfig(level=logging.INFO)
 		self.url = url
-		self.part = int(part)
-		self.size = int(size)
-		self.partSize = self.size/self.part
-		self.name = name
-		self.saveFile = open(self.name, "w")
-		print "Downloading..."
-		for i in range(0, self.part) :
-			t = threading.Thread(target=self.download, args = (i*self.partSize, i+1*self.partSize, i))
-			t.start()
-			self.threads.append(t)
-		if (self.size - self.part*self.partSize) != 0 :
-			t = threading.Thread(target=self.download, args = (self.part*self.partSize, self.size, self.part))
-			t.start()
-			self.threads.append(t)
+		self.part = 3
+		self.logger.info("Download initied ")
+		self.client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+		self.parsed_uri = urlparse(self.url)
+		ip = socket.gethostbyname(self.parsed_uri.netloc)
+		port = 80
+		self.client.connect((ip,port))
+		header = self.http_header(0, 0)
+		try:
+			self.client.send(header)
+			client_received = self.client.recv(1024)
+		except socket.error:
+			self.logger.warn("Download failed ")			
+		self.save_file = open(os.path.basename(self.url), "w")
+		self.logger.info("Downloading File --> {}".format(os.path.basename(self.url)))
+		# for finding content-length from header
+		start_cl = client_received.lower().find('content-length: ')
+		end_cl = client_received.find('\r\n', start_cl + 16)
+		file_size = int(client_received[start_cl+16 : end_cl])
+		start = 0
+		for thread_num in range(0, self.part + 1):
+			thread = threading.Thread(target=self.thread_download, args = (start, file_size / self.part*thread_num, thread_num))
+			start = (file_size/self.part) * thread_num + 1
+			if thread_num == self.part:
+				thread = threading.Thread(target=self.thread_download, args = (start, file_size, thread_num))
+			thread.start()
+			self.threads.append(thread)
+		for thread in self.threads:
+			thread.join()
+		self.save_file.close()
+		self.client.close()
+		self.logger.info("Download Finished ")
 	
-	#for each thread download the part for the thread and write it to the file
-	def download(self, start, end, index) :
-		headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1)', 'Connection': 'Keep-Alive', 
-'Range': 'bytes='+str(start)+'-'+str(end)}
-		req = urllib2.Request(self.url, headers=headers)
-		try :
-			r = urllib2.urlopen(req)
-			self.saveFile.seek(start)
-			self.saveFile.write(r.read())			
-		except socket.error :
-			print "Error in Connection"
+	# for each thread download the part for the thread and write it to the file
+	def thread_download(self, start, end, index):
+		header = self.http_header(start, end)
+		self.client.send(header)		
+		self.save_file.seek(start)
+		while True:
+			data = self.client.recv(1024)
+			if not data:
+  				break
+			self.lock.acquire()
+			self.save_file.write(data)
+			self.lock.release()
 
-	#ensures that all the thread are finished
-	def finish(self) :
-		for i in self.threads:
-			i.join()
-		self.saveFile.close()
+	# returns the http header request
+	def http_header(self, start, end):
+		if start == 0 and end == 0:
+			byte_range = ""
+		else: 
+			byte_range = 'bytes='+str(start)+'-'+str(end)		
+		header = 'GET '+self.parsed_uri.path+' HTTP/1.1\r\nHost: '+self.parsed_uri.netloc
+		header += '\r\nConnection: keep-alive\r\nAccept-Encoding: gzip, deflate\r\nAccept: */*'
+		header += '\r\nUser-Agent: python-requests/2.13.0\r\nRange: '+byte_range+'\r\n\r\n'
+		return header
 
-#checks whether the given url is correct or not and then tells downloader to download it
-def URLcheck(url, part) :
-	headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1)', 'Connection': 'Keep-Alive'}
-	req = urllib2.Request(url, headers=headers)
-	try :
-		r = urllib2.urlopen(req)
-		print "File Name " + os.path.basename(url)
-		print "File Size " + str(int(r.info().getheaders("Content-Length")[0])/1024/1024)+" MB"
-		print "Download Starting..."
-		d = downloader(url, part, r.info().getheaders("Content-Length")[0],  os.path.basename(url))
-		d.finish()
-		print "Download Finished!!!"
-	except urllib2.URLError, e :
-		print "Wrong Url"
-	except socket.error :
-		print "Error in Connection"
 	
-#takes input from user about what to download
+# takes input from user about what to download
 if __name__ == '__main__':
 	url = raw_input("Enter URL To Download ")
-	while True :
-		try:
-			part = raw_input("Enter number of parts you think should be required to download the file ")
-        		value = int(part)
-			break
-		except ValueError:
-			print "Error: Enter a positive number. "
-	URLcheck(url, part)
+	if url[:7] != 'http://':
+		url = 'http://' + url
+	DownloadManager(url)
+
