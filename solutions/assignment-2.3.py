@@ -13,6 +13,7 @@ class Server():
 		logging.basicConfig(level=logging.INFO)
 		self.server_running = True
 
+	# start the server on a thread
 	def start(self):
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		ip = socket.gethostbyname(socket.gethostname())
@@ -23,6 +24,7 @@ class Server():
 		thread = threading.Thread(target = self.server_thread)
 		thread.start()
 
+	# server start listining
 	def server_thread(self):
 		while self.server_running: 
 			try:
@@ -35,16 +37,17 @@ class Server():
 			except EOFError:
 				self.logger.warn("Nothing Received")
 	
+	# manages GET request from the client 
 	def request_handler(self, client, client_address):
 		data_recv = client.recv(1024)
-		# retriving information from get method
+		# retriving information from the data received for the relative URL
 		start_path = data_recv.lower().find('get ')
 		end_path = data_recv.find('\r\n', start_path + 4)
 		path = data_recv[start_path + 4 : end_path]
 		file_path = os.path.dirname(os.path.abspath(__file__)) + path
+		# send file to client if present		
 		if os.path.isfile(file_path):			
-			client.send("HTTP/1.1 200 OK\r\n\")
-			# send file to client
+			client.send("HTTP/1.1 200 OK\r\n")
 			send_file = open(file_path, "rb")
 			l = send_file.read(1024)
 			while True:
@@ -53,10 +56,10 @@ class Server():
 				if not l:
 					break
 		elif os.path.isdir(file_path):			
-			client.send("HTTP/1.1 200 OK\r\n\r")
+			client.send("HTTP/1.1 200 OK\r\n")
 			index_present = False
 			file_list = os.listdir(file_path)
-			# check for index.html in dir if present then send
+			# check for index.html in directory if present then send's the file
 			if (list_item == 'index.html'):
 				for list_item in file_list:
 						index_present = True
@@ -67,15 +70,15 @@ class Server():
 							l = send_file.read(1024)
 							if not l:
 								break
-			# if index.html in dir not present return list
+			# if index.html in directory not present then return list of files
 			if index_present == False:
 				data = "File list \r\n"
 				for list_item in file_list:
 					data += list_item + "\r\n"
 				client.send(data)
 		else:
-			# 404 error
-			client.send("HTTP/1.1 404 Not Found\r\n\")
+			# 404 error because of invalid relative URL
+			client.send("HTTP/1.1 404 Not Found\r\n")
 		self.logger.info("Result sent to {}".format(client_address[0]))
 		client.close()
 
