@@ -3,23 +3,34 @@ import socket
 import time
 import cPickle
 import logging
+import argparse
 
 class Server():
 	
-	def connection(self, port):
+	def __init__(self, port):
+		self.port = int(port)
+		self.server_running = True
 		self.logger = logging.getLogger("Server")
 		logging.basicConfig(level=logging.INFO)
-		server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	
+	def start(self):
+		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		ip = socket.gethostbyname(socket.gethostname())
-		address = (ip, int(port))
-		server.bind(address)
-		server.listen(1)
-		self.logger.info("Started listing on {} - {}".format(ip, port))
-		while True: 
+		address = ('0.0.0.0', self.port)
+		self.server.bind(address)
+		self.server.listen(10)
+		self.logger.info("Started listing on {} - {}".format(ip, self.port))
+		thread = threading.Thread(target = self.server_thread)
+		thread.start()
+		
+	def server_thread(self):
+		while self.server_running: 
 			try:
-				client, client_address = server.accept()
-				self.logger.info("Got a connection from {} - {}".format(client_address[0], client_address[1]))
-				thread = threading.Thread(target=self.addition_thread, args=(client, client_address))
+				client, client_address = self.server.accept()
+				self.logger.info("Got a connection from {} - {}".format(
+					client_address[0], client_address[1]))
+				thread = threading.Thread(target = self.addition_thread, 
+					args = (client, client_address))
 				thread.start()
 			except EOFError:
 				time.sleep(2)
@@ -33,8 +44,22 @@ class Server():
 		sum_data = int(data[0]) + int(data[1])
 		client.send(str(sum_data))
 		self.logger.info("Result sent to {}".format(client_address[0]))
-		
+
+	def stop(self):
+		self.server_running = False
+		self.server.shutdown(socket.SHUT_RDWR)
+		self.server.close()
+
 
 if __name__ == '__main__':
-	port = raw_input("Enter port on which server will listen ")
-	Server().connection(port)
+	server_detail = argparse.ArgumentParser()
+	server_detail.add_argument("-p", "--port", 
+		help = "Server's Port listening Connection", required = True)
+	server_detail.add_argument("-t", "--time", 
+		help = "Time for server will be active in seconds", default = '150')
+	server_detail = server_detail.parse_args()
+	server = Server(server_detail.port)
+	server.start()
+	time.sleep(server_detail.time)
+	server.stop()
+

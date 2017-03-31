@@ -8,13 +8,13 @@ class Client(object):
 	def __init__(self, data):
 		self.data = data
 
-	def callserver(self): 
+	def call_server(self): 
 		Host = socket.gethostbyname(socket.gethostname())
 		self.client = socket.socket()
 		self.client.connect(('127.0.1.1',1144))
 		self.client.send(self.data)
 
-	def receiveAndClose(self):
+	def receive_and_close(self):
 		self.client.recv(1024)
 		self.client.close()
 
@@ -28,15 +28,16 @@ def test_client():
 	client1 = Client(data_send1)
 	client2 = Client(data_send2)
 	client3 = Client(data_send3)
-	a = datetime.datetime.now()
-	client1.callserver()
-	client2.callserver()
-	client3.callserver()
-	client1.receiveAndClose()
-	client2.receiveAndClose()
-	client3.receiveAndClose()
-	b = datetime.datetime.now()
-	c = b - a
-	d = divmod(c.days * 86400 + c.seconds, 60)
-	assert d[1] <= 3
+	start_time = datetime.datetime.now()
+	client1.call_server()
+	client2.call_server()
+	client3.call_server()
+	client1.receive_and_close()
+	client2.receive_and_close()
+	client3.receive_and_close()
+	end_time = datetime.datetime.now()
+	difference_time = end_time - start_time
+	difference_sec = divmod(difference_time.days * 86400 + 
+		difference_time.seconds, 60)
+	assert difference_sec[1] <= 3
 	
