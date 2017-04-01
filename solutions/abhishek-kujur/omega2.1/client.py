@@ -10,7 +10,9 @@ def Main():
     while data_to_be_sent != '':
         connection.send(data_to_be_sent.encode())
         recieved_data = connection.recv(1024)
-        print('Sum of ' + data_to_be_sent + ' is ' + str(recieved_data.decode()))
+        recieved_data = str(recieved_data.decode())
+        recieved_data = recieved_data.split(':')
+        print(recieved_data[0] + data_to_be_sent + ' is ' + recieved_data[1])
         data_to_be_sent = input('->')
     connection.close()
 
