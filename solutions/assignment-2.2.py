@@ -35,22 +35,31 @@ class DownloadManager():
 		self.logger.info("Downloading File --> {}".format(os.path.basename(
 			self.url)))
 		# for finding content-length from header
-		start_content_length = self.client_received.lower() \
+		start_content_length = self.client_received.lower()
 			.find('content-length: ')
-		end_content_length = self.client_received.find('\r\n', 
-			start_content_length + 16)
-		file_size = int(self.client_received[start_content_length+16 : 
-			end_content_length])
+		end_content_length = self.client_received.find(
+			'\r\n', 
+			start_content_length + 16
+			)
+		file_size = int(
+			self.client_received[start_content_length+16 : end_content_length]
+			)
 		start = 0		
 		for thread_num in range(0, self.parts + 1):	
 			temp_file = tempfile.TemporaryFile()
 			self.file_parts.append(temp_file)
-			thread = threading.Thread(target=self.thread_download, args = (start
-				, file_size / self.parts*thread_num, temp_file))
+			thread = threading.Thread(target=self.thread_download, args = (
+				start, 
+				file_size / self.parts*thread_num, 
+				temp_file
+				))
 			start = (file_size/self.parts) * thread_num + 1
 			if thread_num == self.parts:
 				thread = threading.Thread(target=self.thread_download, args = (
-					start, file_size, temp_file))
+					start, 
+					file_size, 
+					temp_file
+					))
 			thread.start()
 			self.threads.append(thread)
 			
@@ -95,12 +104,24 @@ class DownloadManager():
 # takes input from user about what to download
 if __name__ == '__main__':
 	download_info = argparse.ArgumentParser()
-	download_info.add_argument("-u", "--url", help = "Url from where file \
-		will be downloaded", required = True)
-	download_info.add_argument("-p", "--port", help = "Port on which file \
-		will be downloaded", default = '80')
-	download_info.add_argument("-pa", "--parts", help = "Parts in which file \
-		will be downloaded", default = '3')
+	download_info.add_argument(
+		"-u", 
+		"--url", 
+		help = "Url from where file will be downloaded", 
+		required = True
+		)
+	download_info.add_argument(
+		"-p", 
+		"--port", 
+		help = "Port on which file will be downloaded", 
+		default = '80'
+		)
+	download_info.add_argument(
+		"-pa", 
+		"--parts", 
+		help = "Parts in which file will be downloaded", 
+		default = '3'
+		)
 	url = download_info.parse_args().url
 	if url[:7] == 'http://':
 		url = url[7:]
