@@ -7,6 +7,7 @@ import java.util.logging.*;
 
 // A Webserver waits for clients to connect, then starts a separate thread to handle the request.
 public class HttpServer extends Thread {
+  private static final LogManager logManager = LogManager.getLogManager();
   private final static Logger logger = Logger.getLogger(HttpServer.class.getName());
   private static FileHandler fileHandler = null;
   static ServerSocket serverSocket;
@@ -15,44 +16,44 @@ public class HttpServer extends Thread {
 
   public HttpServer(String inputPort) {
     HttpServer.inputPort = inputPort;
+    try {
+      initLog();
+    } catch (SecurityException | IOException e) {
+      logger.severe("Some error occured in loading configuration. Logging through console only");
+    }
   }
 
   // Method to create log file
   public static void initLog() throws SecurityException, IOException {
-    fileHandler = new FileHandler("Status.log", false);
     Logger logger = Logger.getLogger("");
-    fileHandler.setFormatter(new SimpleFormatter());
-    logger.addHandler(fileHandler);
-    logger.setLevel(Level.FINE);
+    // Reading Configuration file which contains predefined instructions regarding logging
+    logManager.readConfiguration(new FileInputStream("./server.properties"));
   }
   // The run() method of HttpServer
   @Override
   public void run() {
+
     try {
-      initLog();
-      try {
-        port = Integer.parseInt(inputPort);
-        if (port <= 0)
-          throw new NegativeNumberException();
-        serverSocket = new ServerSocket(port); // Start,listen on given port
-        while (true) {
-          try {
-            logger.info("TCPServer Waiting for client on port " + port);
-            Socket socket = serverSocket.accept(); // Wait for a client to connect
-            new ClientHandler(socket); // A separate thread to handle each client
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
-        }
-      } catch (NumberFormatException | NegativeNumberException e) {
-        logger.warning("Port number should be a positive integer");
-      } catch (ArrayIndexOutOfBoundsException e) {
-        logger.warning("Port number must be entered as command line argument");
-      } catch (IOException e) {
-        System.out.println("Unable to start server on port " + port);
+      port = Integer.parseInt(inputPort);
+      if (port < 0) {
+        throw new NegativeNumberException();
       }
-    } catch (SecurityException | IOException e) {
-      System.out.println("Unable to create log file. Can't start server");
+      serverSocket = new ServerSocket(port); // Start,listen on given port
+      while (true) {
+        try {
+          logger.info("TCPServer Waiting for client on port " + port);
+          Socket socket = serverSocket.accept(); // Wait for a client to connect
+          new ClientHandler(socket); // A separate thread to handle each client
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    } catch (NumberFormatException | NegativeNumberException e) {
+      logger.warning("Port number should be a positive integer");
+    } catch (ArrayIndexOutOfBoundsException e) {
+      logger.warning("Port number must be entered as command line argument");
+    } catch (IOException e) {
+      logger.warning("Unable to start server on port " + port);
     }
   }
 }
@@ -65,13 +66,19 @@ class ClientHandler extends Thread {
     "<title>HTTP Server in java</title>" +
     "<body>";
   static final String HTML_END = "</body>" + "</html>";
-  private Socket connectedClient = null;
+  private Socket socket = null;
   private BufferedReader inFromClient = null;
   private DataOutputStream outToClient = null;
+  private enum FileSendingDecision {
+    SEND_FILE,
+    DONT_SEND_FILE
+  }
 
   // Constructor where thread startsWith
-  public ClientHandler(Socket connectedClient) {
-    this.connectedClient = connectedClient;
+  public ClientHandler(Socket socket) throws IOException {
+    this.socket = socket;
+    inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+    outToClient = new DataOutputStream(socket.getOutputStream());
     start();
   }
 
@@ -81,46 +88,44 @@ class ClientHandler extends Thread {
     try {
       logger.info(
         "The Client " +
-        connectedClient.getInetAddress() +
+        socket.getInetAddress() +
         ":" +
-        connectedClient.getPort() +
-        " is connected");
-      inFromClient = new BufferedReader(new InputStreamReader(connectedClient.getInputStream()));
-      outToClient = new DataOutputStream(connectedClient.getOutputStream());
+        socket.getPort() +
+        " is connected"
+      );
       String headerLine = inFromClient.readLine();
-      String httpMethod = headerLine.substring(0,3);
-      String httpQueryString = headerLine.substring(
-        4, headerLine.indexOf(" ", headerLine.indexOf(" ") + 1));
+      String[] tokens = headerLine.split("\\s");
+      String httpMethod = tokens[0];
+      String httpQueryString = tokens[1].substring(1);
 
       if (httpMethod.equals("GET")) {
-        String requestPath = httpQueryString.replaceFirst("/", "");
-        // if request is for a directory
-        if (requestPath.endsWith("/") | httpQueryString.equals("/")) {
+        String requestPath = httpQueryString;
+
+        // If requestPath ends with a '/' or is empty, it is a request for a directory
+        if (requestPath.endsWith("/") | httpQueryString.isEmpty()) {
           try {
             sendDirectoryInformation(requestPath);
           } catch (Exception e) {
-            sendResponse(404, "", false);
+            sendResponse(500, "", FileSendingDecision.DONT_SEND_FILE);
           }
         }
 
-        // if request is for a file
+        // If request is for a file
         else {
           if (new File(requestPath).isFile()) {
-            sendResponse(200, requestPath, true);
-          }
-          else {
-            sendResponse(404, "", false);
+            sendResponse(200, requestPath, FileSendingDecision.SEND_FILE);
           }
         }
       }
-      sendResponse(404, "", false);
+      sendResponse(404, "", FileSendingDecision.DONT_SEND_FILE);
     } catch (IOException e) {
       logger.info(
         "The Client " +
-        connectedClient.getInetAddress() +
+        socket.getInetAddress() +
         ":" +
-        connectedClient.getPort() +
-        " is disconnected");
+        socket.getPort() +
+        " is disconnected"
+      );
     }
   }
 
@@ -128,92 +133,105 @@ class ClientHandler extends Thread {
     String indexFile = requestPath + "index.html";
     // if index.html exists
     if (new File(indexFile).isFile()) {
-      sendResponse(200, indexFile, true);
+      sendResponse(200, indexFile, FileSendingDecision.SEND_FILE);
+      return;
     }
     // if index.html does not exists, we send the list of files and folders in that directory
-    else {
-      File folder;
-      String inetAddress = HttpServer.serverSocket.getInetAddress().toString();
-      // If homepage is requested
-      if (requestPath.equals("")) {
-        requestPath = ".";
-        folder = new File(requestPath);
-      }
-      else
-        folder = new File(requestPath.substring(0, requestPath.lastIndexOf('/')));
-      File[] listOfFiles = folder.listFiles();
-      StringBuffer response = new StringBuffer();
-      response.append("<b>List of files and folders</b> <BR>");
-      response.append("<ul>");
-      for (int i = 0; i < listOfFiles.length; i++) {
-        if (listOfFiles[i].isFile()) {
-          response.append("<li>File - " +
-            "<a href=" +
-            inetAddress.substring(0, inetAddress.indexOf("0.0.0.0")) +
-            "/" +
-            requestPath +
-            "/" +
-            listOfFiles[i].getName() +
-            ">" +
-            listOfFiles[i].getName() +
-            "</a></li><BR>");
-        }
-        else if (listOfFiles[i].isDirectory()) {
-          response.append("<li>Folder - " +
-            "<a href=" +
-            inetAddress.substring(0, inetAddress.indexOf("0.0.0.0")) +
-            "/" +
-            requestPath +
-            "/" +
-            listOfFiles[i].getName() +
-            "/>" +
-            listOfFiles[i].getName() +
-            "</a></li><BR>");
-        }
-      }
-      response.append("</ul>");
-      sendResponse(200, response.toString(), false);
+    File folder;
+    // If homepage is requested
+    if (requestPath.equals("")) {
+      folder = new File(".");
     }
+    else {
+      folder = new File(requestPath.substring(0, requestPath.lastIndexOf('/')));
+    }
+    File[] listOfFiles = folder.listFiles();
+    StringBuffer response = new StringBuffer();
+    response.append("<b>List of files and folders</b> <br>");
+    response.append("<ul>");
+    for (int ii = 0; ii < listOfFiles.length; ii++) {
+      if (listOfFiles[ii].isFile()) {
+        response.append("<li>File - " +
+          "<a href=" +
+          "/" +
+          requestPath +
+          listOfFiles[ii].getName() +
+          ">" +
+          listOfFiles[ii].getName() +
+          "</a></li>");
+      }
+      else if (listOfFiles[ii].isDirectory()) {
+        response.append("<li>Folder - " +
+          "<a href=" +
+          "/" +
+          requestPath +
+          listOfFiles[ii].getName() +
+          "/>" +
+          listOfFiles[ii].getName() +
+          "</a></li>"
+        );
+      }
+    }
+    response.append("</ul>");
+    sendResponse(200, response.toString(), FileSendingDecision.DONT_SEND_FILE);
   }
 
-  public void sendResponse(int statusCode, String responseString, boolean isFile) throws IOException {
-    String statusLine = null;
-    String serverdetails = "Server: Java HTTPServer";
-    String contentLengthLine = null;
-    String requestPath = null;
-    String contentType = null;
-    String contentTypeLine = "Content-Type: text/html" + "\r\n";
+  public void sendResponse(int statusCode, String responseString, FileSendingDecision decision)
+    throws IOException {
+    final String newLine = "\r\n";
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put("statusLine", null);
+    headers.put("serverdetails", "Server: Java HTTPServer");
+    headers.put("contentLengthLine", null);
+    headers.put("requestPath", null);
+    headers.put("contentTypeLine", "Content-Type: text/html" + newLine);
+    headers.put("closeConnection", "Connection: close" + newLine);
+
     FileInputStream fileInputStream = null;
 
-    if (statusCode == 200)
-      statusLine = "HTTP/1.1 200 OK" + "\r\n";
-    else
-      statusLine = "HTTP/1.1 404 Not Found" + "\r\n";
+    if (statusCode == 200) {
+      headers.put("statusLine", "HTTP/1.1 200 OK" + newLine);
+    }
+    else if (statusCode == 404) {
+      headers.put("statusLine", "HTTP/1.1 404 Not Found" + newLine);
+    }
+    else if (statusCode == 500) {
+      headers.put("statusLine", "HTTP/1.1 500 Internal Server Error" + newLine);
+    }
 
-    if (isFile) {
-      requestPath = responseString;
-      contentType = responseString.substring(responseString.lastIndexOf('.'), responseString.length());
-      fileInputStream = new FileInputStream(requestPath);
-      contentLengthLine = "Content-Length: " + Integer.toString(fileInputStream.available()) + "\r\n";
-      if (!requestPath.endsWith(".htm") && !requestPath.endsWith(".html"))
-      contentTypeLine = "Content-Type: " + contentType + "\r\n";
+    if (decision == FileSendingDecision.SEND_FILE) {
+      headers.put("requestPath", responseString);
+      String contentType = responseString.substring(
+        responseString.lastIndexOf('.'),
+        responseString.length()
+      );
+      fileInputStream = new FileInputStream(headers.get("requestPath"));
+      headers.put(
+        "contentLengthLine", "Content-Length: " +
+        Integer.toString(fileInputStream.available()) +
+        newLine
+      );
+      if (!headers.get("requestPath").endsWith(".htm") && !headers.get("requestPath").endsWith(".html"))
+      headers.put("contentTypeLine", "Content-Type: " + contentType + newLine);
     }
     else {
       responseString = ClientHandler.HTML_START + responseString + ClientHandler.HTML_END;
-      contentLengthLine = "Content-Length: " + responseString.length() + "\r\n";
+      headers.put("contentLengthLine", "Content-Length: " + responseString.length() + newLine);
     }
 
-    outToClient.writeBytes(statusLine);
-    outToClient.writeBytes(serverdetails);
-    outToClient.writeBytes(contentTypeLine);
-    outToClient.writeBytes(contentLengthLine);
-    outToClient.writeBytes("Connection: close\r\n");
-    outToClient.writeBytes("\r\n");
+    outToClient.writeBytes(headers.get("statusLine"));
+    outToClient.writeBytes(headers.get("serverdetails"));
+    outToClient.writeBytes(headers.get("contentTypeLine"));
+    outToClient.writeBytes(headers.get("contentLengthLine"));
+    outToClient.writeBytes(headers.get("closeConnection"));
+    outToClient.writeBytes(newLine);
 
-    if (isFile)
-     sendFile(fileInputStream, outToClient);
-    else
+    if (decision == FileSendingDecision.SEND_FILE) {
+      sendFile(fileInputStream, outToClient);
+    }
+    else {
       outToClient.writeBytes(responseString);
+    }
 
     outToClient.close();
   }
