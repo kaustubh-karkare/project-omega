@@ -32,18 +32,20 @@ class Server():
 				self.logger.info("Got a connection from {} - {}".format(
 					client_address[0], client_address[1]))
 				thread = threading.Thread(target=self.request_handler, args=(
-					client, client_address))
+					client, 
+					client_address
+					))
 				thread.start()
 			except EOFError:
 				self.logger.warn("Nothing Received")
 	
 	# manages GET request from the client 
 	def request_handler(self, client, client_address):
-		data_recv = client.recv(1024)
+		data_received = client.recv(1024)
 		# retriving information from the data received for the relative URL
-		start_path = data_recv.lower().find('get ')
-		end_path = data_recv.find('\r\n', start_path + 4)
-		path = data_recv[start_path + 4 : end_path]
+		start_path = data_received.lower().find('get ')
+		end_path = data_received.find('\r\n', start_path + 4)
+		path = data_received[start_path + 4 : end_path]
 		file_path = os.path.dirname(os.path.abspath(__file__)) + path
 		# send file to client if present		
 		if os.path.isfile(file_path):			
@@ -57,12 +59,12 @@ class Server():
 					break
 		elif os.path.isdir(file_path):			
 			client.send("HTTP/1.1 200 OK\r\n")
-			index_present = False
+			index_file_present = False
 			file_list = os.listdir(file_path)
 			# check for index.html in directory if present then send's the file
 			if (list_item == 'index.html'):
 				for list_item in file_list:
-						index_present = True
+						index_file_present = True
 						send_file = open(file_path+"/index.html", "rb")
 						l = send_file.read(1024)
 						while True:
@@ -71,7 +73,7 @@ class Server():
 							if not l:
 								break
 			# if index.html in directory not present then return list of files
-			if index_present == False:
+			if index_file_present == False:
 				data = "File list \r\n"
 				for list_item in file_list:
 					data += list_item + "\r\n"
@@ -90,10 +92,18 @@ class Server():
 
 if __name__ == '__main__':
 	server_detail = argparse.ArgumentParser()
-	server_detail.add_argument("-p", "--port", help = "port on which server \
-		will run", required = True)
-	server_detail.add_argument("-t", "--time", 
-		help = "Time for server will be active in seconds", default = '150')
+	server_detail.add_argument(
+		"-p", 
+		"--port", 
+		help="port on which server will run", 
+		required=True
+		)
+	server_detail.add_argument(
+		"-t", 
+		"--time", 		
+		help="Time for server will be active in seconds", 
+		default='150'
+		)
 	server = Server(server_detail.parse_args().port)
 	server.start()
 	time.sleep(float(server_detail.parse_args().time))
