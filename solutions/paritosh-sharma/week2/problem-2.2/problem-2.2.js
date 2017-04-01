@@ -5,7 +5,7 @@
 const parser = require('./argParser');
 const fs = require('fs');
 const path = require('path');
-const net = require('net');
+const request = require('request');
 const exec = require('child_process').exec;
 
 class openFile {
@@ -43,18 +43,17 @@ function download(callback) {
 
   let totalSize, receivedSize = 0;
   const file = fs.createWriteStream(filePath);
-  const client = new net.Socket();
+  const sendReq = request.get(parsedObj.dlURL);
   const progressObj = new downloadProgress();
 
-  client.connect(80, parsedObj.dlURL, () => {
-    console.log(`Connected to server at ${parsedObj.dlURL}`);
+  sendReq.on('response', (response) => {
+    if (response.statusCode !== 200) {
+        return callback(`ERROR: response Code ${response.statusCode}`);
+    }
+    totalSize = Number(response.headers[ 'content-length']);
   });
 
-  client.on('data', (data) => {
-    console.log(data.length());
-    data.pipe(file);
-  });
-
+  sendReq.pipe(file);
 
   sendReq.on('data', (chunk) => {
     receivedSize += chunk.length;
