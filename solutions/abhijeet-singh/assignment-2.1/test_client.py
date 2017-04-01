@@ -1,43 +1,27 @@
-import socket
-import sys
-import cPickle
+from client import Client
+import unittest
+import threading
 import datetime
 
-class Client(object):
-	global client
-	def __init__(self, data):
-		self.data = data
+class TestClient(unittest.TestCase):
+	
+	def test_one(self):
+		start_time = datetime.datetime.now()
+		client1 = Client(5, 6, '127.0.0.1', 1242)
+		client2 = Client(7, 8, '127.0.0.1', 1242)
+		client3 = Client(9, 10, '127.0.0.1', 1242)
+		client1.result_check()
+		client2.result_check()
+		client3.result_check()
+		end_time = datetime.datetime.now()
+		time_difference = end_time - start_time
+		time = divmod(
+			time_difference.days * 86400 + time_difference.seconds, 
+			60
+			)
+		self.assertTrue(time[1] >= 3)
+		
 
-	def call_server(self): 
-		Host = socket.gethostbyname(socket.gethostname())
-		self.client = socket.socket()
-		self.client.connect(('127.0.1.1',1144))
-		self.client.send(self.data)
-
-	def receive_and_close(self):
-		self.client.recv(1024)
-		self.client.close()
-
-def test_client():
-	data1 = (1, 9)
-	data_send1 = cPickle.dumps(data1)
-	data2 = (7, 3)
-	data_send2 = cPickle.dumps(data2)
-	data3 = (8, 2)
-	data_send3 = cPickle.dumps(data3)
-	client1 = Client(data_send1)
-	client2 = Client(data_send2)
-	client3 = Client(data_send3)
-	start_time = datetime.datetime.now()
-	client1.call_server()
-	client2.call_server()
-	client3.call_server()
-	client1.receive_and_close()
-	client2.receive_and_close()
-	client3.receive_and_close()
-	end_time = datetime.datetime.now()
-	difference_time = end_time - start_time
-	difference_sec = divmod(difference_time.days * 86400 + 
-		difference_time.seconds, 60)
-	assert difference_sec[1] <= 3
+if __name__ == '__main__':
+	unittest.main()
 	
