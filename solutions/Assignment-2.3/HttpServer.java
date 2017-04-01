@@ -8,8 +8,7 @@ import java.util.logging.*;
 // A Webserver waits for clients to connect, then starts a separate thread to handle the request.
 public class HttpServer extends Thread {
   private static final LogManager logManager = LogManager.getLogManager();
-  private final static Logger logger = Logger.getLogger(HttpServer.class.getName());
-  private static FileHandler fileHandler = null;
+  private final static Logger logger = Logger.getLogger(HttpServer.class.getName());  
   static ServerSocket serverSocket;
   static String inputPort;
   static int port;
