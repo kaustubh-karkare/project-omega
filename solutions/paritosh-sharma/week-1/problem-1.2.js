@@ -20,18 +20,18 @@ function createGroup(groupName) {
     isRequired: false,
     argList: [],
     addGroupArg: function(argObj) {
-        if (argObj.key === null) {
-          throw new Error(`Key of argument '${argObj.arg}' cannot be null`);
-        }
-        if (!(argObj.type in argTypeFunctions)) {
-          throw new Error(`Invalid type of argument '${argObj.arg}'`);
-        }
-        for (let ii = 0; ii < groupList.length; ii++) {
-          if (groupList[ii].name === this.name) {
-            groupList[ii].argList.push(argObj);
-          }
+      if (argObj.key === null) {
+        throw new Error(`Key of argument '${argObj.arg}' cannot be null`);
+      }
+      if (!(argObj.type in argTypeFunctions)) {
+        throw new Error(`Invalid type of argument '${argObj.arg}'`);
+      }
+      for (let ii = 0; ii < groupList.length; ii++) {
+        if (groupList[ii].name === this.name) {
+          groupList[ii].argList.push(argObj);
         }
       }
+    }
   };
   groupList.push(newGroupObj);
   return newGroupObj;
@@ -71,7 +71,7 @@ function parsedObjValidator(parseObj) {
 return true;
 }
 
-function argParser() {
+function parseArg() {
   let ii, jj, kk, argValue, arg, parseObj = {};
   outerLoop:
     for (ii = 0; ii < inputArgs.length; ii++) {
@@ -138,7 +138,7 @@ group1.addGroupArg({ key: 'remote', arg: '--remote', type: 'Boolean' });
 
 const inputArgs = process.argv.slice(2);
 try {
-  let parsedObj = argParser(inputArgs);
+  let parsedObj = parseArg(inputArgs);
   console.log(parsedObj);
 } catch(error) {
   console.log(error);
