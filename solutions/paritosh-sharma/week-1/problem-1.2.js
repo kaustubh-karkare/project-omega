@@ -1,34 +1,57 @@
-// jshint esversion: 6
+// jshint esversion: 6, node: true
 
-var groupList = [];
-var argTypeConditions = {};
-var argTypeCaster  = {};
-var argDataType = {};
+"use strict";
 
-function addArgType(argTypeObj) {
-  argTypeConditions[argTypeObj.name] = argTypeObj.condition;
+const groupList = [];
+const argTypeFunctions = {};
+const argDataType = {};
+
+function addArgType (argTypeObj) {
+  argTypeFunctions[argTypeObj.name] = argTypeObj.typeFunction;
   argDataType[argTypeObj.name] = argTypeObj.dataType;
-  argTypeCaster[argTypeObj.dataType] = argTypeObj.castFunction;
 }
 
-
-function argGroupBuilder(argObj) {
-  var ii;
-  for(ii = 0; ii < argObj.argList.length; ii++) {
-    if (argObj.argList[ii].key === null) {
-      throw new Error(`Key of argument '${argObj.argList[ii].arg}' cannot be null`);
-    }
-    if (!(argObj.argList[ii].type in argTypeConditions)) {
-      throw new Error(`Invalid type of argument '${argObj.argList[ii].arg}'`);
-    }
+function createGroup(groupName) {
+  if (!groupName) {
+    throw new Error(`Group name required while creating new group`);
   }
-  groupList.push(argObj);
+  let newGroupObj = {
+    name: groupName,
+    isRequired: false,
+    argList: [],
+    addGroupArg: function(argObj) {
+        if (argObj.key === null) {
+          throw new Error(`Key of argument '${argObj.arg}' cannot be null`);
+        }
+        if (!(argObj.type in argTypeFunctions)) {
+          throw new Error(`Invalid type of argument '${argObj.arg}'`);
+        }
+        for (let ii = 0; ii < groupList.length; ii++) {
+          if (groupList[ii].name === this.name) {
+            groupList[ii].argList.push(argObj);
+          }
+        }
+      }
+  };
+  groupList.push(newGroupObj);
+  return newGroupObj;
+}
+
+function addArg(argObj) {
+  if (argObj.key === null) {
+    throw new Error(`Key of argument '${argObj.arg}' cannot be null`);
+  }
+  if (!(argObj.type in argTypeFunctions)) {
+    throw new Error(`Invalid type of argument '${argObj.arg}'`);
+  }
+  let argGroupObj = { isRequired: argObj.isRequired || false, argList: [ { key: argObj.key, arg: argObj.arg, type: argObj.type, position: argObj.position } ] };
+  groupList.push(argGroupObj);
 }
 
 // argument validator function. Add additional validations here.
 
 function parsedObjValidator(parseObj) {
-  var ii, jj, count;
+  let ii, jj, count;
   for (ii = 0; ii < groupList.length; ii++) {
     count = 0;
     for (jj = 0; jj < groupList[ii].argList.length;  jj++) {
@@ -48,8 +71,8 @@ function parsedObjValidator(parseObj) {
 return true;
 }
 
-function argParser(inputArgs) {
-  var ii, jj, kk, argValue, arg, parseObj = {};
+function argParser() {
+  let ii, jj, kk, argValue, arg, parseObj = {};
   outerLoop:
     for (ii = 0; ii < inputArgs.length; ii++) {
       arg = inputArgs[ii];
@@ -68,8 +91,8 @@ function argParser(inputArgs) {
           for (kk = 0; kk < groupList[jj].argList.length; kk++) {
             if (groupList[jj].argList[kk].arg === arg[0]) {
               argValue = arg[1];
-              if ( argTypeConditions[groupList[jj].argList[kk].type](argValue)) {
-                argValue = argTypeCaster[argDataType[groupList[jj].argList[kk].type]](argValue);
+              argValue = argTypeFunctions[groupList[jj].argList[kk].type](argValue);
+              if (argValue) {
                 parseObj[groupList[jj].argList[kk].key] = argValue;
                 continue outerLoop;
               }
@@ -79,29 +102,43 @@ function argParser(inputArgs) {
       }
       throw new Error(`Invalid argument '${inputArgs[ii]}' entered. Check Type and Key`);
     }
-  var validationResult = parsedObjValidator(parseObj);
+  let validationResult = parsedObjValidator(parseObj);
   return parseObj;
 }
 
-// add new arg types here
+function intTypeFunction(argValue) {
+  if (!isNaN(argValue)) {
+    return Number(argValue);
+  } else {
+    return false;
+  }
+}
 
-addArgType({ name: 'String', condition: function(argValue) { return true; }, dataType: 'String', castFunction: function(argValue) { return argValue; } });
-addArgType({ name: 'Boolean', condition: function(argValue) { return true; }, dataType: 'Boolean', castFunction: function(argValue) { return true; } });
-addArgType({ name: 'Int', condition: function(argValue) { return !isNaN(argValue); }, dataType: 'Number', castFunction: function(argValue) { return Number(argValue); } });
-addArgType({ name: '+Int', condition: function(argValue) { return (!isNaN(argValue) && argValue * 1 >= 0); }, dataType: 'Number', castFunction: function(argValue) { return Number(argValue); } });
+function pIntTypeFunction(argValue) {
+  if ((!isNaN(argValue) && argValue * 1 >= 0)) {
+    return Number(argValue);
+  } else {
+    return false;
+  }
+}
 
-// add new arguments here in the format argBuilder({key: 'argKey', arg: argName, type: 'argType', isRequired: true/false, position: index});
+addArgType({ name: 'String', typeFunction: function(argValue) { return argValue; }, dataType: 'String' });
+addArgType({ name: 'Boolean', typeFunction: function(argValue) { return true; }, dataType: 'Boolean' });
+addArgType({ name: 'Int', typeFunction: intTypeFunction, dataType: 'Number' });
+addArgType({ name: '+Int', typeFunction: pIntTypeFunction, dataType: 'Number' });
 
-argGroupBuilder({ groupId: 1, isRequired: false, argList: [ { key: 'command', arg: null, type: 'String', position: 0 } ] });
-argGroupBuilder({ groupId: 2, isRequired: false, argList: [ { key: 'subcommand', arg: null, type: 'String', position: 1 } ] });
-argGroupBuilder({ groupId: 3, isRequired: true, argList: [ { key: 'key', arg: '--key', type: '+Int', position: null } ] });
-argGroupBuilder({ groupId: 4, isRequired: false, argList: [ { key: 'name', arg: '--name', type: 'String', position: null } ] });
-argGroupBuilder({ groupId: 5, isRequired: false, argList: [ { key: 'verbrose', arg: '-v', type: 'Boolean', position: null } ] });
-argGroupBuilder({ groupId: 6, isRequired: false, argList: [ { key: 'local', arg: '--local', type: 'Boolean', position: null }, { key: 'remote', arg: '--remote', type: 'Boolean', position: null } ] });
+addArg({ key: 'command', arg: null, type: 'String', position: 0 });
+addArg({ key: 'subcommand', arg: null, type: 'String', position: 1 });
+addArg({ isRequired: true, key: 'key', arg: '--key', type: '+Int' });
+addArg({ key: 'name', arg: '--name', type: 'String' });
+addArg({ key: 'verbrose', arg: '-v', type: 'Boolean' });
+const group1 = createGroup('group1');
+group1.addGroupArg({ key: 'local', arg: '--local', type: 'Boolean' });
+group1.addGroupArg({ key: 'remote', arg: '--remote', type: 'Boolean' });
 
-var inputArgs = process.argv.slice(2);
+const inputArgs = process.argv.slice(2);
 try {
-  var parsedObj = argParser(inputArgs);
+  let parsedObj = argParser(inputArgs);
   console.log(parsedObj);
 } catch(error) {
   console.log(error);
