@@ -1,48 +1,60 @@
-// jshint esversion: 6
+// jshint esversion: 6, node: true
 
-var groupList = [];
-var argTypeConditions = {};
-var argTypeCaster  = {};
-var argDataType = {};
-var inputArgs = process.argv.slice(2);
+"use strict";
+
+const groupList = [];
+const argTypeFunctions = {};
+const argDataType = {};
+const inputArgs = process.argv.slice(2);
 
 module.exports = {};
 
-module.exports.addArgType = function (argTypeObj) {
-  argTypeConditions[argTypeObj.name] = argTypeObj.condition;
+module.exports.addArgType =  function(argTypeObj) {
+  argTypeFunctions[argTypeObj.name] = argTypeObj.typeFunction;
   argDataType[argTypeObj.name] = argTypeObj.dataType;
-  argTypeCaster[argTypeObj.dataType] = argTypeObj.castFunction;
 };
 
-
-module.exports.addArgGroup = function (argObj) {
-  var ii;
-  for(ii = 0; ii < argObj.argList.length; ii++) {
-    if (argObj.argList[ii].key === null) {
-      throw new Error(`Key of argument '${argObj.argList[ii].arg}' cannot be null`);
-    }
-    if (!(argObj.argList[ii].type in argTypeConditions)) {
-      throw new Error(`Invalid type of argument '${argObj.argList[ii].arg}'`);
-    }
+module.exports.createGroup = function(groupName) {
+  if (!groupName) {
+    throw new Error(`Group name required while creating new group`);
   }
-  groupList.push(argObj);
+  let newGroupObj = {
+    name: groupName,
+    isRequired: false,
+    argList: [],
+    addGroupArg: function(argObj) {
+      if (argObj.key === null) {
+        throw new Error(`Key of argument '${argObj.arg}' cannot be null`);
+      }
+      if (!(argObj.type in argTypeFunctions)) {
+        throw new Error(`Invalid type of argument '${argObj.arg}'`);
+      }
+      for (let ii = 0; ii < groupList.length; ii++) {
+        if (groupList[ii].name === this.name) {
+          groupList[ii].argList.push(argObj);
+        }
+      }
+    }
+  };
+  groupList.push(newGroupObj);
+  return newGroupObj;
 };
 
 module.exports.addArg = function(argObj) {
-  if(argObj.key === null) {
+  if (argObj.key === null) {
     throw new Error(`Key of argument '${argObj.arg}' cannot be null`);
   }
-  if (!(argObj.type in argTypeConditions)) {
+  if (!(argObj.type in argTypeFunctions)) {
     throw new Error(`Invalid type of argument '${argObj.arg}'`);
   }
-  var argGroupObj = { isRequired: argObj.isRequired || false, argList: [ { key: argObj.key, arg: argObj.arg, type: argObj.type, position: argObj.position || null } ] };
+  let argGroupObj = { isRequired: argObj.isRequired || false, argList: [ { key: argObj.key, arg: argObj.arg, type: argObj.type, position: argObj.position } ] };
   groupList.push(argGroupObj);
 };
 
 // argument validator function. Add additional validations here.
 
 function parsedObjValidator(parseObj) {
-  var ii, jj, count;
+  let ii, jj, count;
   for (ii = 0; ii < groupList.length; ii++) {
     count = 0;
     for (jj = 0; jj < groupList[ii].argList.length;  jj++) {
@@ -62,8 +74,8 @@ function parsedObjValidator(parseObj) {
 return true;
 }
 
-function argParser() {
-  var ii, jj, kk, argValue, arg, parseObj = {};
+function parseArg(){
+  let ii, jj, kk, argValue, arg, parseObj = {};
   outerLoop:
     for (ii = 0; ii < inputArgs.length; ii++) {
       arg = inputArgs[ii];
@@ -82,8 +94,8 @@ function argParser() {
           for (kk = 0; kk < groupList[jj].argList.length; kk++) {
             if (groupList[jj].argList[kk].arg === arg[0]) {
               argValue = arg[1];
-              if ( argTypeConditions[groupList[jj].argList[kk].type](argValue)) {
-                argValue = argTypeCaster[argDataType[groupList[jj].argList[kk].type]](argValue);
+              argValue = argTypeFunctions[groupList[jj].argList[kk].type](argValue);
+              if (argValue) {
                 parseObj[groupList[jj].argList[kk].key] = argValue;
                 continue outerLoop;
               }
@@ -93,13 +105,13 @@ function argParser() {
       }
       throw new Error(`Invalid argument '${inputArgs[ii]}' entered. Check Type and Key`);
     }
-  var validationResult = parsedObjValidator(parseObj);
+  let validationResult = parsedObjValidator(parseObj);
   return parseObj;
 }
 
 module.exports.parse = function() {
   try{
-    return argParser();
+    return parseArg();
   }
   catch(error) {
     console.log(error);
