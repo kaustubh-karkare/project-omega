@@ -7,7 +7,7 @@ import logging
 # Creating TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-#For maintaining a log of events
+# For maintaining a log of events
 LOG_FILENAME = 'client.log'
 logging.basicConfig(
   filename=LOG_FILENAME,
