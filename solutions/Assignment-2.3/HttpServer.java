@@ -8,7 +8,8 @@ import java.util.logging.*;
 // A Webserver waits for clients to connect, then starts a separate thread to handle the request.
 public class HttpServer extends Thread {
   private static final LogManager logManager = LogManager.getLogManager();
-  private final static Logger logger = Logger.getLogger(HttpServer.class.getName());  
+  private final static Logger logger = Logger.getLogger(HttpServer.class.getName());
+  private static FileHandler fileHandler = null;
   static ServerSocket serverSocket;
   static String inputPort;
   static int port;
@@ -93,13 +94,14 @@ class ClientHandler extends Thread {
         " is connected"
       );
       String headerLine = inFromClient.readLine();
+      System.out.println(headerLine);
       String[] tokens = headerLine.split("\\s");
       String httpMethod = tokens[0];
       String httpQueryString = tokens[1].substring(1);
 
       if (httpMethod.equals("GET")) {
         String requestPath = httpQueryString;
-
+        requestPath = requestPath.replaceAll("%C2%A0", "\\ ");
         // If requestPath ends with a '/' or is empty, it is a request for a directory
         if (requestPath.endsWith("/") | httpQueryString.isEmpty()) {
           try {
@@ -150,23 +152,25 @@ class ClientHandler extends Thread {
     response.append("<ul>");
     for (int ii = 0; ii < listOfFiles.length; ii++) {
       if (listOfFiles[ii].isFile()) {
+        String path = listOfFiles[ii].toString().replaceAll(" ","&nbsp;");
+        String fileName = listOfFiles[ii].getName();
         response.append("<li>File - " +
           "<a href=" +
           "/" +
-          requestPath +
-          listOfFiles[ii].getName() +
+          path +
           ">" +
-          listOfFiles[ii].getName() +
+          fileName +
           "</a></li>");
       }
       else if (listOfFiles[ii].isDirectory()) {
+        String path = listOfFiles[ii].toString().replaceAll(" ","&nbsp;");
+        String folderName = listOfFiles[ii].getName();
         response.append("<li>Folder - " +
           "<a href=" +
           "/" +
-          requestPath +
-          listOfFiles[ii].getName() +
+          path +
           "/>" +
-          listOfFiles[ii].getName() +
+          folderName +
           "</a></li>"
         );
       }
