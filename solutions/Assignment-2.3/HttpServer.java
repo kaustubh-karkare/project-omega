@@ -93,8 +93,7 @@ class ClientHandler extends Thread {
         socket.getPort() +
         " is connected"
       );
-      String headerLine = inFromClient.readLine();
-      System.out.println(headerLine);
+      String headerLine = inFromClient.readLine();      
       String[] tokens = headerLine.split("\\s");
       String httpMethod = tokens[0];
       String httpQueryString = tokens[1].substring(1);
