@@ -17,8 +17,8 @@ class Assignment2_3 {
     httpServer.start();
     try {
       Thread.sleep(60);
+      httpServer.join();
     } catch (InterruptedException e) {}
-    httpServer.stop();
-  }
-
+ }
+  
 }
