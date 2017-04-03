@@ -6,56 +6,58 @@ const groupList = [];
 const argTypeFunctions = {};
 const argDataType = {};
 
-function addArgType (argTypeObj) {
+function addArgType(argTypeObj) {
   argTypeFunctions[argTypeObj.name] = argTypeObj.typeFunction;
   argDataType[argTypeObj.name] = argTypeObj.dataType;
 }
+
+// function to create groups
 
 function createGroup(groupName) {
   if (!groupName) {
     throw new Error(`Group name required while creating new group`);
   }
-  let newGroupObj = {
+  const newGroupObj = {
     name: groupName,
     isRequired: false,
     argList: [],
     addGroupArg: function(argObj) {
-      if (argObj.key === null) {
-        throw new Error(`Key of argument '${argObj.arg}' cannot be null`);
-      }
-      if (!(argObj.type in argTypeFunctions)) {
-        throw new Error(`Invalid type of argument '${argObj.arg}'`);
-      }
-      for (let ii = 0; ii < groupList.length; ii++) {
-        if (groupList[ii].name === this.name) {
-          groupList[ii].argList.push(argObj);
-        }
-      }
+      addArg(argObj, this);
     }
   };
   groupList.push(newGroupObj);
   return newGroupObj;
 }
 
-function addArg(argObj) {
-  if (argObj.key === null) {
-    throw new Error(`Key of argument '${argObj.arg}' cannot be null`);
+//common function to add individual arguments and arguments in groups.
+
+function addArg(argObj, groupObj) {
+  if (argObj.argName === null) {
+    throw new Error(`argName of argument '${argObj.arg}' cannot be null`);
   }
   if (!(argObj.type in argTypeFunctions)) {
     throw new Error(`Invalid type of argument '${argObj.arg}'`);
   }
-  let argGroupObj = { isRequired: argObj.isRequired || false, argList: [ { key: argObj.key, arg: argObj.arg, type: argObj.type, position: argObj.position } ] };
-  groupList.push(argGroupObj);
+  if (groupObj) {
+    for (let ii = groupList.length-1; ii >= 0; ii--) {
+      if (groupList[ii].name === groupObj.name) {
+        groupList[ii].argList.push(argObj);
+      }
+    }
+  } else {
+    let argGroupObj = { isRequired: argObj.isRequired || false, argList: [ { argName: argObj.argName, arg: argObj.arg, type: argObj.type, position: argObj.position } ] };
+    groupList.push(argGroupObj);
+  }
 }
 
-// argument validator function. Add additional validations here.
+//argument validator function. Add additional validations here.
 
 function parsedObjValidator(parseObj) {
   let ii, jj, count;
   for (ii = 0; ii < groupList.length; ii++) {
     count = 0;
     for (jj = 0; jj < groupList[ii].argList.length;  jj++) {
-      if (groupList[ii].argList[jj].key in parseObj) {
+      if (groupList[ii].argList[jj].argName in parseObj) {
         ++count;
       }
     }
@@ -71,36 +73,36 @@ function parsedObjValidator(parseObj) {
 return true;
 }
 
-function parseArg() {
-  let ii, jj, kk, argValue, arg, parseObj = {};
+//main arggument parser funciton
+
+function parseArg(inputArgs) {
+  let ii, jj, kk, argValue, inputArg, parseObj = {};
   outerLoop:
     for (ii = 0; ii < inputArgs.length; ii++) {
-      arg = inputArgs[ii];
-      if (arg.indexOf('-') !== 0) {
+      inputArg = inputArgs[ii].split('=');
+      if (inputArg[0].indexOf('-') !== 0) {
         for (jj = 0; jj < groupList.length; jj++) {
           for (kk = 0; kk < groupList[jj].argList.length; kk++) {
             if (groupList[jj].argList[kk].position === ii) {
-              parseObj[groupList[jj].argList[kk].key] = arg;
+              parseObj[groupList[jj].argList[kk].argName] = inputArg[0];
               continue outerLoop;
             }
           }
         }
       } else {
-        arg = arg.split('=');
         for (jj = 0; jj < groupList.length; jj++) {
           for (kk = 0; kk < groupList[jj].argList.length; kk++) {
-            if (groupList[jj].argList[kk].arg === arg[0]) {
-              argValue = arg[1];
-              argValue = argTypeFunctions[groupList[jj].argList[kk].type](argValue);
-              if (argValue) {
-                parseObj[groupList[jj].argList[kk].key] = argValue;
+            if (groupList[jj].argList[kk].arg === inputArg[0]) {
+              argValue = argTypeFunctions[groupList[jj].argList[kk].type](inputArg[1]);
+              if (argValue !== null) {
+                parseObj[groupList[jj].argList[kk].argName] = argValue;
                 continue outerLoop;
               }
             }
           }
         }
       }
-      throw new Error(`Invalid argument '${inputArgs[ii]}' entered. Check Type and Key`);
+      throw new Error(`Invalid argument '${inputArgs[ii]}' entered. Check Type and argName`);
     }
   let validationResult = parsedObjValidator(parseObj);
   return parseObj;
@@ -110,7 +112,7 @@ function intTypeFunction(argValue) {
   if (!isNaN(argValue)) {
     return Number(argValue);
   } else {
-    return false;
+    return null;
   }
 }
 
@@ -118,7 +120,7 @@ function pIntTypeFunction(argValue) {
   if ((!isNaN(argValue) && argValue * 1 >= 0)) {
     return Number(argValue);
   } else {
-    return false;
+    return null;
   }
 }
 
@@ -127,14 +129,14 @@ addArgType({ name: 'Boolean', typeFunction: function(argValue) { return true; },
 addArgType({ name: 'Int', typeFunction: intTypeFunction, dataType: 'Number' });
 addArgType({ name: '+Int', typeFunction: pIntTypeFunction, dataType: 'Number' });
 
-addArg({ key: 'command', arg: null, type: 'String', position: 0 });
-addArg({ key: 'subcommand', arg: null, type: 'String', position: 1 });
-addArg({ isRequired: true, key: 'key', arg: '--key', type: '+Int' });
-addArg({ key: 'name', arg: '--name', type: 'String' });
-addArg({ key: 'verbrose', arg: '-v', type: 'Boolean' });
+addArg({ argName: 'command', arg: null, type: 'String', position: 0 });
+addArg({ argName: 'subcommand', arg: null, type: 'String', position: 1 });
+addArg({ isRequired: true, argName: 'key', arg: '--key', type: '+Int' });
+addArg({ argName: 'name', arg: '--name', type: 'String' });
+addArg({ argName: 'verbrose', arg: '-v', type: 'Boolean' });
 const group1 = createGroup('group1');
-group1.addGroupArg({ key: 'local', arg: '--local', type: 'Boolean' });
-group1.addGroupArg({ key: 'remote', arg: '--remote', type: 'Boolean' });
+group1.addGroupArg({ argName: 'local', arg: '--local', type: 'Boolean' });
+group1.addGroupArg({ argName: 'remote', arg: '--remote', type: 'Boolean' });
 
 const inputArgs = process.argv.slice(2);
 try {
