@@ -31,10 +31,10 @@ class Server():
 				client, client_address = self.server.accept()
 				self.logger.info("Got a connection from {} - {}".format(
 					client_address[0], client_address[1]))
-				thread = threading.Thread(target=self.request_handler, args=(
-					client, 
-					client_address
-					))
+				thread = threading.Thread(
+					target=self.request_handler, 
+					args=(client, client_address)
+				)
 				thread.start()
 			except EOFError:
 				self.logger.warn("Nothing Received")
@@ -97,13 +97,13 @@ if __name__ == '__main__':
 		"--port", 
 		help="port on which server will run", 
 		required=True
-		)
+	)
 	server_detail.add_argument(
 		"-t", 
 		"--time", 		
 		help="Time for server will be active in seconds", 
 		default='150'
-		)
+	)
 	server = Server(server_detail.parse_args().port)
 	server.start()
 	time.sleep(float(server_detail.parse_args().time))
