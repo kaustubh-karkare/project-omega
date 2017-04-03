@@ -1,19 +1,23 @@
-var net = require('net');
-var port = 8080;
-var client = new net.Socket();
-var a;
+let net = require('net');
+let readline = require('readline')
+let client = new net.Socket();
+let port = process.argv[2]
+let numbers
+
 client.connect(port, '127.0.0.1', function(data) {
-	 a = process.argv[2]+" "+process.argv[3];
-	client.write(a);
+ 	numbers = process.argv[3] + " " + process.argv[4];
+ 	client.write(numbers);
 });
 
 client.on('data', function(data) {
 	console.log('Received: ' + data);
-	if((parseInt(String(a)[0])+parseInt(String(a)[2]))==(parseInt(String(a)[0])+parseInt(String(a)[2])))
+
+	if((parseInt(String(numbers)[0])+parseInt(String(numbers)[2])) == data)
 		console.log('verified');
-	client.destroy(); // kill client after server's response
+	client.destroy(); 
 });
 
 client.on('close', function() {
 	console.log('Connection closed');
-});
+}); 
+
