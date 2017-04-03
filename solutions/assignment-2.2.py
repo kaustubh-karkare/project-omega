@@ -32,34 +32,31 @@ class DownloadManager():
 	# download starts over here
 	def start(self):
 		self.save_file = open(os.path.basename(self.url), "w")
-		self.logger.info("Downloading File --> {}".format(os.path.basename(
-			self.url)))
+		self.logger.info(
+			"Downloading File --> {}".format(os.path.basename(self.url))
+		)
 		# for finding content-length from header
 		start_content_length = self.client_received.lower()
 			.find('content-length: ')
 		end_content_length = self.client_received.find(
 			'\r\n', 
 			start_content_length + 16
-			)
+		)
 		file_size = int(
 			self.client_received[start_content_length+16 : end_content_length]
-			)
-		start = 0		
+		)
+		start_byte = 0		
 		for thread_num in range(0, self.parts + 1):	
 			temp_file = tempfile.TemporaryFile()
 			self.file_parts.append(temp_file)
-			thread = threading.Thread(target=self.thread_download, args = (
-				start, 
-				file_size / self.parts*thread_num, 
-				temp_file
-				))
-			start = (file_size/self.parts) * thread_num + 1
+			last_byte = (file_size / self.parts) * thread_num
 			if thread_num == self.parts:
-				thread = threading.Thread(target=self.thread_download, args = (
-					start, 
-					file_size, 
-					temp_file
-					))
+				end = file_size
+			thread = threading.Thread(
+				target=self.thread_download, 
+				args=(start_byte, last_byte, temp_file)
+			)
+			start_byte = (file_size/self.parts) * thread_num + 1
 			thread.start()
 			self.threads.append(thread)
 			
@@ -77,8 +74,8 @@ class DownloadManager():
 		self.logger.info("Download Finished")
 	
 	# for each thread download the parts for the thread and write it to the file
-	def thread_download(self, start, end, temp_file):
-		header = self.get_http_header(start, end)
+	def thread_download(self, start_byte, last_byte, temp_file):
+		header = self.get_http_header(start_byte, last_byte)
 		self.client.send(header)
 		while True:
 			data = self.client.recv(1024)
@@ -87,17 +84,15 @@ class DownloadManager():
 			temp_file.write(data)
 
 	# returns the http header request
-	def get_http_header(self, start, end):
-		if start == 0 and end == 0:
+	def get_http_header(self, start_byte, last_byte):
+		if start_byte == 0 and last_byte == 0:
 			byte_range = ""
 		else: 
-			byte_range = 'bytes='+str(start)+'-'+str(end)		
-		header = 'GET ' + self.path + ' HTTP/1.1\r\nHost: ' + \
-			self.host
-		header += '\r\nConnection: keep-alive\r\nAccept-Encoding: gzip, ' + \
-			'deflate\r\nAccept: */*'
-		header += '\r\nUser-Agent: python-requests/2.13.0\r\nRange: ' \
-			+ byte_range + '\r\n\r\n'
+			byte_range = 'bytes='+str(start_byte)+'-'+str(last_byte)		
+		header = 'GET ' + self.path + ' HTTP/1.1\r\nHost: ' + self.host
+		header += '\r\nConnection: keep-alive\r\nAccept-Encoding: gzip, '
+		header += 'deflate\r\nAccept: */*\r\nUser-Agent: python-requests/2.13.0'
+		header += '\r\nRange: ' + byte_range + '\r\n\r\n'
 		return header
 
 	
@@ -107,21 +102,21 @@ if __name__ == '__main__':
 	download_info.add_argument(
 		"-u", 
 		"--url", 
-		help = "Url from where file will be downloaded", 
-		required = True
-		)
+		help="Url from where file will be downloaded", 
+		required=True
+	)
 	download_info.add_argument(
-		"-p", 
+		"-p",
 		"--port", 
-		help = "Port on which file will be downloaded", 
-		default = '80'
-		)
+		help ="Port on which file will be downloaded", 
+		default='80'
+	)
 	download_info.add_argument(
 		"-pa", 
 		"--parts", 
-		help = "Parts in which file will be downloaded", 
-		default = '3'
-		)
+		help="Parts in which file will be downloaded", 
+		default='3'
+	)
 	url = download_info.parse_args().url
 	if url[:7] == 'http://':
 		url = url[7:]
