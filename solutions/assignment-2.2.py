@@ -51,7 +51,7 @@ class DownloadManager():
 			self.file_parts.append(temp_file)
 			last_byte = (file_size / self.parts) * thread_num
 			if thread_num == self.parts:
-				end = file_size
+				last_byte = file_size
 			thread = threading.Thread(
 				target=self.thread_download, 
 				args=(start_byte, last_byte, temp_file)
