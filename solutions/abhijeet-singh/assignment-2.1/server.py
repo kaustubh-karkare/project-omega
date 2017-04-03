@@ -19,8 +19,9 @@ class Server():
 		address = (self.ip, self.port)
 		self.server.bind(address)
 		self.server.listen(10)
-		self.logger.info("Started listing on {} - {}"
-			.format(self.ip, self.port))
+		self.logger.info(
+			"Started listing on {} - {}".format(self.ip, self.port)
+		)
 		thread = threading.Thread(target = self.server_thread)
 		thread.start()
 		
@@ -28,10 +29,14 @@ class Server():
 		while self.server_running: 
 			try:
 				client_connection, client_address = self.server.accept()
-				self.logger.info("Got a connection from {} - {}".format(
-					client_address[0], client_address[1]))
-				thread = threading.Thread(target = self.addition_thread, 
-					args = (client_connection, client_address))
+				self.logger.info(
+					"Got a connection from {} - {}"
+					.format(client_address[0], client_address[1])
+				)
+				thread = threading.Thread(
+					target = self.addition_thread, 
+					args = (client_connection, client_address)
+				)
 				thread.start()
 			except EOFError:
 				self.logger.warn("Nothing Received")
@@ -58,19 +63,19 @@ if __name__ == '__main__':
 		"--ip", 
 		help="IP in which server wil run", 
 		default='127.0.0.1'
-		)
+	)
 	server_detail.add_argument(
 		"-p", 
 		"--port", 
 		help="Server's Port listening Connection", 
 		required=True
-		)
+	)
 	server_detail.add_argument(
 		"-t", 
 		"--time", 
 		help="Time for server will be active in seconds", 
 		default='150'
-		)
+	)
 	server_detail = server_detail.parse_args()
 	server = Server(server_detail.ip, server_detail.port)
 	server.start()

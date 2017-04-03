@@ -1,26 +1,38 @@
 from client import Client
+from server import Server
+from random import randint
 import unittest
 import threading
 import datetime
+import argparse
+import socket
 
 class TestClient(unittest.TestCase):
 	
 	def test_one(self):
+		clients = []
 		start_time = datetime.datetime.now()
-		client1 = Client(5, 6, '127.0.0.1', 1242)
-		client2 = Client(7, 8, '127.0.0.1', 1242)
-		client3 = Client(9, 10, '127.0.0.1', 1242)
-		client1.result_check()
-		client2.result_check()
-		client3.result_check()
+		self.ip = socket.gethostbyname(socket.gethostname())
+		self.port = 1234
+		server = Server(self.ip, self.port)
+		server.start()
+		for i in range(0, 3):
+			thread = threading.Thread(target = self.client_thread)
+			thread.start()
+			clients.append(thread)
+		for client in clients:
+			client.join()
 		end_time = datetime.datetime.now()
+		server.stop()
 		time_difference = end_time - start_time
-		time = divmod(
-			time_difference.days * 86400 + time_difference.seconds, 
-			60
-			)
-		self.assertTrue(time[1] >= 3)
-		
+		self.assertTrue(time_difference.total_seconds() <= 3)
+
+	def client_thread(self):
+		first_number = randint(0, 1000)
+		second_number = randint(0, 1000)
+		client = Client(first_number, second_number, self.ip, self.port)
+		client.check_result()
+	
 
 if __name__ == '__main__':
 	unittest.main()
