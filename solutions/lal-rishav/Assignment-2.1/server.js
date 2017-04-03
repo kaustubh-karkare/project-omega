@@ -1,16 +1,18 @@
-var net = require('net');
-var host = '127.0.0.1';
-var port = 8080;
+let net = require('net');
+let readline = require('readline')
 
-net.createServer(function(sock){
-	console.log('Connected: '+sock.remoteAddress + ':' +sock.remotePort);
-	sock.on('data',function(data){
-		var value = parseInt(String(data)[0])+parseInt(String(data)[2]);
-		sock.write(String(value));
+let host = '127.0.0.1';
+let port = process.argv[2];
+
+net.createServer(function(socket){
+	console.log('Connected: '+socket.remoteAddress + ':' + socket.remotePort);
+	socket.on('data',function(data){
+		let value = parseInt(String(data)[0]) + parseInt(String(data)[2]);
+		socket.write(String(value));
 	})
-	sock.on('close',function(data){
+	socket.on('close',function(data){
 	console.log('CLOSED')
-})
+	})
 }).listen(port,host);
 
 
