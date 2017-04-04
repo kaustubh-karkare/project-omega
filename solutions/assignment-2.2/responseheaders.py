@@ -1,3 +1,6 @@
+import logging
+
+
 def get_headers(client_socket, parsed_url):
     client_request = (
         'HEAD ' +
