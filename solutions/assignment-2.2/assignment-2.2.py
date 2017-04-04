@@ -55,6 +55,7 @@ class DownloadFile(threading.Thread):
     def run(self):
         self.parsing_url()
         self.response_headers()
+        self.pre_download_checks()
         self.download_files()
         self.merge_downloaded_files()
 
@@ -76,8 +77,17 @@ class DownloadFile(threading.Thread):
         )
         self.client_socket.close()
 
-    def download_files(self):
-        if (self.headers['Accept-Ranges'] != 'bytes'):
+    def pre_download_checks(self):
+        try:
+            if (self.headers['Content-Length'] == 0):
+                logging.warning('No data to download')
+        except:
+            logging.error('Download size not available')
+            raise
+        try:
+            if (self.headers['Accept-Ranges'] != 'bytes'):
+                self.threads = 1
+        except:
             self.threads = 1
         self.each_file_bytes = int(
             math.ceil(
@@ -95,6 +105,8 @@ class DownloadFile(threading.Thread):
             'Connection: close\r\n' +
             'Range: bytes='
         )
+
+    def download_files(self):
         self.start_range = 0
         self.end_range = self.each_file_bytes
         self.downloaded_file_names = []
