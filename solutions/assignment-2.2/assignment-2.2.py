@@ -4,9 +4,8 @@ import math
 import tempfile
 import argparse
 import logging
-import collections
-import re
 import responseheaders
+import urlparser
 
 BUFF_SIZE = 1024
 
@@ -27,7 +26,6 @@ def download(client_socket, request_message, download_file):
 
 
 def connect_client(host, port):
-    port = int(port)
     client_socket = socket.socket()
     try:
         client_socket.connect((host, port))
@@ -55,22 +53,13 @@ class DownloadFile(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-        self.parse_url()
+        self.parsing_url()
         self.response_headers()
         self.download_files()
         self.merge_downloaded_files()
 
-    def parse_url(self):
-        self.pattern = (r'(https?)?(\:\/\/)?([a-zA-Z0-9-.]+)?\:?(\d+)?(.*)')
-        self.url_group = re.match(self.pattern, self.url)
-        self.UrlParser = collections.namedtuple('UrlParser', 'host port path')
-        self.parsed_url = (
-            self.UrlParser(
-                self.url_group.group(3),
-                self.url_group.group(4),
-                self.url_group.group(5)
-            )
-        )
+    def parsing_url(self):
+        self.parsed_url = urlparser.parse_url(self.url)
 
     def response_headers(self):
         self.client_socket = (
