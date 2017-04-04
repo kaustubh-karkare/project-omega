@@ -1,5 +1,7 @@
 import logging
 
+BUFF_SIZE = 1024
+
 
 def get_headers(client_socket, parsed_url):
     client_request = (
@@ -13,7 +15,13 @@ def get_headers(client_socket, parsed_url):
         '\r\n\r\n'
     )
     client_socket.send(client_request)
-    status, headers_received = client_socket.recv(1024).split('\r\n', 1)
+    received_data = ''
+    while True:
+        data = client_socket.recv(BUFF_SIZE)
+        if not data:
+            break
+        received_data += data
+    status, headers_received = received_data.split('\r\n', 1)
     headers_received = headers_received.splitlines()
     headers = {}
     i = 0
