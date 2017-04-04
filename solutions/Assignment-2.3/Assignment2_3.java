@@ -2,7 +2,7 @@
   * JAVA code to implement a web server that can handle basic GET requests.
   * This is the driver code which uses the httpserver API.
   *
-  * A third party package - argparse4j (Command Line Parser) has been used so it must
+  * A third party package - argparse4j (Command Line Parser) has been used so it must be
   * installed inorder to run the webserver.
   *
   * Two command line arguments are needed during the execution in the recommended format as shown -
