@@ -1,23 +1,36 @@
 let net = require('net');
-let readline = require('readline')
-let client = new net.Socket();
-let port = process.argv[2]
-let numbers
+let readline = require('readline');
+let Logging = require('js-logging');
+let program = require('commander');
 
-client.connect(port, '127.0.0.1', function(data) {
- 	numbers = process.argv[3] + " " + process.argv[4];
+program
+  .version('0.0.1')
+  .option('-p, --port <n>', 'Port as argument', parseInt)
+  .option('-i, --ip <n>', 'IP as argument', String)
+  .option('-fn, --fn <n>', 'First Number', parseInt)
+  .option('-sn, --sn <n>', 'SecondNumber', parseInt)
+  .parse(process.argv);
+
+let logger = new Logging();
+let client = new net.Socket();
+
+let ip = program.ip;
+let port = program.port;
+let numbers;
+
+client.connect(port, ip, function(data) {
+ 	numbers = String(program.fn) + " " + String(program.sn);
  	client.write(numbers);
 });
 
 client.on('data', function(data) {
-	console.log('Received: ' + data);
-
-	if((parseInt(String(numbers)[0])+parseInt(String(numbers)[2])) == data)
-		console.log('verified');
+	logger.info('Received: ' + data);
+	let sum = parseInt(String(numbers)[0])+parseInt(String(numbers)[2]);
+	if( sum == data)
+		logger.info('verified');
 	client.destroy(); 
 });
 
 client.on('close', function() {
-	console.log('Connection closed');
+	logger.info('Connection closed');
 }); 
-
