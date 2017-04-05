@@ -24,4 +24,4 @@ net.createServer(function(socket){
 	})
 }).listen(port,host);
 
-logger.info('server listining on port '+port);
+logger.info('server listining on port ' + port);
