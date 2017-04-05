@@ -17,8 +17,8 @@ public class ClientHandler extends Thread {
   private Socket socket = null;
   private BufferedReader inFromClient = null;
   private DataOutputStream outToClient = null;
-  HashMap<Integer, String> statusCodes;
-  LinkedHashMap<String, String> headers;
+  private static HashMap<Integer, String> statusCodes;
+  private LinkedHashMap<String, String> headers;
 
   private enum FileSendingDecision {
     SEND_FILE,
@@ -79,6 +79,11 @@ public class ClientHandler extends Thread {
             logger.info("Unsupported Media Type requested. Denied.");
           }
         }
+      }
+
+      else {
+        sendResponse(405, "", FileSendingDecision.DONT_SEND_FILE);
+        logger.info(httpMethod + "requested. Denied");
       }
 
     } catch (IOException e) {
@@ -142,6 +147,8 @@ public class ClientHandler extends Thread {
       }
     }
     response.append("</ul>");
+    String responseString = response.toString();
+    responseString = ClientHandler.HTML_START + responseString + ClientHandler.HTML_END;
     sendResponse(200, response.toString(), FileSendingDecision.DONT_SEND_FILE);
   }
 
@@ -150,53 +157,38 @@ public class ClientHandler extends Thread {
 
     FileInputStream fileInputStream = null;
     final String newLine = "\r\n";
-    String requestPath = "";
+    //String requestPath = "";
     headers = new LinkedHashMap<String, String>();
 
-    switch (statusCode) {
-      case 200:
-        headers.put("HTTP/1.1 ", statusCodes.get(200));
-        break;
-      case 404:
-        headers.put("HTTP/1.1 ", statusCodes.get(404));
-        break;
-      case 415:
-        headers.put("HTTP/1.1 ", statusCodes.get(415));
-        break;
-      case 500:
-        headers.put("HTTP/1.1 ", statusCodes.get(500));
-        break;
-    }
-
-    headers.put("Server: ", "Java HTTPServer");
-    headers.put("Content-Type: ", "text/html" + newLine);
+    headers.put("Server", "Java HTTPServer");
 
     if (decision == FileSendingDecision.SEND_FILE) {
-      requestPath = responseString;
+      //requestPath = responseString;
       String contentType = responseString.substring(
         responseString.lastIndexOf('.'),
         responseString.length()
       );
-      if (!requestPath.endsWith(".htm") && !requestPath.endsWith(".html")) {
-        headers.put("Content-Type: ", contentType + newLine);
-      }
-      fileInputStream = new FileInputStream(requestPath);
+
+      headers.put("Content-Type", contentType + newLine);
+      fileInputStream = new FileInputStream(responseString);
       headers.put(
-        "Content-Length: ",
+        "Content-Length",
         Integer.toString(fileInputStream.available()) +
         newLine
       );
 
     }
     else {
-      responseString = ClientHandler.HTML_START + responseString + ClientHandler.HTML_END;
-      headers.put("Content-Length: ", responseString.length() + newLine);
+      headers.put("Content-Type", "text/html" + newLine);
+      headers.put("Content-Length", responseString.length() + newLine);
     }
 
-    headers.put("Connection: ", "close" + newLine + newLine);
+    headers.put("Connection", "close" + newLine + newLine);
+    outToClient.writeBytes("HTTP/1.1 " + statusCodes.get(statusCode));
 
     for (Map.Entry ii: headers.entrySet()) {
       outToClient.writeBytes(ii.getKey().toString());
+      outToClient.writeBytes(": ");
       outToClient.writeBytes(ii.getValue().toString());
     }
 
