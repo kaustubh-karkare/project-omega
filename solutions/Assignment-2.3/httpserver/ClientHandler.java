@@ -58,6 +58,7 @@ public class ClientHandler extends Thread {
         String requestPath = httpQueryString;
         requestPath = URLDecoder.decode(requestPath, "UTF-8");
 
+        // If request is for a directory
         if (new File(requestPath).isDirectory() | httpQueryString.isEmpty()) {
           try {
             logger.info("Directory requested. Looking for index.html...");
@@ -69,15 +70,15 @@ public class ClientHandler extends Thread {
         }
 
         // If request is for a file
+        else if (new File(requestPath).isFile()) {
+          logger.info("File requested. Preparing to send file - " + requestPath);
+          sendResponse(200, requestPath, FileSendingDecision.SEND_FILE);
+        }
+
+        // If request is neither for a folder or file, then it means requested resource is not found
         else {
-          if (new File(requestPath).isFile()) {
-            logger.info("File requested. Preparing to send file - " + requestPath);
-            sendResponse(200, requestPath, FileSendingDecision.SEND_FILE);
-          }
-          else {
-            sendResponse(415, "", FileSendingDecision.DONT_SEND_FILE);
-            logger.info("Unsupported Media Type requested. Denied.");
-          }
+          sendResponse(404, "", FileSendingDecision.DONT_SEND_FILE);
+          logger.info(requestPath + " - Requested resource not found");
         }
       }
 
