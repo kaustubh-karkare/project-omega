@@ -11,15 +11,24 @@ public class HttpServer extends Thread {
   private static final Logger logger = Logger.getLogger(HttpServer.class.getName());
   static String logConfigurationFilePath;
   static ServerSocket serverSocket;
+  static String ipAddress;
   static int port;
+  static int backlog;
 
-  public HttpServer(int port, String logConfigurationFilePath) {
+  public HttpServer(int port, String ipAddress, int backlog, String logConfigurationFilePath) {
     HttpServer.port = port;
     HttpServer.logConfigurationFilePath = logConfigurationFilePath;
+    HttpServer.ipAddress = ipAddress;
+    HttpServer.backlog = backlog;
     try {
       initLog();
     } catch (SecurityException | IOException e) {
-      logger.warning("Some error occured in loading configuration. Logging through console only");
+      if (logConfigurationFilePath.isEmpty()) {
+        logger.warning("Log Configuration File not provided. Logging through console only");
+      }
+      else {
+        logger.warning("Some error occured in loading configuration. Logging through console only");
+      }
     }
   }
 
@@ -36,7 +45,7 @@ public class HttpServer extends Thread {
       if (port < 0) {
         throw new NegativeNumberException();
       }
-      serverSocket = new ServerSocket(port); // Start,listen on given port
+      serverSocket = new ServerSocket(port, backlog, InetAddress.getByName(ipAddress));
       while (true) {
         try {
           logger.info("Java Server Waiting for client on port " + port);
@@ -49,7 +58,7 @@ public class HttpServer extends Thread {
     } catch (NegativeNumberException e) {
       logger.warning("Port number should be a positive integer");
     } catch (IOException e) {
-      logger.warning("Unable to start server on port " + port);
+      logger.warning("Unable to start server on address: " + ipAddress + ":" + port);
     }
   }
 }
