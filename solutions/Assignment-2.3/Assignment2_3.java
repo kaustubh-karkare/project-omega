@@ -41,36 +41,34 @@ class Assignment2_3 {
       .defaultHelp(true)
       .description("Java Server");
 
-    parser.addArgument("--IP") // Any abbreviation may be used starting with same characters
+    parser.addArgument("--ip") // Any abbreviation may be used starting with same characters
       .type(String.class)
-      .dest("IP")
+      .dest("ip")
       .setDefault("127.0.0.1")
       .help("IP Address on which server will be hosted");
 
-    parser.addArgument("--Port")
+    parser.addArgument("--port")
       .type(Integer.class)
       .setDefault(8080)
       .dest("port")
       .help("Port number on which server will be hosted");
 
-    parser.addArgument("--Backlog")
+    parser.addArgument("--backlog")
       .type(Integer.class)
       .setDefault(50)
       .dest("backlog")
       .help("Requested maximum length of the queue of incoming connections");
 
-    parser.addArgument("--LogConfigurationFilePath")
+    parser.addArgument("--log-configuration-file-path")
       .type(String.class)
       .dest("configPath")
       .setDefault("")
       .help("Path containing the Configuration File");
 
-
-
     try {
       Namespace namespace = parser.parseArgs(args);
       port = namespace.getInt("port");
-      ipAddress = namespace.getString("IP");
+      ipAddress = namespace.getString("ip");
       backlog = namespace.getInt("backlog");
       logConfigurationFilePath = namespace.getString("configPath");
       HttpServer httpServer = new HttpServerBuilder()
@@ -85,11 +83,9 @@ class Assignment2_3 {
         Thread.sleep(60);
         httpServer.join();
       } catch (InterruptedException e) {}
-
     } catch (ArgumentParserException e) {
       logger.warning(e.getMessage());
     }
   }
-
 
 }
