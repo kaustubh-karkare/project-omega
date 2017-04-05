@@ -15,14 +15,29 @@ public class HttpServer extends Thread {
   static int port;
   static int backlog;
 
-  public HttpServer(int port, String ipAddress, int backlog, String logConfigurationFilePath) {
+  public HttpServer(
+    int port,
+    String ipAddress,
+    int backlog,
+    String logConfigurationFilePath
+  ) {
     HttpServer.port = port;
     HttpServer.logConfigurationFilePath = logConfigurationFilePath;
     HttpServer.ipAddress = ipAddress;
     HttpServer.backlog = backlog;
+    initLog();
+  }
+
+  // Method to create log file
+  public static void initLog() {
+    logger.setLevel(Level.ALL);
+    logger.info("Initializing - trying to load configuration file...");
+    Properties preferences = new Properties();
     try {
-      initLog();
-    } catch (SecurityException | IOException e) {
+      FileInputStream configFile = new FileInputStream(logConfigurationFilePath);
+      preferences.load(configFile);
+      logManager.readConfiguration(configFile);
+    } catch (IOException e) {
       if (logConfigurationFilePath.isEmpty()) {
         logger.warning("Log Configuration File not provided. Logging through console only");
       }
@@ -31,20 +46,11 @@ public class HttpServer extends Thread {
       }
     }
   }
-
-  // Method to create log file
-  public static void initLog() throws SecurityException, IOException {
-    // Reading Configuration file which contains predefined instructions regarding logging
-    logManager.readConfiguration(new FileInputStream(logConfigurationFilePath));
-  }
+  
   // The run() method of HttpServer
   @Override
   public void run() {
-
     try {
-      if (port < 0) {
-        throw new NegativeNumberException();
-      }
       serverSocket = new ServerSocket(port, backlog, InetAddress.getByName(ipAddress));
       while (true) {
         try {
@@ -55,17 +61,10 @@ public class HttpServer extends Thread {
           logger.warning(e.getMessage());
         }
       }
-    } catch (NegativeNumberException e) {
-      logger.warning("Port number should be a positive integer");
     } catch (IOException e) {
       logger.warning("Unable to start server on address: " + ipAddress + ":" + port);
+    } catch (IllegalArgumentException e) {
+      logger.warning("Port number can't be a negative integer.");
     }
-  }
-}
-
-// User defined exception class
-class NegativeNumberException extends Exception {
-  public NegativeNumberException() {
-    super("Port should be a positive integer");
   }
 }
