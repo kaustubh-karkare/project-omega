@@ -26,7 +26,6 @@ public class ClientHandler extends Thread {
   private Socket socket = null;
   private BufferedReader inFromClient = null;
   private DataOutputStream outToClient = null;
-  private LinkedHashMap<String, String> headers;
 
   private enum FileSendingDecision {
     SEND_FILE,
@@ -159,7 +158,7 @@ public class ClientHandler extends Thread {
 
   public void sendResponse(int statusCode, String responseString, FileSendingDecision decision)
     throws IOException {
-
+    LinkedHashMap<String, String> headers;
     FileInputStream fileInputStream = null;
     final String newLine = "\r\n";
     headers = new LinkedHashMap<String, String>();
@@ -167,13 +166,14 @@ public class ClientHandler extends Thread {
     headers.put("Server", "Java HTTPServer");
 
     if (decision == FileSendingDecision.SEND_FILE) {
-      String contentType = responseString.substring(
-        responseString.lastIndexOf('.'),
-        responseString.length()
+      String requestPath = responseString;
+      String contentType = requestPath.substring(
+        requestPath.lastIndexOf('.'),
+        requestPath.length()
       );
 
       headers.put("Content-Type", contentType);
-      fileInputStream = new FileInputStream(responseString);
+      fileInputStream = new FileInputStream(requestPath);
       headers.put(
         "Content-Length",
         Integer.toString(fileInputStream.available())
