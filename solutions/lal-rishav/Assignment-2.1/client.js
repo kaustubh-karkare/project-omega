@@ -5,20 +5,19 @@ let program = require('commander');
 
 let logger = new Logging();
 
-newClient = function(){
+newClient = function() {
 	 program
-    .version('0.0.1')
-    .option('-p, --port <>', 'Port as argument', parseInt)
-    .option('-i, --ip <>', 'IP as argument', String)
-    .option('-fn, --firstNumber <>', 'First Number', parseInt)
-    .option('-sn, --secondNumber <>', 'Second Number', parseInt)
-    .parse(process.argv);
-     let client = new net.Socket();
-     let logger = new Logging();
-     return client
+	    .version('0.0.1')
+	    .option('-p, --port <>', 'Port as argument', parseInt)
+	    .option('-i, --ip <>', 'IP as argument', String)
+	    .option('-fn, --firstNumber <>', 'First Number', parseInt)
+	    .option('-sn, --secondNumber <>', 'Second Number', parseInt)
+	    .parse(process.argv);
+	    let client = new net.Socket();
+	    return client;
 }
 
-let client = newClient()
+let client = newClient();
 
 const ip = program.ip;
 const port = program.port;
