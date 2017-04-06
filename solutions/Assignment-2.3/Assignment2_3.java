@@ -34,6 +34,8 @@ class Assignment2_3 {
   private static String ipAddress;
   private static int backlog;
   private static String logConfigurationFilePath;
+  private static Namespace namespace;
+  private static boolean isArgumentParserException = false;
 
   public static void main(String args[]) throws IOException {
 
@@ -66,7 +68,13 @@ class Assignment2_3 {
       .help("Path containing the Configuration File");
 
     try {
-      Namespace namespace = parser.parseArgs(args);
+      namespace = parser.parseArgs(args);
+    } catch (ArgumentParserException e) {
+      isArgumentParserException = true;
+      logger.warning(e.getMessage());
+    }
+    
+    if (!isArgumentParserException) {
       port = namespace.getInt("port");
       ipAddress = namespace.getString("ip");
       backlog = namespace.getInt("backlog");
@@ -83,8 +91,6 @@ class Assignment2_3 {
         Thread.sleep(60);
         httpServer.join();
       } catch (InterruptedException e) {}
-    } catch (ArgumentParserException e) {
-      logger.warning(e.getMessage());
     }
   }
 
