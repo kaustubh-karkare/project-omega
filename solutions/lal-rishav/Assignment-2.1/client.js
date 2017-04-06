@@ -17,23 +17,30 @@ newClient = function() {
 	    return client;
 }
 
-let client = newClient();
+sendNumbers = function(firstNumber,secondNumber,client) {
+    numbers = String(firstNumber) + " " + String(secondNumber);
+	client.write(numbers);
+}
 
+verifySum = function(data) {
+	logger.info('Received: ' + data);
+	numbers = numbers.split(" ");
+	let sum = String(parseInt(numbers[0]) + parseInt(numbers[1]));
+	if (sum == data)
+		logger.info('verified');
+}
+
+let client = newClient();
 const ip = program.ip;
 const port = program.port;
 let numbers;
 
 client.connect(port, ip, function(data) {
- 	numbers = String(program.firstNumber) + " " + String(program.secondNumber);
- 	client.write(numbers);
+	sendNumbers(program.firstNumber,program.secondNumber,client) 
 });
 
 client.on('data', function(data) {
-	logger.info('Received: ' + data);
-	numbers = numbers.split(" ")
-	let sum = String(parseInt(numbers[0]) + parseInt(numbers[1]));
-	if (sum == data)
-		logger.info('verified');
+	verifySum(data);
 	client.destroy(); 
 });
 
