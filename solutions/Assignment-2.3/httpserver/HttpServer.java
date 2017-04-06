@@ -32,21 +32,22 @@ public class HttpServer extends Thread {
   public static void initLog() {
     logger.setLevel(Level.ALL);
     logger.info("Initializing - trying to load configuration file...");
-    Properties preferences = new Properties();
-    try {
-      FileInputStream configFile = new FileInputStream(logConfigurationFilePath);
-      preferences.load(configFile);
-      logManager.readConfiguration(configFile);
-    } catch (IOException e) {
-      if (logConfigurationFilePath.isEmpty()) {
-        logger.warning("Log Configuration File not provided. Logging through console only");
-      }
-      else {
+    
+    if (logConfigurationFilePath.isEmpty()) {
+      logger.warning("Log Configuration File not provided. Logging through console only");
+    }
+    else {
+      Properties preferences = new Properties();
+      try {
+        FileInputStream configFile = new FileInputStream(logConfigurationFilePath);
+        preferences.load(configFile);
+        logManager.readConfiguration(configFile);
+      } catch (IOException e) {
         logger.warning("Some error occured in loading configuration. Logging through console only");
       }
     }
   }
-  
+
   // The run() method of HttpServer
   @Override
   public void run() {
