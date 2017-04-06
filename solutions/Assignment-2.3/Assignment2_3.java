@@ -5,10 +5,13 @@
   * A third party package - argparse4j (Command Line Parser) has been used so it must be
   * installed inorder to run the webserver.
   *
-  * Four command line arguments(optional) are needed during the execution in the recommended format as shown -
-  *   java Assignment2_3 --P PORT_NUMBER --IP IP_ADDRESS --L LOG_CONFIGURATION_FILE_PATH --B BACKLOG
+  * Four command line arguments(optional) are needed during the execution namely -
+  *   port, ip, log-configuration-file-path, backlog
   *
-  * PORT_NUMBER is the port on which the server will be hosted.
+  * Type the following in the terminal to get help regarding the arguments -
+  *   java Assignment2_3 --help
+  *
+  * PORT is the port on which the server will be hosted.
   *
   * LOG_CONFIGURATION_FILE_PATH is the address of the log configuration file
   * which must be loaded in order to set the logging properties.
@@ -35,10 +38,8 @@ class Assignment2_3 {
   private static int backlog;
   private static String logConfigurationFilePath;
   private static Namespace namespace;
-  private static boolean isArgumentParserException = false;
 
   public static void main(String args[]) throws IOException {
-
     ArgumentParser parser = ArgumentParsers.newArgumentParser("Server")
       .defaultHelp(true)
       .description("Java Server");
@@ -70,28 +71,26 @@ class Assignment2_3 {
     try {
       namespace = parser.parseArgs(args);
     } catch (ArgumentParserException e) {
-      isArgumentParserException = true;
       logger.warning(e.getMessage());
+      return;
     }
-    
-    if (!isArgumentParserException) {
-      port = namespace.getInt("port");
-      ipAddress = namespace.getString("ip");
-      backlog = namespace.getInt("backlog");
-      logConfigurationFilePath = namespace.getString("configPath");
-      HttpServer httpServer = new HttpServerBuilder()
-        .setPort(port)
-        .setIP(ipAddress)
-        .setBacklog(backlog)
-        .setLogConfigurationFilePath(logConfigurationFilePath)
-        .getHttpServer();
 
-      httpServer.start();
-      try {
-        Thread.sleep(60);
-        httpServer.join();
-      } catch (InterruptedException e) {}
-    }
+    port = namespace.getInt("port");
+    ipAddress = namespace.getString("ip");
+    backlog = namespace.getInt("backlog");
+    logConfigurationFilePath = namespace.getString("configPath");
+    HttpServer httpServer = new HttpServerBuilder()
+      .setPort(port)
+      .setIP(ipAddress)
+      .setBacklog(backlog)
+      .setLogConfigurationFilePath(logConfigurationFilePath)
+      .getHttpServer();
+
+    httpServer.start();
+    try {
+      Thread.sleep(60);
+      httpServer.join();
+    } catch (InterruptedException e) {}
   }
 
 }
