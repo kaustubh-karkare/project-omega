@@ -17,10 +17,10 @@ public class ClientHandler extends Thread {
   // Static block to initialize the HashMap.
   static {
     statusCodes = new HashMap<Integer, String>();
-    statusCodes.put(200, "200 OK");
-    statusCodes.put(404, "404 Not Found");
-    statusCodes.put(500, "500 Internal Server Error");
-    statusCodes.put(415, "415 Unsupported Media Type");
+    statusCodes.put(200, "OK");
+    statusCodes.put(404, "Not Found");
+    statusCodes.put(500, "Internal Server Error");
+    statusCodes.put(415, "Unsupported Media Type");
   }
 
   private Socket socket = null;
@@ -98,7 +98,7 @@ public class ClientHandler extends Thread {
 
       else {
         sendResponse(405, "", FileSendingDecision.DONT_SEND_FILE);
-        logger.info(httpMethod + "requested. Denied.");
+        logger.info(httpMethod + " requested. Denied.");
       }
 
     } catch (IOException e) {
@@ -131,9 +131,9 @@ public class ClientHandler extends Thread {
         String fileName = listOfFiles[ii].getName();
         response.append(
           "<li>File - " +
-          "<a href=/" +
+          "<a href='/" +
           path +
-          ">" +
+          "'>" +
           fileName +
           "</a></li>"
         );
@@ -143,9 +143,9 @@ public class ClientHandler extends Thread {
         String folderName = listOfFiles[ii].getName();
         response.append(
           "<li>Folder - " +
-          "<a href=/" +
+          "<a href='/" +
           path +
-          "/>" +
+          "/'>" +
           folderName +
           "</a></li>"
         );
@@ -186,7 +186,7 @@ public class ClientHandler extends Thread {
     }
 
     headers.put("Connection", "close");
-    outToClient.writeBytes("HTTP/1.1 " + statusCodes.get(statusCode) + newLine);
+    outToClient.writeBytes("HTTP/1.1 " + statusCode + " " + statusCodes.get(statusCode) + newLine);
 
     for (Map.Entry header: headers.entrySet()) {
       outToClient.writeBytes(header.getKey().toString());
@@ -196,9 +196,9 @@ public class ClientHandler extends Thread {
     }
 
     outToClient.writeBytes(newLine);
-    logger.info("Headers sent successfully");
 
     if (decision == FileSendingDecision.SEND_FILE) {
+      logger.info("Headers sent successfully. Sending File now...");
       sendFile(fileInputStream, outToClient);
     }
     else {
