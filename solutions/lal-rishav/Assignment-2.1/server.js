@@ -13,7 +13,7 @@ let logger = new Logging();
 const host = program.ip;
 const port = program.port;
 
-let server = net.createServer(function(socket){
+let server = net.createServer(function(socket) {
 	logger.info('Connected: ' + socket.remoteAddress + ':' + socket.remotePort);
 	socket.on('data',function(data){
 
@@ -31,11 +31,10 @@ let server = net.createServer(function(socket){
 	})
 }).listen(port,host);
 
-try{
+try {
 	server.listen(port,host);
 	logger.info('server listining on port ' + port);
 }
-catch(err){
+catch(error) {
 	logger.info("Connection error");
 }
-
