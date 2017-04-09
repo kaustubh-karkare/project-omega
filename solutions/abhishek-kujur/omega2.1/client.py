@@ -2,8 +2,10 @@ import socket
 
 
 def Main():
-    host = '127.0.0.1'
-    port = 3000
+    input_string = input('Enter HOST:PORT\n')
+    input_string = input_string.split(':')
+    host = input_string[0]
+    port = int(input_string[1])
     connection = socket.socket()
     connection.connect((host, port))
     data_to_be_sent = input('->')
@@ -12,7 +14,17 @@ def Main():
         recieved_data = connection.recv(1024)
         recieved_data = str(recieved_data.decode())
         recieved_data = recieved_data.split(':')
-        print(recieved_data[0] + data_to_be_sent + ' is ' + recieved_data[1])
+        data_to_be_sent = data_to_be_sent.split(' ')
+        answer_of_sent_data = 0
+        if recieved_data[0] == 'sum':
+            answer_of_sent_data = int(data_to_be_sent[0]) + int(data_to_be_sent[1])
+        elif recieved_data[0] == 'product':
+            answer_of_sent_data = int(data_to_be_sent[0]) * int(data_to_be_sent[1])
+        if not answer_of_sent_data == int(recieved_data[1]):
+            print('error')
+        else:
+            print(recieved_data[0] + ' of ' + data_to_be_sent[0]
+                  + ' & ' + data_to_be_sent[1] + ' is ' + recieved_data[1])
         data_to_be_sent = input('->')
     connection.close()
 
