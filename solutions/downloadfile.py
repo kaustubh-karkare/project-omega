@@ -1,40 +1,46 @@
 import socket
-import threading
 import tempfile
 import logging
 import urlparser
+import concurrent.futures
 
 BLOCK_SIZE = 1024
 
 
-def receive_file_content_from_host(client_socket, download_file):
+def receive_data_from_host(client_socket, file_content):
+    headers = ''
+    all_headers_received = False
     while True:
         data = client_socket.recv(BLOCK_SIZE)
         if not data:
             break
-        try:
-            headers, content = data.split('\r\n\r\n')
-            download_file.write(content)
-        except:
-            download_file.write(data)
+        if not all_headers_received:
+            received_headers, separator, content = data.partition('\r\n\r\n')
+            if separator is None:
+                headers += received_headers
+                continue
+            else:
+                headers += received_headers
+                file_content.write(content)
+                all_headers_received = True
+        else:
+            file_content.write(data)
     client_socket.close()
-    download_file.flush()
+    file_content.flush()
+    return headers
 
 
-class DownloadFile(threading.Thread):
+class DownloadFile:
 
     def __init__(self, url, threads, output_path):
-        self.url = url
+        self.parsed_url = urlparser.parse_url(url)
         self.threads = threads
         self.output_path = output_path
-        threading.Thread.__init__(self)
+        self.initialize_download()
+        downloaded_parts_name = self.download_parts()
+        self.merge_downloaded_files(downloaded_parts_name)
 
-    def run(self):
-        self.url = urlparser.parse_url(self.url)
-        self.pre_download_checks()
-        self.download_files()
-
-    def pre_download_checks(self):
+    def initialize_download(self):
         headers = self.request_and_receive_reponse_headers()
         try:
             if (int(headers['Content-Length']) == 0):
@@ -50,28 +56,18 @@ class DownloadFile(threading.Thread):
 
     def https_headers_to_send_to_host(self):
         headers = {}
-        headers['Host: '] = self.url.host
+        headers['Host: '] = self.parsed_url.host
         headers['Connection: '] = 'close'
         # Add headers as per the requirement
         return headers
 
-    def request_and_receive_reponse_headers(self):
-        client_socket = socket.socket()
-        try:
-            client_socket.connect(
-                (
-                    self.url.host,
-                    int(self.url.port)
-                )
-            )
-        except:
-            logging.error('Client Socket connection could not be established')
-            raise
+    def get_data_to_send(self, https_method):
         line_break = '\r\n'
         headers_to_send_to_host = (self.https_headers_to_send_to_host())
         send_to_host = (
-            'HEAD ' +
-            self.url.path +
+            https_method +
+            ' ' +
+            self.parsed_url.path +
             ' HTTP/1.1' +
             line_break
         )
@@ -81,16 +77,26 @@ class DownloadFile(threading.Thread):
                 value +
                 line_break
             )
-        send_to_host += line_break
-        client_socket.send(send_to_host)
-        # Request is made only for headers
+        return send_to_host
+
+    def request_and_receive_reponse_headers(self):
+        client_socket = socket.socket()
         try:
-            status, separator, received_headers = (
-                client_socket.recv(BLOCK_SIZE).partition('\r\n')
+            client_socket.connect(
+                (
+                    self.parsed_url.host,
+                    int(self.parsed_url.port)
+                )
             )
         except:
-            logging.error('Host not responding')
+            logging.error('Client Socket connection could not be established')
             raise
+        send_to_host = self.get_data_to_send('HEAD')
+        send_to_host += '\r\n'
+        client_socket.send(send_to_host)
+        # Request is made only for headers
+        content_file = tempfile.NamedTemporaryFile()
+        received_headers = receive_data_from_host(client_socket, content_file)
         received_headers = received_headers.splitlines()
         headers = {}
         for line in received_headers:
@@ -105,19 +111,24 @@ class DownloadFile(threading.Thread):
         client_socket.close()
         return headers
 
-    def download_files(self):
+    def download_parts(self):
         headers = self.request_and_receive_reponse_headers()
         try:
             content_length = int(headers['Content-Length'])
         except:
             content_length = 0
-        each_file_bytes = int(content_length / self.threads)
+        each_part_size = int(content_length / self.threads)
         start_range = 0
-        end_range = each_file_bytes
-        downloaded_file_names = []
+        end_range = each_part_size
+        downloaded_parts_name = []
         download_threads = []
         line_break = '\r\n'
         ii = 1
+        executor = (
+            concurrent.futures.ThreadPoolExecutor(
+                max_workers=self.threads
+            )
+        )
         while ii <= self.threads:
             if (start_range > content_length - 1):
                 # File already downloaded
@@ -129,31 +140,19 @@ class DownloadFile(threading.Thread):
             except:
                 logging.error('Temporary file could not be created')
                 raise
-            downloaded_file_names.append(download_file.name)
+            downloaded_parts_name.append(download_file.name)
             client_socket = socket.socket()
             try:
                 client_socket.connect(
                     (
-                        self.url.host,
-                        int(self.url.port)
+                        self.parsed_url.host,
+                        int(self.parsed_url.port)
                     )
                 )
             except:
                 logging.error('Client connection could not be made')
                 raise
-            headers_to_send_to_host = self.https_headers_to_send_to_host()
-            send_to_host = (
-                'GET ' +
-                self.url.path +
-                ' HTTP/1.1' +
-                line_break
-            )
-            for key, value in headers_to_send_to_host.iteritems():
-                send_to_host += (
-                    key +
-                    value +
-                    line_break
-                )
+            send_to_host = self.get_data_to_send('GET')
             if (self.threads == 1):
                 send_to_host += ('Range: bytes=0-' + line_break)
             else:
@@ -167,30 +166,26 @@ class DownloadFile(threading.Thread):
             send_to_host += line_break
             client_socket.send(send_to_host)
             download_threads.append(
-                threading.Thread(
-                    target=receive_file_content_from_host,
-                    args=(
-                        client_socket,
-                        download_file
-                    )
+                executor.submit(
+                    receive_data_from_host,
+                    client_socket,
+                    download_file
                 )
             )
-            download_threads[len(download_threads) - 1].start()
             start_range = end_range + 1
-            end_range = start_range + each_file_bytes
+            end_range = start_range + each_part_size
             ii -= 1
 
-        for thread_instance in download_threads:
-            thread_instance.join()
-        self.merge_downloaded_files(downloaded_file_names)
+        concurrent.futures.wait(download_threads)
+        return downloaded_parts_name
 
-    def merge_downloaded_files(self, downloaded_file_names):
+    def merge_downloaded_files(self, downloaded_parts_name):
         try:
             output_file = open(self.output_path, 'w')
         except:
             logging.error('Output file could not be created')
             raise
-        for downloaded_file_name in downloaded_file_names:
+        for downloaded_file_name in downloaded_parts_name:
             downloaded_file = open(downloaded_file_name, 'r')
             downloaded_file.seek(0)
             output_file.write(downloaded_file.read())
