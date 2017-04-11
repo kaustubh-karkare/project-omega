@@ -1,3 +1,4 @@
+
 "use strict";
 
 const groupList = [];
@@ -39,13 +40,18 @@ function addArg(argObj, groupObj) {
   }
 
   if (groupObj) {
-    groupList.forEach((argGroup) => {
+    groupList.some(argGroup => {
       if (argGroup.name === groupObj.name) {
         argGroup.argList.push(argObj);
+        return true;
       }
     });
   } else {
-    let argGroupObj = { isRequired: argObj.isRequired || false, argList: [ { argName: argObj.argName, argKey: argObj.argKey, type: argObj.type, position: argObj.position } ] };
+    let argGroupObj = {
+      isRequired: argObj.isRequired || false,
+      argList: [argObj],
+    };
+
     groupList.push(argGroupObj);
   }
 }
@@ -55,17 +61,21 @@ function addArg(argObj, groupObj) {
 * add additional validations here.
 */
 function parsedObjValidator(parseObj) {
-  groupList.forEach((argGroup) => {
+  groupList.forEach(argGroup => {
     let count = 0;
 
-    argGroup.argList.forEach((arg) => {
+    argGroup.argList.forEach(arg => {
       if (arg.argName in parseObj) {
         count += 1;
       }
     });
     if (argGroup.isRequired === true) {
       if (count === 0) {
-        throw new Error(`At least one argument from group of argument '${ argGroup.argList[0].argKey }' required.`);
+        if (argGroup.argList.length === 1) {
+          throw new Error(`Argument '${argGroup.argList[0].argKey}' required`);
+        } else {
+          throw new Error(`At least one argument from group of argument '${ argGroup.argList[0].argKey }' required.`);
+        }
       }
     }
 
@@ -83,31 +93,33 @@ function parseArg(inputArgs) {
 
   inputArgs.forEach((inputArg, index) => {
     let argParsed = false;
+    let argValue = null;
+    let keyLessArg;
     inputArg = inputArg.split('=');
 
     if (inputArg[0].indexOf('-') !== 0) {
-      argParsed = groupList.some((argGroup) => {
-        return argGroup.argList.some((arg) => {
-          if (arg.position === index) {
-            parseObj[arg.argName] = inputArg[0];
-            argParsed = true;
-            return true;
-          } else return false;
-        });
-      });
+      keyLessArg = true;
     } else {
-      argParsed = groupList.some((argGroup) => {
-        return argGroup.argList.some((arg) =>{
-          if (arg.argKey === inputArg[0]) {
-            let argValue = argTypeFunctions[arg.type](inputArg[1]);
-            if (argValue !== null) {
-              parseObj[arg.argName] = argValue;
-              return true;
-            }
-          } else return false;
-        });
-      });
+      keyLessArg = false;
     }
+
+    argParsed = groupList.some(argGroup => {
+      return argGroup.argList.some(arg => {
+        if (keyLessArg) {
+          if (arg.position === index) {
+            argValue = argTypeFunctions[arg.type](inputArg[0]);
+          }
+        } else {
+          if (arg.argKey === inputArg[0]) {
+            argValue = argTypeFunctions[arg.type](inputArg[1]);
+          }
+        }
+        if (argValue !== null) {
+          parseObj[arg.argName] = argValue;
+          return true;
+        }
+      });
+    });
 
     if (!argParsed) {
       throw new Error(`Invalid argument '${ inputArg[0] }' entered. Check Type and argName`);
