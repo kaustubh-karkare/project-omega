@@ -1,6 +1,5 @@
 import argparse
-import downloadfile
-import concurrent.futures
+from filedownloader import FileDownloader
 
 
 def main():
@@ -23,26 +22,14 @@ def main():
         '-o',
         type=str,
         required=True,
-        help='Downloaded file name'
+        help='Downloaded output file name'
     )
-    parsed_argument = parser.parse_args()
-    # Maximum simultaneous downloads is default to 4
-    max_simultaneous_download = 4
-    executor = (
-        concurrent.futures.ThreadPoolExecutor(
-            max_workers=max_simultaneous_download
-        )
-    )
-    download_files = []
-    download_files.append(
-        executor.submit(
-            downloadfile.DownloadFile,
-            url=parsed_argument.url,
-            threads=parsed_argument.threads,
-            output_path=parsed_argument.output_path,
-        )
-    )
-    concurrent.futures.wait(download_files)
+    parsed_options = parser.parse_args()
+    FileDownloader(
+        url=parsed_options.url,
+        threads=parsed_options.threads,
+        output_path=parsed_options.output_path,
+    ).start()
 
 if __name__ == '__main__':
     main()
