@@ -5,37 +5,63 @@ import urlparser
 import concurrent.futures
 
 BLOCK_SIZE = 1024
+EOL = '\r\n'
 
 
 def receive_data_from_host(client_socket, file_content):
     headers = ''
+    previous_block = ''
     all_headers_received = False
     while True:
-        data = client_socket.recv(BLOCK_SIZE)
-        if not data:
+        current_data = client_socket.recv(BLOCK_SIZE)
+        if not current_data:
             break
         if not all_headers_received:
-            received_headers, separator, content = data.partition('\r\n\r\n')
+            received_headers, separator, content = (
+                current_data.partition(
+                    EOL +
+                    EOL
+                )
+            )
             if separator is None:
-                headers += received_headers
-                continue
+                received_headers, separator, content = (
+                    (
+                        previous_block +
+                        current_data
+                    ).partition(EOL + EOL)
+                )
+                if separator is None:
+                    headers += current_data
+                else:
+                    all_headers_received = True
+                    file_content.write(current_data)
             else:
                 headers += received_headers
                 file_content.write(content)
                 all_headers_received = True
+            previous_block = current_data
         else:
-            file_content.write(data)
+            file_content.write(current_data)
     client_socket.close()
     file_content.flush()
     return headers
 
 
-class DownloadFile:
+class FileDownloader:
 
     def __init__(self, url, threads, output_path):
-        self.parsed_url = urlparser.parse_url(url)
+        self.url_data = urlparser.parse_url(url)
         self.threads = threads
         self.output_path = output_path
+
+    def start(self):
+        # If protocol and port are missing, it is assumed to be a https request
+        if (
+            self.url_data.port is None or
+            self.url_data.protocol is 'https' or
+            self.url_data.port is '8080'
+        ):
+            self.url_data = self.url_data._replace(port=80)
         self.initialize_download()
         downloaded_parts_name = self.download_parts()
         self.merge_downloaded_files(downloaded_parts_name)
@@ -54,28 +80,31 @@ class DownloadFile:
         except:
             self.threads = 1
 
-    def https_headers_to_send_to_host(self):
-        headers = {}
-        headers['Host: '] = self.parsed_url.host
-        headers['Connection: '] = 'close'
-        # Add headers as per the requirement
-        return headers
-
-    def get_data_to_send(self, https_method):
-        line_break = '\r\n'
-        headers_to_send_to_host = (self.https_headers_to_send_to_host())
+    def get_request(self, https_method):
         send_to_host = (
-            https_method +
-            ' ' +
-            self.parsed_url.path +
-            ' HTTP/1.1' +
-            line_break
+            ' '.join(
+                (
+                    https_method,
+                    self.url_data.path,
+                    'HTTP/1.1'
+                )
+            )
         )
-        for key, value in headers_to_send_to_host.iteritems():
+        send_to_host += EOL
+        headers = {}
+        headers['Host'] = self.url_data.host
+        headers['Connection'] = 'close'
+        # Add more headers when required
+        for key, value in headers.iteritems():
             send_to_host += (
-                key +
-                value +
-                line_break
+                ''.join(
+                    (
+                        key,
+                        ': ',
+                        value,
+                        EOL
+                    )
+                )
             )
         return send_to_host
 
@@ -84,15 +113,15 @@ class DownloadFile:
         try:
             client_socket.connect(
                 (
-                    self.parsed_url.host,
-                    int(self.parsed_url.port)
+                    self.url_data.host,
+                    int(self.url_data.port)
                 )
             )
         except:
             logging.error('Client Socket connection could not be established')
             raise
-        send_to_host = self.get_data_to_send('HEAD')
-        send_to_host += '\r\n'
+        send_to_host = self.get_request('HEAD')
+        send_to_host += EOL
         client_socket.send(send_to_host)
         # Request is made only for headers
         content_file = tempfile.NamedTemporaryFile()
@@ -122,7 +151,6 @@ class DownloadFile:
         end_range = each_part_size
         downloaded_parts_name = []
         download_threads = []
-        line_break = '\r\n'
         ii = 1
         executor = (
             concurrent.futures.ThreadPoolExecutor(
@@ -145,25 +173,25 @@ class DownloadFile:
             try:
                 client_socket.connect(
                     (
-                        self.parsed_url.host,
-                        int(self.parsed_url.port)
+                        self.url_data.host,
+                        int(self.url_data.port)
                     )
                 )
             except:
                 logging.error('Client connection could not be made')
                 raise
-            send_to_host = self.get_data_to_send('GET')
+            send_to_host = self.get_request('GET')
             if (self.threads == 1):
-                send_to_host += ('Range: bytes=0-' + line_break)
+                send_to_host += ('Range: bytes=0-' + EOL)
             else:
                 send_to_host += (
                     'Range: bytes=' +
                     str(start_range) +
                     '-' +
                     str(end_range) +
-                    line_break
+                    EOL
                 )
-            send_to_host += line_break
+            send_to_host += EOL
             client_socket.send(send_to_host)
             download_threads.append(
                 executor.submit(
