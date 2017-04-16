@@ -17,7 +17,7 @@ import java.util.logging.Logger;
 public class DownloadThread extends Thread {
 	private final static Logger logger = Logger.getLogger(FileDownloader.class.getName());	
 	private final static String newLine = "\r\n";
-	protected static final int BUFFER_SIZE = 4096;
+	private static final int BUFFER_SIZE = 4096;
 	private int startByte;
 	private int endByte;
 	private Socket socket;
