@@ -1,7 +1,8 @@
 import os
 import logging
+import socket
+import sys
 from httprequestparser import parse_http_request
-from tempfile import NamedTemporaryFile
 
 BLOCK_SIZE = 1024
 EOL = '\r\n'
@@ -9,111 +10,118 @@ EOL = '\r\n'
 
 class ReceiveAndProcessRequest:
 
-    def __init__(self, client_socket, client_address):
+    def __init__(self, client_socket, client_address, base_directory):
+        logging.info('Logger for client request')
+        self.logger = logging.getLogger(__name__)
         self.client_socket = client_socket
         self.client_address = client_address
+        self.base_directory = base_directory
         self.default_file = 'index.html'
-        logging.info('Client connection received from:', self.client_address)
-        try:
-            http_request = self.client_socket.recv(BLOCK_SIZE)
-        except:
-            logging.error('Client request could not be received')
-            raise
+        self.logger.info('Client connection:', self.client_address)
+        self.client_socket.settimeout(1)
+        http_request = ''
+        while True:
+            try:
+                data = self.client_socket.recv(BLOCK_SIZE)
+                if not data:
+                    break
+                http_request += data
+            except socket.timeout:
+                break
         self.process_request(http_request)
         self.client_socket.close()
 
     def process_request(self, http_request):
+        status_code = None
+        status_message = None
         http_request_data, headers = parse_http_request(http_request)
         http_request_data = (
             http_request_data._replace(
                 path=os.path.join(
-                    os.getcwd(),
+                    self.base_directory,
                     http_request_data.path[1:]
                 )
             )
         )
-        logging.info('Path request by client is', http_request_data.path)
-
+        self.logger.info('Path request by client is', http_request_data.path)
+        response_headers = {}
+        file_to_send = None
         if os.path.isfile(http_request_data.path):
-            self.client_socket.send(
-                'HTTP/1.1 200 OK' +
-                EOL +
-                'Content-Length: ' +
+            file_to_send = http_request_data.path
+            status_code = '200'
+            status_message = 'OK'
+            response_headers['Content-Length'] = (
                 str(
                     os.path.getsize(
-                        http_request_data.path
+                        file_to_send
                     )
-                ) +
-                EOL +
-                EOL
+                )
             )
-            requested_file = open(http_request_data.path, 'r')
-            self.client_socket.send(requested_file.read())
 
         elif os.path.isdir(http_request_data.path):
-            file_list = NamedTemporaryFile()
             default_file_path = (
                 self.search_in_directory(
                     http_request_data.path,
-                    file_list
+                    )
                 )
-            )
-            file_list.flush()
-            self.client_socket.send('HTTP/1.1 200 OK' + EOL)
-            self.client_socket.send('Content-Length: ')
-
+            status_code = '200'
+            status_message = 'OK'
             if default_file_path is None:
-                file_list.seek(0)
-                self.client_socket.send(
+                response_headers['Content-Length'] = (
                     str(
-                        os.path.getsize(
-                            os.path.realpath(
-                                file_list.name
+                        sys.getsizeof(
+                            os.listdir(
+                                http_request_data.path
                             )
                         )
-                    ) +
-                    EOL +
-                    EOL
+                    )
                 )
-                self.client_socket.send(file_list.read())
-                file_list.close()
 
             else:
-                send_default_file = open(default_file_path, 'r')
-                self.client_socket.send(
+                response_headers['Content-Length'] = (
                     str(
                         os.path.getsize(
-                            default_file_path
-                            )
-                    ) +
-                    EOL +
+                            file_to_send
+                        )
+                    )
+                )
+                file_to_send = default_file_path
+        else:
+            status_code = '404'
+            status_message = 'Not Found'
+
+        self.client_socket.send(
+            ' '.join(
+                (
+                    'HTTP/1.1',
+                    status_code,
+                    status_message,
                     EOL
                 )
-                self.client_socket.send(EOL)
-                self.client_socket.send(send_default_file.read())
-                send_default_file.close()
-
+            )
+        )
+        for key, value in response_headers.iteritems():
+            self.client_socket.send(key + ': ' + value + EOL)
+        self.client_socket.send(EOL)
+        if file_to_send is not None:
+            with open(file_to_send, 'r') as send_content:
+                content_of_file = send_content.read(BLOCK_SIZE)
+                while content_of_file:
+                    self.client_socket.send(content_of_file)
+                    content_of_file = send_content.read(BLOCK_SIZE)
+        elif status_code is '200':
+            for element in os.listdir(http_request_data.path):
+                self.client_socket.send(element + EOL)
         else:
-            self.client_socket.send('HTTP/1.1 404 Not Found' + EOL + EOL)
+            return
 
-    def search_in_directory(self, current_directory, file_list):
+    def search_in_directory(self, current_directory):
         if current_directory is None:
             return None
         for element in os.listdir(current_directory):
             current_path = os.path.join(current_directory, element)
-            if os.path.isdir(current_path):
-                default_file_path = (
-                    self.search_in_directory(
-                        current_path,
-                        file_list
-                    )
-                )
-                if default_file_path is not None:
-                    return default_file_path
-            else:
+            if os.path.isfile(current_path):
                 file_name = element
                 if file_name == self.default_file:
                     return current_path
-                else:
-                    file_list.write(file_name + '\n')
         return None
