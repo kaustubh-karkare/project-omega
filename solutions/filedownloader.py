@@ -11,7 +11,7 @@ EOL = '\r\n'
 
 def receive_data_from_host(client_socket, file_content=None):
     current_data = client_socket.recv(BLOCK_SIZE)
-    status, separator, data = current_data.partition(EOL)
+    status, _, data = current_data.partition(EOL)
     EOH = EOL + EOL
     header_data = ''
     previous_block = ''
@@ -20,7 +20,7 @@ def receive_data_from_host(client_socket, file_content=None):
         header_data = data
         previous_block = data
     else:
-        headers, separator, content = data.partition(EOH)
+        headers, _, content = data.partition(EOH)
         header_data += headers
         all_headers_received = True
         if content is not '':
@@ -35,13 +35,13 @@ def receive_data_from_host(client_socket, file_content=None):
                 previous_block = current_data
             else:
                 all_headers_received = True
-                headers, separator, content = \
+                headers, _, content = \
                     (previous_block + current_data).partition(EOH)
                 if content is not '':
                     file_content.write(content)
         else:
             all_headers_received = True
-            header, separator, content = current_data.partition(EOH)
+            header, _, content = current_data.partition(EOH)
             header_data += header
             if content is not '':
                 file_content.write(content)
@@ -55,7 +55,7 @@ def receive_data_from_host(client_socket, file_content=None):
     for line in header_data:
         if not line:
             break
-        key, separator, value = line.partition(': ')
+        key, _, value = line.partition(': ')
         headers[key] = value
     client_socket.close()
     if file_content is not None:
