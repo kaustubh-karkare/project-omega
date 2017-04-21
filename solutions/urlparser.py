@@ -11,11 +11,14 @@ def parse_url(url):
             ['protocol', 'host', 'port', 'path']
         )
     )
+    server_port = None
+    if url_group.group(3) is not None:
+        server_port = int(url_group.group(3))
     url_data = (
         url_tuple(
             protocol=url_group.group(1),
             host=url_group.group(2),
-            port=url_group.group(3),
+            port=server_port,
             path=url_group.group(4),
         )
     )
