@@ -1,3 +1,4 @@
+//jshint esversion: 6, node: true
 
 "use strict";
 
@@ -40,12 +41,17 @@ function addArg(argObj, groupObj) {
   }
 
   if (groupObj) {
-    groupList.some(argGroup => {
+    let groupValid = false;
+    groupValid = groupList.some(argGroup => {
       if (argGroup.name === groupObj.name) {
         argGroup.argList.push(argObj);
         return true;
       }
     });
+
+    if (!groupValid) {
+      throw new Error(`Group not found. Use a valid group object`);
+    }
   } else {
     let argGroupObj = {
       isRequired: argObj.isRequired || false,
@@ -74,13 +80,13 @@ function parsedObjValidator(parseObj) {
         if (argGroup.argList.length === 1) {
           throw new Error(`Argument '${argGroup.argList[0].argKey}' required`);
         } else {
-          throw new Error(`At least one argument from group of argument '${ argGroup.argList[0].argKey }' required.`);
+          throw new Error(`At least one argument from group '${ argGroup.name }' required.`);
         }
       }
     }
 
     if (count > 1) {
-      throw new Error(`Multiple arguments of group same as argument '${ argGroup.argList[0].argKey }' present.`);
+      throw new Error(`Multiple arguments of group '${ argGroup.name }' present.`);
     }
   });
 
@@ -89,15 +95,16 @@ function parsedObjValidator(parseObj) {
 
 // main argument parser function
 function parseArg(inputArgs) {
-  let parseObj = {};
+  const parseObj = {};
 
   inputArgs.forEach((inputArg, index) => {
     let argParsed = false;
     let argValue = null;
     let keyLessArg;
-    inputArg = inputArg.split('=');
+    const inputKey = inputArg.split('=')[0];
+    const inputValue = inputArg.split('=')[1];
 
-    if (inputArg[0].indexOf('-') !== 0) {
+    if (inputKey.indexOf('-') !== 0) {
       keyLessArg = true;
     } else {
       keyLessArg = false;
@@ -107,11 +114,11 @@ function parseArg(inputArgs) {
       return argGroup.argList.some(arg => {
         if (keyLessArg) {
           if (arg.position === index) {
-            argValue = argTypeFunctions[arg.type](inputArg[0]);
+            argValue = argTypeFunctions[arg.type](inputKey);
           }
         } else {
-          if (arg.argKey === inputArg[0]) {
-            argValue = argTypeFunctions[arg.type](inputArg[1]);
+          if (arg.argKey === inputKey) {
+            argValue = argTypeFunctions[arg.type](inputValue);
           }
         }
         if (argValue !== null) {
@@ -122,7 +129,7 @@ function parseArg(inputArgs) {
     });
 
     if (!argParsed) {
-      throw new Error(`Invalid argument '${ inputArg[0] }' entered. Check Type and argName`);
+      throw new Error(`Invalid argument '${ inputKey }' entered. Check Type and argName`);
     }
   });
 
