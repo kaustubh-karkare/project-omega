@@ -18,10 +18,9 @@ class FileDownloader:
         self.output_path = output_path
 
     def start(self):
-        # If protocol and port are missing, it is assumed to be a http request
         if (
-            self.url_data.port is None or
-            self.url_data.protocol is 'http'
+            self.url_data.port is None and
+            self.url_data.protocol == 'http'
         ):
             self.url_data = self.url_data._replace(port=80)
         downloaded_parts_reference = self.download_parts()
@@ -49,28 +48,24 @@ class FileDownloader:
 
     def receive_data_from_host(self, client_socket, file_content=None):
         current_data = ''
-        while True:
+        while EOL not in current_data:
             current_data += client_socket.recv(BLOCK_SIZE)
-            if EOL in current_data:
-                break
         status, _, current_data = current_data.partition(EOL)
-        while True:
+        while EOH not in current_data:
             current_data += client_socket.recv(BLOCK_SIZE)
-            if EOH in current_data:
-                break
         header_data, _, current_data = current_data.partition(EOH)
-        while True:
-            current_data += client_socket.recv(BLOCK_SIZE)
-            if not current_data:
-                break
-            file_content.write(current_data)
-            current_data = ''
         headers = {}
         header_data = header_data.splitlines()
         for line in header_data:
             key, _, value = line.partition(': ')
             headers[key] = value
         if file_content is not None:
+            while True:
+                current_data += client_socket.recv(BLOCK_SIZE)
+                if not current_data:
+                    break
+                file_content.write(current_data)
+                current_data = ''
             file_content.flush()
         client_socket.close()
         return (status, headers)
@@ -84,7 +79,6 @@ class FileDownloader:
             raise
         self.send_request('HEAD', client_socket)
         status, headers = self.receive_data_from_host(client_socket)
-        print(headers)
         return headers
 
     def download_parts(self):
