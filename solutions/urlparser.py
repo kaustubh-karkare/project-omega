@@ -2,9 +2,9 @@ import re
 import collections
 
 
-url_tuple = (
+UrlTuple = (
     collections.namedtuple(
-        'url_tuple',
+        'UrlTuple',
         ['protocol', 'host', 'port', 'path']
     )
 )
@@ -17,7 +17,7 @@ def parse_url(url):
     if url_group.group(3) is not None:
         port = int(url_group.group(3))
     url_data = (
-        url_tuple(
+        UrlTuple(
             protocol=url_group.group(1),
             host=url_group.group(2),
             port=port,
