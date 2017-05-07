@@ -21,8 +21,7 @@ class FileDownloader:
         # If protocol and port are missing, it is assumed to be a http request
         if (
             self.url_data.port is None or
-            self.url_data.protocol is 'http' or
-            self.url_data.port == 8080
+            self.url_data.protocol is 'http'
         ):
             self.url_data = self.url_data._replace(port=80)
         downloaded_parts_reference = self.download_parts()
@@ -49,27 +48,23 @@ class FileDownloader:
         client_socket.send(EOL)
 
     def receive_data_from_host(self, client_socket, file_content=None):
-        current_data = client_socket.recv(BLOCK_SIZE)
+        current_data = ''
+        while True:
+            current_data += client_socket.recv(BLOCK_SIZE)
+            if EOL in current_data:
+                break
         status, _, current_data = current_data.partition(EOL)
-        previous_block = ''
-        header_data = ''
-        while current_data:
+        while True:
+            current_data += client_socket.recv(BLOCK_SIZE)
             if EOH in current_data:
-                headers, _, current_data = current_data.partition(EOH)
-                header_data += headers
                 break
-            elif EOH in (current_data + previous_block):
-                _, _, current_data = \
-                    (current_data + previous_block).partition(EOH)
+        header_data, _, current_data = current_data.partition(EOH)
+        while True:
+            current_data += client_socket.recv(BLOCK_SIZE)
+            if not current_data:
                 break
-            else:
-                header_data += current_data
-                previous_block = current_data
-            current_data = client_socket.recv(BLOCK_SIZE)
-
-        while current_data:
             file_content.write(current_data)
-            current_data = client_socket.recv(BLOCK_SIZE)
+            current_data = ''
         headers = {}
         header_data = header_data.splitlines()
         for line in header_data:
@@ -89,6 +84,7 @@ class FileDownloader:
             raise
         self.send_request('HEAD', client_socket)
         status, headers = self.receive_data_from_host(client_socket)
+        print(headers)
         return headers
 
     def download_parts(self):
