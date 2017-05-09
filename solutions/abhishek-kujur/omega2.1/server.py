@@ -1,7 +1,6 @@
 import socket
 import threading
 import logging
-import logging.handlers
 
 
 class Server():
@@ -11,8 +10,8 @@ class Server():
         self.logic = logic
         self.socket = socket.socket()
         self.socket.bind((self.host, self.port))
-        self.logger = logging.getLogger('MyLogger')
-        LOG_FILENAME = 'logfile'
+        self.logger = logging.getLogger('Server')
+        LOG_FILENAME = 'Server.log'
         formatter = logging.Formatter("%(asctime)s - %(message)s")
         FileHandler = logging.FileHandler(LOG_FILENAME)
         self.logger.setLevel(logging.DEBUG)
@@ -23,14 +22,12 @@ class Server():
         while True:
             self.socket.listen(2)
             connection, address = self.socket.accept()
-            self.logger.info(self.logic + "  " + self.host + ':' + str(self.port))
-            operation = self.logic
-            function = getattr(self, operation)
+            self.logger.info(self.host + ':' + str(self.port))
+            function = self.function
             thread = threading.Thread(target=function, args=(connection, address, ))
             thread.start()
 
-    def add(self, connection, address):
-        message = "sum:"
+    def function(self, connection, address):
         self.logger.info('connection from ' + str(address))
         while True:
             recieved_data = connection.recv(1024)
@@ -41,37 +38,27 @@ class Server():
             data = str(recieved_data.decode()).split()
             x = int(data[0])
             y = int(data[1])
-            sum_of_numbers = x + y
-            data_to_be_sent = message + str(sum_of_numbers)
+            result = self.logic(x, y)
+            data_to_be_sent = result
             connection.send(data_to_be_sent.encode())
         connection.close()
 
-    def multiplication(self, connection, address):
+
+def main():
+    def add(a, b):
+        message = "sum:"
+        result = a+b
+        result = message + str(result)
+        return result
+
+    def multiply(a, b):
         message = "product:"
-        self.logger.info('connection from ' + str(address))
-        while True:
-            recieved_data = connection.recv(1024)
-            if not recieved_data:
-                self.logger.warning("connection from " + str(address) +
-                                    " is aborted")
-                break
-            data = str(recieved_data.decode()).split()
-            try:
-                x = int(data[0])
-                y = int(data[1])
-                product_of_numbers = x * y
-            except Exception:
-                connection.close()
-                break
-            data_to_be_sent = message + str(product_of_numbers)
-            connection.send(data_to_be_sent.encode())
-        connection.close()
-
-
-def Main():
-    s = Server('127.0.0.1', 3000, 'multiplication')
-    s.listen()
+        result = a*b
+        result = message + str(result)
+        return result
+    server = Server('127.0.0.1', 3000, func)
+    server.listen()
 
 
 if __name__ == '__main__':
-    Main()
+    main()
