@@ -1,9 +1,12 @@
 import socket
+import sys
+
+chunk = 1024
 
 
-def Main():
-    input_string = input('Enter HOST:PORT\n')
-    input_string = input_string.split(':')
+def main():
+    input_string = sys.argv
+    input_string = input_string[1].split(':')
     host = input_string[0]
     port = int(input_string[1])
     connection = socket.socket()
@@ -11,7 +14,7 @@ def Main():
     data_to_be_sent = input('->')
     while data_to_be_sent != '':
         connection.send(data_to_be_sent.encode())
-        recieved_data = connection.recv(1024)
+        recieved_data = connection.recv(chunk)
         recieved_data = str(recieved_data.decode())
         recieved_data = recieved_data.split(':')
         data_to_be_sent = data_to_be_sent.split(' ')
@@ -30,4 +33,4 @@ def Main():
 
 
 if __name__ == '__main__':
-    Main()
+    main()
