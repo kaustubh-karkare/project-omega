@@ -56,7 +56,7 @@ def main():
         result = a*b
         result = message + str(result)
         return result
-    server = Server('127.0.0.1', 3000, func)
+    server = Server('127.0.0.1', 3000, add)
     server.listen()
 
 
