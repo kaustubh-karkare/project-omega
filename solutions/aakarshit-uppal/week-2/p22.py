@@ -2,34 +2,47 @@
 """Download file from a link using socket connection.
 
 Takes url as required argument in command line and destination path as
-optional argument, shows progress durin download and succes message on
-completion, including download size, time and speed.
+optional argument, shows success message on completion, including download
+size, time and speed.
 
 example::
 prompt $ ./p22.py http://www.cse.iitd.ernet.in/~naveen/courses/CSL630/all.pdf
-[############################################################]100%
 Finished Downloading all.pdf: Downloaded 2019.04 kB in 13.73 s at 147.07 kB/s
 """
 
-import socket  # For soket
+import socket  # For socket
 import sys  # For argv, exit
 import os  # For handling directory
 import threading  # For Thread
 import time  # For time
-import shutil  # For get_terminal_size
+# import shutil  # For get_terminal_size
 import collections  # For named tuple
+import logging  # For logging
+from dl_exceptions import *  # For exceptions
+
+# Logging specifications
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+file_handler = logging.FileHandler('download.log')
+file_handler.setLevel(logging.DEBUG)
+logging_format = '[%(asctime)s] [%(levelname)s]  %(name)s: %(message)s'
+file_handler.setFormatter(logging.Formatter(logging_format))
+logger.addHandler(file_handler)
 
 
-class _HttpRequestHandler:
-    # Handles HTTP requests, from url to request to response
+class HttpRequestHandler:
+    """Handles HTTP requests, from url to request to response."""
 
-    def __init__(self, url):
-        # Set url and buffer size
+    def __init__(self, url, port=80, parts=4):
+        """Set values of globals."""
         self.url = url
         self.buff_size = 2048
+        self.port = port
+        self.parts = parts
+        self.fetched_data = {}
 
-    def _handle_url(self):
-        # Extract host, path and file name from URL
+    def parse_url(self):
+        """Extract host, port(if present), path and file name from URL."""
         url = self.url
         try:
             url = url.split('//', 1)[1]
@@ -38,27 +51,36 @@ class _HttpRequestHandler:
 
         separation_point = url.find('/')
         self.host = url[:separation_point]
+        try:
+            self.port = int(self.host.split(':', 1)[1])
+            self.host = self.host.split(':', 1)[0]
+        except IndexError:
+            pass
         self.path = url[separation_point:]
-        self.file_name = url[url.rfind('/'):][1:]
+        self.file_name = url[url.rfind('/') + 1:]
 
         if self.file_name is '':
-            print('Error: Nothing to download.')
-            sys.exit(0)
+            logger.error('Nothing to download.')
+            raise NoFileException
 
-    def _create_request(self):
-        # Create byte encoded request
-        self.request = "GET %s HTTP/1.1\nHost: %s\n\n" % (self.path, self.host)
-        self.request = self.request.encode()
+    def get_length(self):
+        """Send HEAD request to extract content-length."""
+        with socket.socket(socket.AF_INET,
+                           socket.SOCK_STREAM
+                           ) as download_socket:
 
-    def _fetch_data(self):
-        # Fetch data using sockets
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as dlsocket:
+            # Create byte encoded request
+            request = "HEAD {} HTTP/1.1\nHost: {}\n\n".format(self.path,
+                                                              self.host)
+            request = request.encode()
 
-            # Send request and receive message+data
-            dlsocket.connect((self.host, 80))
-            dlsocket.send(self.request)
+            # Send request and receive header
+            download_socket.connect((self.host, self.port))
+            download_socket.send(request)
             self.start_time = time.time()
-            response = dlsocket.recv(self.buff_size)
+            response = b''
+            while(b'\r\n\r\n' not in response):
+                response += download_socket.recv(self.buff_size)
 
             # Extract value of content_length attribute from response message
             content_length = response[response.find(b'Content-Length') + 15:]
@@ -66,68 +88,78 @@ class _HttpRequestHandler:
             try:
                 self.length = int(content_length.decode())
             except ValueError:
-                print('Error: No internet/Invalid download link')
-                sys.exit(0)
+                logger.error('Error: No internet/Invalid download link')
+                raise ConnectionException
             if self.length == 0:
-                print('Error: Invalid link, Nothing to download')
-                sys.exit(0)
+                logger.error('Error: Invalid link, Nothing to download')
+                raise InvalidLinkException
+
+            self.part_length = self.length // self.parts
+
+    def fetch_data(self, part):
+        """Fetch partial data corresponding to part using socket."""
+        with socket.socket(socket.AF_INET,
+                           socket.SOCK_STREAM
+                           ) as download_socket:
+
+            # Create byte encoded request
+            starting_byte = (part) * self.part_length
+            if part == self.parts - 1:
+                ending_byte = self.length
+            else:
+                ending_byte = (part + 1) * self.part_length - 1
+            request = "GET {} HTTP/1.1\nHost: {}\nRange: bytes={}-{}\
+                       \n\n".format(self.path,
+                                    self.host,
+                                    starting_byte,
+                                    ending_byte)
+            request = request.encode()
+
+            # Send request and receive header+data
+            download_socket.connect((self.host, self.port))
+            download_socket.send(request)
+            # self.start_time = time.time()
+            logger.debug('Beginning download of part %d' % part)
+            response = b''
+            while(b'\r\n\r\n' not in response):
+                response += download_socket.recv(self.buff_size)
 
             # Find bytes let to fetch
-            file_beginning = response.find(b'\r\n\r\n') + 4
-            initial_data = response[file_beginning:]
-            bytes_to_fetch = self.length - len(initial_data)
-
-            # Elements to be used to show progress
-            self.progress = 0
-            self.received_data_length = len(initial_data)
-            self.progress_thread = threading.Thread(target=self._showProgress)
-            self.progress_thread.start()
-
+            data_beginning = response.find(b'\r\n\r\n') + 4
+            initial_data = response[data_beginning:]
+            bytes_to_fetch = self.part_length - len(initial_data)
+            if part == self.parts - 1:
+                bytes_to_fetch += self.length - self.parts * self.part_length
             # Fetch data in chunks
             fetched_data = b''
-            while len(fetched_data) < bytes_to_fetch:
+            while True:
                 remaining_bytes = bytes_to_fetch - len(fetched_data)
-                data_chunk = dlsocket.recv(remaining_bytes)
+                data_chunk = download_socket.recv(remaining_bytes)
                 fetched_data += data_chunk
-                self.received_data_length += len(data_chunk)
                 if not data_chunk:
                     break
             self.finish_time = time.time()
-            self.fetched_data = initial_data + fetched_data
+            self.fetched_data[part] = initial_data + fetched_data
+            logger.debug('Finished download of part %d' % part)
 
-            # Wait for progress thread
-            if self.progress_thread.isAlive():
-                time.sleep(0.01)
+    def download_successful(self):
+        """Verify completion of download."""
+        received_data_length = 0
+        for _, data in self.fetched_data.items():
+            received_data_length += len(data)
+        return received_data_length == self.length
 
-            # Verify completion of download
-            if self._download_successful():
-                self._finish_up()
-            else:
-                print('Error: Download Failed. Try Again...')
+    def _join_parts(self):
+        # Join fetched data
+        data = b''
+        for part in range(self.parts):
+            data += self.fetched_data[part]
+        self.data = data
+        logger.debug('Finished joining')
 
-    def _showProgress(self):
-        # Show progress in terms of graphical bar and percentage
-        while not self.progress > 99:
-            total = self.length
-            done = self.received_data_length
-            scale = shutil.get_terminal_size()[0] - 30
-            self.progress = int((done * 100) / total)
-            scaled_progress = int(self.progress * scale / 100)
-            time.sleep(0.001)
-            sys.stdout.write("\b" * (scale + 5))
-            progress_str = '[{}{}]{}%'.format('#' * scaled_progress,
-                                              ' ' * (scale - scaled_progress),
-                                              self.progress)
-            print(progress_str, end='')
-        print()
-
-    def _download_successful(self):
-        # Verify completion of download
-        return self.received_data_length == self.length
-
-    def _get_stats(self):
-        # Return named tuple containing download stats
-        kB_downloaded = (len(self.fetched_data) / 1024)
+    def get_stats(self):
+        """Return named tuple containing download stats."""
+        kB_downloaded = (self.length / 1024)
         time_taken = (self.finish_time - self.start_time)
         download_speed = (kB_downloaded / time_taken)
         new_stats = collections.namedtuple('new_stats', ['kB_downloaded',
@@ -136,42 +168,61 @@ class _HttpRequestHandler:
         stats = new_stats(kB_downloaded, time_taken, download_speed)
         return stats
 
-    def _finish_up(self):
-        # Perform finishing tasks
-        stats = self._get_stats()
+    def finish_up(self):
+        """Finish up by joining parts and logging stats."""
+        self._join_parts()
+        stats = self.get_stats()
         stat_string = 'Downloaded %.2f kB in %.2f s at %.2f kB/s' % (
             stats.kB_downloaded, stats.time_taken, stats.download_speed)
-        print('Finished Downloading {}: {}'.format(self.file_name,
-                                                   stat_string))
+        logger.info('Finished Downloading {}: {}'.format(self.file_name,
+                                                         stat_string))
 
 
 class Downloader:
-    """Download files from links using passed in command line."""
+    """Download file from a url."""
 
-    def __init__(self, url=sys.argv[1], dl_path='.'):
-        """Make request object and set url and path."""
-        self.request = _HttpRequestHandler(url)
+    def __init__(self, url=sys.argv[1], dl_path='.', port=80, parts=4):
+        """Make request object and set path."""
+        self.request = HttpRequestHandler(url, port=port, parts=parts)
         if len(sys.argv) > 2:
             dl_path = sys.argv[2]
         self.dl_path = dl_path
+        self.parts = parts
 
     def download(self):
         """Download file data."""
         request = self.request
-        request._handle_url()
-        request._create_request()
-        request._fetch_data()
+        request.parse_url()
+        request.get_length()
+
+        logger.debug('Beginning download from {}'.format(request.url))
+        request.start_time = time.time()
+        downloads = []
+        for part in range(self.parts):
+            downloads.append(threading.Thread(target=request.fetch_data,
+                                              args=(part,)))
+            downloads[part].start()
+        while(threading.activeCount() > 1):
+            time.sleep(0.01)
+
+        if(request.download_successful()):
+            logger.debug('Joining parts...')
+            request.finish_up()
         self._create_file()
 
     def _create_file(self):
         # Create file from downloaded data.
-        data_to_write = self.request.fetched_data
+        data_to_write = self.request.data
         file_with_path = '{}/{}'.format(self.dl_path, self.request.file_name)
         os.makedirs(os.path.dirname(file_with_path), exist_ok=True)
+        logger.debug('Creating {}'.format(file_with_path))
         with open(file_with_path, 'wb') as downloaded_file:
             downloaded_file.write(data_to_write)
+        logger.debug('Finished\n')
 
 
 if __name__ == '__main__':
-    ob = Downloader()
-    ob.download()
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    logger.addHandler(stream_handler)
+    Downloader().download()
