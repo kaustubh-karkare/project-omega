@@ -26,7 +26,7 @@ class Make(threading.Thread):
             args=(descriptor_stored_timestamp,)
         ).start()
 
-    def validate_and_process_target(self, target, descriptor_list):
+    def validate_and_update_target(self, target, descriptor_list):
         target_element = None
         for element in descriptor_list:
             if element['target'] is target:
@@ -44,7 +44,7 @@ class Make(threading.Thread):
             target_modified_timestamp = 0
             execute_commands = True
         for element in dependency_list:
-            self.validate_and_process_target(element, descriptor_list)
+            self.validate_and_update_target(element, descriptor_list)
             element_path = os.path.join(os.path.dirname(self.path), element)
             try:
                 element_modified_timestamp = \
@@ -64,7 +64,7 @@ class Make(threading.Thread):
             descriptor_list = json.load(descriptor_file)
         while self.utility_to_run:
             for element in descriptor_list:
-                self.validate_and_process_target(
+                self.validate_and_update_target(
                     element['target'],
                     descriptor_list
                 )
