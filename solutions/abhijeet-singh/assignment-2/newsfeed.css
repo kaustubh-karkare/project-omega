@@ -1,0 +1,148 @@
+body { 
+	background: #bcbdc4;
+	height: 1000px;
+}
+.header {
+	position: fixed;
+	width: 100%;
+	height: 60px;
+	background: #142170;
+	top: 0;
+	left: 0;
+	color: white;
+	z-index: 2;
+}
+.header img {
+	padding-top: 5px;
+	height: 40px;
+}
+.main_logo {
+	margin: 5px 0px 0px 150px;
+	height: 50px;
+}
+.search_area {
+	margin: -40px 0px 0px 250px;
+	height: 40px;
+}
+.profile_logo {
+	margin: -50px 0px 0px 750px;
+	height: 40px;
+}
+.profile {
+	margin: -30px 0px 0px 800px;
+	font-size: 20px;
+	height: 40px;
+	color: grey;
+}
+.home {
+	margin: -40px 0px 0px 880px;
+	font-size: 20px;
+	height: 40px;
+	color: grey;
+}
+.notification {
+	margin: -50px 0px 0px 970px;
+	height: 40px;
+}
+.setting {
+	margin: -40px 0px 0px 1030px;;
+	height: 40px;
+}
+.logout {
+	margin: -40px 0px 0px 1100px;
+	height: 40px;
+}
+.side {
+	top: 70px;
+	padding-top :50px;
+	left: 30px;
+	width: 200px;
+	height: 740px;
+}
+.side li {
+    	padding-top: 5px;
+	padding-bottom: 5px;
+	margin-left: -15px;
+}
+.side ul {
+	padding-top: 3px;
+	list-style-type: none;
+}
+.post {
+	margin: -720px 0px 0px 250px;
+	position: absolute;
+	width: 600px;
+	height: 210px;
+	background: white;
+	box-shadow: 0 3px 7px grey;
+}
+.newsfeed {
+	width: 580px;
+	height: 600px;
+	background: white;
+	margin: -280px 0px 0px 250px;
+	padding: 10px 10px 0px 10px;
+	box-shadow: 0 3px 7px grey;
+}
+.sidenews {
+	top: 70px;
+	margin: -720px 0px 0px 880px;
+	padding: 15px 5px 0px 10px;
+	width: 220px;
+	left: 880px;
+	height: 500px;
+	background: white;
+	box-shadow: 0 3px 7px grey;
+	font-size: 15px;
+}
+.postoption {
+	width: 580px;
+	height: 200px;
+	font-size:15px;	
+	padding: 10px 10px 0px 20px;
+}
+.postpost {
+	margin: -45px 0px 0px 500px;
+	width: 85px;
+	height: 30px;
+}
+.postbox {
+	border-style: solid;
+    	border-width: medium;
+	margin: -150px 0px 0px 20px;
+	width: 550px;
+}
+.boxs {
+	height: 105px;
+	width: 550px;
+}
+.posttext {
+	margin: -550px 0px 0px 50px;
+	padding-top: 10px;
+	height: 40px;
+	width: 400px;
+}
+.commentpic {
+	margin: 510px 0px 0px 0px;
+	padding-top: 0px;
+	width: 30px;
+	height: 30px;	
+}
+.profilepicsize {
+	height: 40px;
+}
+.commentbox {
+	margin: -25px 0px 0px 50px;
+	width: 520px;
+	height: 30px;
+}
+.commentbox input {
+	width: 520px;
+	height: 30px;
+}
+.p1 {
+	font-size: 15px;
+}
+.p2 {
+	font-size: 11px;
+}
