@@ -1,78 +1,85 @@
+import glob
 import os
-import unittest
+import tempfile
 import time
+import unittest
 
 from calendar import timegm
-from tempfile import NamedTemporaryFile
-from buildutility import BuildUtility
+from watcher import Watcher
 
-WATCH = "/tmp/test/*.cpp"
-ACTION = "g++ -o /tmp/test/final.exe /tmp/test/*.cpp"
+DIRECTORY = tempfile.mkdtemp(dir='/tmp/')
+WATCH = DIRECTORY + "/*.txt"
+ACTION = "touch " + DIRECTORY + "/output.txt"
+FILECOUNT = 0
 
 
-class TestBuildUtility(unittest.TestCase):
+def create_txtfile():
+    global FILECOUNT
+    FILECOUNT = FILECOUNT + 1
+    temp_file = tempfile.NamedTemporaryFile(dir=DIRECTORY, delete=False)
+    new_file_name = \
+        os.path.join(DIRECTORY, 'testfile' + str(FILECOUNT) + '.txt')
+    old_file_name = os.path.join(DIRECTORY, temp_file.name)
+    os.rename(old_file_name, new_file_name)
+    return new_file_name
 
-    def test_build_files(self):
-        build_instance = \
-            BuildUtility(WATCH, ACTION)
-        output_file = '/tmp/test/final.exe'
-        try:
-            os.remove(output_file)
-        except OSError:
-            pass
-        self.assertFalse(os.path.exists(output_file))
-        build_instance.build_files()
-        self.assertTrue(os.path.exists(output_file))
-        build_instance.stop_buildutility()
+
+class TestWatcher(unittest.TestCase):
 
     def test_creatingfile(self):
-        build_instance = \
-            BuildUtility(WATCH, ACTION)
-        directory = os.path.dirname(WATCH)
-        build_instance.start()
-        time.sleep(.5)
-        self.assertTrue(build_instance.path_thread_is_alive)
-        self.assertTrue(build_instance.buildutility_is_alive)
-        _ = NamedTemporaryFile(dir=directory)
-        time.sleep(1)
-        self.assertFalse(build_instance.path_thread_is_alive)
-        self.assertTrue(build_instance.buildutility_is_alive)
-        build_instance.stop_buildutility()
+        path_watcher = Watcher(WATCH, ACTION)
+        output_path = os.path.join(DIRECTORY, 'output.txt')
+        try:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+        except IOError:
+            pass
+        previous_block = {}
+        for element in glob.glob(WATCH):
+            previous_block[element] = os.path.getmtime(element)
+        temp_file = create_txtfile()
+        path_watcher.start_watcher(previous_block)
+        self.assertTrue(os.path.exists(output_path))
+        os.remove(os.path.join(DIRECTORY, temp_file))
 
     def test_updatingfile(self):
 
-        build_instance = \
-            BuildUtility(WATCH, ACTION)
-        directory = os.path.dirname(WATCH)
-        build_instance.start()
-        time.sleep(.5)
-        self.assertTrue(build_instance.path_thread_is_alive)
-        self.assertTrue(build_instance.buildutility_is_alive)
+        path_watcher = Watcher(WATCH, ACTION)
+        temp_file = create_txtfile()
+        output_path = os.path.join(DIRECTORY, 'output.txt')
+        try:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+        except IOError:
+            pass
+        previous_block = {}
+        for element in glob.glob(WATCH):
+            previous_block[element] = os.path.getmtime(element)
         current_time = timegm(time.gmtime())
         os.utime(
-            os.path.join(directory, 'testfile.cpp'),
+            os.path.join(DIRECTORY, temp_file),
             (current_time, current_time)
         )
-        time.sleep(1)
-        self.assertFalse(build_instance.path_thread_is_alive)
-        self.assertTrue(build_instance.buildutility_is_alive)
-        build_instance.stop_buildutility()
+        path_watcher.start_watcher(previous_block)
+        self.assertTrue(os.path.exists(output_path))
+        os.remove(os.path.join(DIRECTORY, temp_file))
 
     def test_deletingfile(self):
-        build_instance = \
-            BuildUtility(WATCH, ACTION)
-        directory = os.path.dirname(WATCH)
-        temp_file = NamedTemporaryFile(dir=directory, delete=False)
-        temp_file.close()
-        build_instance.start()
-        time.sleep(.5)
-        self.assertTrue(build_instance.path_thread_is_alive)
-        self.assertTrue(build_instance.buildutility_is_alive)
-        os.remove(os.path.join(directory, temp_file.name))
-        time.sleep(1)
-        self.assertFalse(build_instance.path_thread_is_alive)
-        self.assertTrue(build_instance.buildutility_is_alive)
-        build_instance.stop_buildutility()
+
+        path_watcher = Watcher(WATCH, ACTION)
+        temp_file = create_txtfile()
+        output_path = os.path.join(DIRECTORY, 'output.txt')
+        try:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+        except IOError:
+            pass
+        previous_block = {}
+        for element in glob.glob(WATCH):
+            previous_block[element] = os.path.getmtime(element)
+        os.remove(os.path.join(DIRECTORY, temp_file))
+        path_watcher.start_watcher(previous_block)
+        self.assertTrue(os.path.exists(output_path))
 
 
 if __name__ == '__main__':
