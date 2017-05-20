@@ -1,6 +1,7 @@
 ## General Instructions
 
 - Submit your solutions as pull-requests to the `solutions` subdirectory in this repository. Make sure you check out the instructions specified there too.
+- The number in the square brackets (ranging from 1-5) indicates my estimate of the difficulty of the problem.
 - If you are concerned that you don't know a particular technology / language required to solve a problem, good. Use this opportunity to learn about it. If you can prove that a problem is too easy because of past experience, let me know, and I'll give you a harder problem.
 - I recommend using Python or JavaScript (since I'm most familiar with them right now). However, you are free to choose any language you wish, as long as it is not something that makes code deliberately hard to read. If I don't know it, I will find someone who can review your code in my place, or else study the language and then review it myself.
 
