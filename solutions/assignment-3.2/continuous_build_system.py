@@ -14,7 +14,7 @@ def main():
         '--cbsconfig',
         '-c',
         required=False,
-        default=os.path.join(os.getcwd(), '.cbsconfig'),
+        default=os.path.join(os.getcwd(), 'cbsconfig'),
         type=str,
         help='Continuous build system(cbs) config file',
     )
@@ -27,18 +27,17 @@ def main():
         help='Interval between consecutive checks',
     )
     parsed_argument = parser.parse_args()
-    try:
-        with open(parsed_argument.cbsconfig, 'r') as cbsconfig:
-            try:
-                input_data = json.load(cbsconfig)
-                paths_to_watch = input_data.get("watch", os.getcwd())
-                action_to_execute = input_data["action"]
-            except ValueError:
-                logger.error('Key("action") is missing')
-                raise
-    except IOError:
-        logger.error('Continuous build system config file not available')
-        raise
+    if not os.path.isfile(parsed_argument.cbsconfig):
+        logger.error('Config file is not available')
+        return
+    with open(parsed_argument.cbsconfig, 'r') as cbsconfig:
+        try:
+            input_data = json.load(cbsconfig)
+            paths_to_watch = input_data.get("watch", os.getcwd())
+            action_to_execute = input_data["action"]
+        except ValueError:
+            logger.error('Key("action") is missing')
+            raise
     path_watcher = Watcher(
         paths_to_watch,
         action_to_execute,
