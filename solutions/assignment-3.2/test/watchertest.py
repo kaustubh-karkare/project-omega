@@ -5,9 +5,9 @@ import unittest
 from watcher import Watcher
 
 DIRECTORY = tempfile.mkdtemp(dir='/tmp/')
-OUTPUT_PATH = os.path.join(DIRECTORY, 'out.txt')
+OUTPUT_PATH = tempfile.mkstemp(dir=DIRECTORY)
 PATHS_TO_WATCH = DIRECTORY
-ACTION_TO_EXECUTE = "echo True> " + OUTPUT_PATH
+ACTION_TO_EXECUTE = "echo True> " + OUTPUT_PATH[1]
 
 
 class TestWatcher(unittest.TestCase):
@@ -16,15 +16,15 @@ class TestWatcher(unittest.TestCase):
         path_watcher = Watcher(PATHS_TO_WATCH, ACTION_TO_EXECUTE)
         with tempfile.TemporaryFile(dir=DIRECTORY) as _:
             path_watcher.run_watcher()
-        with open(OUTPUT_PATH, 'r') as output:
+        with open(OUTPUT_PATH[1], 'r') as output:
             self.assertEqual(output.read(), "True\n")
 
     def test_deletingpath(self):
-        temp_file = tempfile.TemporaryFile(dir=DIRECTORY)
+        temp_file = tempfile.mkstemp(dir=DIRECTORY)
         path_watcher = Watcher(PATHS_TO_WATCH, ACTION_TO_EXECUTE)
-        os.remove(os.path.join(DIRECTORY, temp_file.name))
+        os.remove(os.path.join(DIRECTORY, temp_file[1]))
         path_watcher.run_watcher()
-        with open(OUTPUT_PATH, 'r') as output:
+        with open(OUTPUT_PATH[1], 'r') as output:
             self.assertEqual(output.read(), "True\n")
 
     def test_updatingpath(self):
@@ -35,18 +35,18 @@ class TestWatcher(unittest.TestCase):
             (current_modified_time + 1, current_modified_time + 1)
         )
         path_watcher.run_watcher()
-        with open(OUTPUT_PATH, 'r') as output:
+        with open(OUTPUT_PATH[1], 'r') as output:
             self.assertEqual(output.read(), 'True\n')
 
-    def test_updatingfile_within_path(self):
+    def test_updatefile_within_path(self):
         temp_file = tempfile.mkstemp(dir=DIRECTORY)
-        current_modified_time = os.path.getmtime(OUTPUT_PATH)
         path_watcher = Watcher(PATHS_TO_WATCH, ACTION_TO_EXECUTE)
+        current_modified_time = os.path.getmtime(temp_file[1])
         os.utime(
             temp_file[1],
             (current_modified_time + 1, current_modified_time + 1)
         )
-        with open(OUTPUT_PATH, 'w+') as output:
+        with open(OUTPUT_PATH[1], 'w+') as output:
             path_watcher.run_watcher()
             self.assertNotEqual(output.read(), 'True\n')
 
