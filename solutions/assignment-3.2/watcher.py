@@ -22,15 +22,15 @@ class Watcher(Thread):
         self.interval_between_checks = interval_between_checks
         self.watching = False
         self.previous_modified_times = {}
-        Thread.__init__(self)
-
-    def run(self):
         for element in glob(self.paths_to_watch):
             try:
                 self.previous_modified_times[element] = \
                     os.path.getmtime(element)
             except IOError:
                 self.logger.info('Path - ' + element + 'Not Available')
+        Thread.__init__(self)
+
+    def run(self):
         self.watching = True
         while self.watching:
             self.run_watcher()
