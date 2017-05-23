@@ -2,19 +2,20 @@ import argparse
 import json
 import logging
 import os
+import sys
 import time
 
 from watcher import Watcher
 
 
 def main():
-    logger = logging.getLogger('contiuous_build_system ' + str(time.ctime()))
+    logger = logging.getLogger('contiuous_build_system')
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--cbsconfig',
         '-c',
         required=False,
-        default=os.path.join(os.getcwd(), 'cbsconfig'),
+        default='cbsconfig',
         type=str,
         help='Continuous build system(cbs) config file',
     )
@@ -29,7 +30,7 @@ def main():
     parsed_argument = parser.parse_args()
     if not os.path.isfile(parsed_argument.cbsconfig):
         logger.error('Config file is not available')
-        return
+        sys.exit(1)
     with open(parsed_argument.cbsconfig, 'r') as cbsconfig:
         try:
             input_data = json.load(cbsconfig)
