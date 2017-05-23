@@ -22,17 +22,17 @@ class Server(Thread):
         Thread.__init__(self)
 
     def run(self):
-        self.listen()
+        self.__listen()
 
-    def listen(self):
+    def __listen(self):
         while self.server_listen:
             self.socket.listen(2)
             connection, address = self.socket.accept()
-            new_connection = self.new_connection
+            new_connection = self.__new_connection
             thread = Thread(target=new_connection, args=(connection, address, ))
             thread.start()
 
-    def new_connection(self, connection, address):
+    def __new_connection(self, connection, address):
         self.logger.info('connection from ' + str(address))
         self.logic(connection)
 
@@ -65,7 +65,7 @@ def main():
         connection.send(data_to_be_sent.encode())
         connection.close()
         return
-    server = Server('127.0.0.1', 4000, add)
+    server = Server('127.0.0.1', 3000, add)
     server.start()
     time.sleep(5)
     server.stop()
