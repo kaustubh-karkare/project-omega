@@ -1,9 +1,10 @@
 import socket
-import threading
+from threading import Thread
 import logging
+import time
 
 
-class Server():
+class Server(Thread):
     def __init__(self, host, port, logic):
         self.host = host
         self.port = port
@@ -11,24 +12,33 @@ class Server():
         self.socket = socket.socket()
         self.socket.bind((self.host, self.port))
         self.logger = logging.getLogger('Server')
+        self.server_listen = True
         log_filename = 'Server.log'
         formatter = logging.Formatter("%(asctime)s - %(message)s")
         FileHandler = logging.FileHandler(log_filename)
         self.logger.setLevel(logging.DEBUG)
         FileHandler.setFormatter(formatter)
         self.logger.addHandler(FileHandler)
+        Thread.__init__(self)
+
+    def run(self):
+        self.listen()
 
     def listen(self):
-        while True:
+        while self.server_listen:
             self.socket.listen(2)
             connection, address = self.socket.accept()
             new_connection = self.new_connection
-            thread = threading.Thread(target=new_connection, args=(connection, address, ))
+            thread = Thread(target=new_connection, args=(connection, address, ))
             thread.start()
 
     def new_connection(self, connection, address):
         self.logger.info('connection from ' + str(address))
         self.logic(connection)
+
+    def stop(self):
+        self.server_listen = False
+        return
 
 
 def main():
@@ -55,8 +65,10 @@ def main():
         connection.send(data_to_be_sent.encode())
         connection.close()
         return
-    server = Server('127.0.0.1', 3000, add)
-    server.listen()
+    server = Server('127.0.0.1', 4000, add)
+    server.start()
+    time.sleep(5)
+    server.stop()
 
 
 if __name__ == '__main__':
