@@ -22,40 +22,40 @@ class Server():
         while True:
             self.socket.listen(2)
             connection, address = self.socket.accept()
-            self.logger.info(self.host + ':' + str(self.port))
-            function = self.function
-            thread = threading.Thread(target=function, args=(connection, address, ))
+            new_connection = self.new_connection
+            thread = threading.Thread(target=new_connection, args=(connection, address, ))
             thread.start()
 
-    def function(self, connection, address):
+    def new_connection(self, connection, address):
         self.logger.info('connection from ' + str(address))
-        recieved_data = connection.recv(1024)
-        if not recieved_data:
-            self.logger.warning("connection from " + str(address) +
-                                " is aborted")
-            return
-        data = str(recieved_data.decode()).split()
-        x = int(data[0])
-        y = int(data[1])
-        result = self.logic(x, y)
-        data_to_be_sent = result
-        connection.send(data_to_be_sent.encode())
-        connection.close()
+        self.logic(connection)
 
 
 def main():
-    def add(a, b):
-        message = "sum:"
-        result = a + b
-        result = message + str(result)
-        return result
+    def add(connection):
+        recieved_data = connection.recv(1024)
+        data = str(recieved_data.decode()).split()
+        x = int(data[0])
+        y = int(data[1])
+        result = x + y
+        result = str(result)
+        data_to_be_sent = result
+        connection.send(data_to_be_sent.encode())
+        connection.close()
+        return
 
-    def multiply(a, b):
-        message = "product:"
-        result = a * b
-        result = message + str(result)
-        return result
-    server = Server('127.0.0.1', 3000, multiply)
+    def multiply(connection):
+        recieved_data = connection.recv(1024)
+        data = str(recieved_data.decode()).split()
+        x = int(data[0])
+        y = int(data[1])
+        result = x * y
+        result = str(result)
+        data_to_be_sent = result
+        connection.send(data_to_be_sent.encode())
+        connection.close()
+        return
+    server = Server('127.0.0.1', 3000, add)
     server.listen()
 
 
