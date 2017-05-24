@@ -3,8 +3,11 @@ from threading import Thread
 import logging
 import time
 
+CHUNK = 1024
+
 
 class Server(Thread):
+
     def __init__(self, host, port, logic):
         self.host = host
         self.port = port
@@ -12,7 +15,6 @@ class Server(Thread):
         self.socket = socket.socket()
         self.socket.bind((self.host, self.port))
         self.logger = logging.getLogger('Server')
-        self.server_listen = True
         log_filename = 'Server.log'
         formatter = logging.Formatter("%(asctime)s - %(message)s")
         FileHandler = logging.FileHandler(log_filename)
@@ -22,14 +24,15 @@ class Server(Thread):
         Thread.__init__(self)
 
     def run(self):
+        self.server_listen = True
         self.__listen()
 
     def __listen(self):
         while self.server_listen:
             self.socket.listen(2)
             connection, address = self.socket.accept()
-            new_connection = self.__new_connection
-            thread = Thread(target=new_connection, args=(connection, address, ))
+            thread = Thread(target=self.__new_connection,
+                            args=(connection, address, ))
             thread.start()
 
     def __new_connection(self, connection, address):
@@ -43,7 +46,7 @@ class Server(Thread):
 
 def main():
     def add(connection):
-        recieved_data = connection.recv(1024)
+        recieved_data = connection.recv(CHUNK)
         data = str(recieved_data.decode()).split()
         x = int(data[0])
         y = int(data[1])
@@ -52,10 +55,9 @@ def main():
         data_to_be_sent = result
         connection.send(data_to_be_sent.encode())
         connection.close()
-        return
 
     def multiply(connection):
-        recieved_data = connection.recv(1024)
+        recieved_data = connection.recv(CHUNK)
         data = str(recieved_data.decode()).split()
         x = int(data[0])
         y = int(data[1])
@@ -64,8 +66,7 @@ def main():
         data_to_be_sent = result
         connection.send(data_to_be_sent.encode())
         connection.close()
-        return
-    server = Server('127.0.0.1', 3000, add)
+    server = Server('127.0.0.1', 5000, add)
     server.start()
     time.sleep(5)
     server.stop()
