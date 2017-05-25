@@ -1,12 +1,15 @@
 import os
 import shutil
 import tempfile
-import time
 import unittest
 
+from contextlib import contextmanager
 from watcher import Watcher
 
+PATHS_TO_WATCH = '*.txt'
 
+
+@contextmanager
 def temporary_directory():
     original_path = os.getcwd()
     testing_path = tempfile.mkdtemp()
@@ -21,61 +24,41 @@ def temporary_directory():
 class TestWatcher(unittest.TestCase):
 
     def test_creatingpath(self):
-        for testing_path in temporary_directory():
-            output_path = 'out.txt'
-            paths_to_watch = testing_path
-            action_to_execute = "echo True> " + output_path
-            path_watcher = Watcher(paths_to_watch, action_to_execute)
-            time.sleep(0.1)
-            with tempfile.TemporaryFile(dir=testing_path) as _:
-                path_watcher.run_watcher()
-            with open(output_path, 'r') as output:
-                self.assertEqual(output.read(), "True\n")
+        action_to_execute = 'echo > output1.txt'
+        path_watcher = Watcher(PATHS_TO_WATCH, action_to_execute)
+        open('file1.txt', 'w')
+        path_watcher.run_watcher()
+        self.assertTrue(os.path.exists('output1.txt'))
 
     def test_deletingpath(self):
-        for testing_path in temporary_directory():
-            temp_file = \
-                tempfile.NamedTemporaryFile(dir=testing_path, delete=False)
-            output_path = 'out.txt'
-            paths_to_watch = testing_path
-            action_to_execute = "echo True> " + output_path
-            path_watcher = Watcher(paths_to_watch, action_to_execute)
-            time.sleep(0.1)
-            os.remove(temp_file.name)
-            path_watcher.run_watcher()
-            with open(output_path, 'r') as output:
-                self.assertEqual(output.read(), "True\n")
+        action_to_execute = 'echo > output2.txt'
+        open('file2.txt', 'w')
+        path_watcher = Watcher(PATHS_TO_WATCH, action_to_execute)
+        os.remove('file2.txt')
+        path_watcher.run_watcher()
+        self.assertTrue(os.path.exists('output2.txt'))
 
     def test_updatingpath(self):
-        for testing_path in temporary_directory():
-            output_path = 'out.txt'
-            paths_to_watch = testing_path
-            action_to_execute = "echo True> " + output_path
-            path_watcher = Watcher(paths_to_watch, action_to_execute)
-            current_modified_time = os.path.getmtime(testing_path)
-            os.utime(
-                testing_path,
-                (current_modified_time + 1, current_modified_time + 1)
-            )
-            path_watcher.run_watcher()
-            with open(output_path, 'r') as output:
-                self.assertEqual(output.read(), 'True\n')
+        action_to_execute = 'echo > output3.txt'
+        open('file3.txt', 'w')
+        path_watcher = Watcher(PATHS_TO_WATCH, action_to_execute)
+        current_modified_time = os.path.getmtime('file3.txt')
+        os.utime(
+            'file3.txt',
+            (current_modified_time + 1, current_modified_time + 1)
+        )
+        path_watcher.run_watcher()
+        self.assertTrue(os.path.exists('output3.txt'))
 
-    def test_updatefile_within_path(self):
-        for testing_path in temporary_directory():
-            output_path = 'out.txt'
-            paths_to_watch = testing_path
-            action_to_execute = "echo True> " + output_path
-            temp_file = \
-                tempfile.NamedTemporaryFile(dir=testing_path, delete=False)
-            path_watcher = Watcher(paths_to_watch, action_to_execute)
-            current_modified_time = os.path.getmtime(temp_file.name)
-            os.utime(
-                temp_file.name,
-                (current_modified_time + 1, current_modified_time + 1),
-            )
-            path_watcher.run_watcher()
-            self.assertFalse(os.path.exists(output_path))
+    def test_no_path_to_watch_updated(self):
+        action_to_execute = 'echo > output4.txt'
+        open('file4.txt', 'w')
+        path_watcher = Watcher(PATHS_TO_WATCH, action_to_execute)
+        open('file5', 'w')
+        path_watcher.run_watcher()
+        self.assertFalse(os.path.exists('output4.txt'))
+
 
 if __name__ == '__main__':
-    unittest.main()
+    with temporary_directory():
+        unittest.main()
