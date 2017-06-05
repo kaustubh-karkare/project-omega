@@ -2,6 +2,7 @@ import os
 import re
 import socket
 import threading
+import urllib
 
 BLOCK_SIZE = 1024
 EOL = '\r\n'
@@ -9,28 +10,46 @@ EOH = EOL + EOL
 
 
 class HandleClient(threading.Thread):
-    status = {}
-    status[200] = 'OK'
-    status[400] = 'Bad Request'
-    status[404] = 'Not Found'
-    status[501] = 'Not Implemented'
+    status = {
+        200: 'OK',
+        400: 'Bad Request',
+        404: 'Not Found',
+        408: 'Request Timeout',
+        501: 'Not Implemented',
+    }
+    pattern = r'([A-Z]+)\s+/*(\S*)\s+(HTTP/\d+\.\d+)'
 
     def __init__(self, client_socket, client_address, **kwargs):
         self.client_socket = client_socket
-        self.client_socket.settimeout(1)
-        threading.Thread.__init__(self)
+        request_timeout = kwargs.get('request_timeout', 5)
+        self.client_socket.settimeout(request_timeout)
+        self.request_timed_out = False
+        super(HandleClient, self).__init__()
 
     def run(self):
         client_request, request_headers = self.recieve_request()
         response_headers = {}
-        if client_request.get('method') == 'GET':
-            requested_path = \
-                os.path.join(os.getcwd(), client_request.get('path'))
-            if client_request.get('path') is None:
-                self.send_status_and_headers(400, response_headers)
-            elif os.path.isfile(requested_path):
+        if self.request_timed_out:
+            self.send_status_and_headers(408, response_headers)
+            return
+        if (
+            client_request.get('method') is None or
+            client_request.get('path') is None
+        ):
+            self.send_status_and_headers(400, response_headers)
+            return
+
+        requested_path = \
+            os.path.join(os.getcwd(), client_request.get('path'))
+        if (
+            not os.path.isfile(requested_path) and
+            not os.path.isdir(requested_path)
+        ):
+            self.send_status_and_headers(404, response_headers)
+        elif client_request.get('method') == 'GET':
+            if os.path.isfile(requested_path):
                 self.send_file(requested_path, response_headers)
-            elif os.path.isdir(requested_path):
+            else:
                 default_path = \
                     os.path.join(requested_path, 'index.html')
                 if os.path.isfile(default_path):
@@ -38,14 +57,10 @@ class HandleClient(threading.Thread):
                 else:
                     self.send_directory_content(
                         client_request['path'],
-                        response_headers
+                        response_headers,
                     )
-            else:
-                self.send_status_and_headers(404, response_headers)
-        elif client_request.get('method') is None:
-            self.send_status_and_headers(400, response_headers)
         else:
-            self.send_status_and_headers(501, response_headers)
+            self.send_status_and_headers(501, response_headers,)
 
     def recieve_request(self):
         client_request = dict()
@@ -55,21 +70,22 @@ class HandleClient(threading.Thread):
             try:
                 data += self.client_socket.recv(BLOCK_SIZE)
             except socket.timeout:
-                break
+                self.request_timed_out = True
+                return client_request, headers
         request_line, _, data = data.partition(EOL)
-        pattern = r'([A-Z]+)\s+/*(\S*)\s+(HTTP/\d+\.\d+)'
         try:
-            request_line = re.match(pattern, request_line).groups()
+            client_request['method'], client_request['path'], \
+                client_request['version'] = \
+                re.match(HandleClient.pattern, request_line).groups()
         except AttributeError:
             return client_request, headers
-        client_request['method'] = request_line[0]
-        client_request['path'] = request_line[1]
-        client_request['version'] = request_line[2]
+        client_request['path'] = urllib.unquote(client_request['path'])
         while EOH not in data:
             try:
                 data += self.client_socket.recv(BLOCK_SIZE)
             except socket.timeout:
-                break
+                self.request_timed_out = True
+                return client_request, headers
         data = data.splitlines()
         headers = {}
         for line in data:
@@ -82,7 +98,7 @@ class HandleClient(threading.Thread):
             'HTTP/1.1 %d %s%s' % (
                 status_code,
                 HandleClient.status[status_code],
-                EOL
+                EOL,
             )
         )
         for key, value in headers.items():
@@ -101,16 +117,17 @@ class HandleClient(threading.Thread):
 
     def send_directory_content(self, directory_path, headers):
         self.send_status_and_headers(200, headers)
-        for element in os.listdir(os.path.join(os.getcwd(), directory_path)):
+        self.client_socket.send('<html><body><ul>')
+        for element in os \
+                .listdir(os.path.join(os.getcwd(), directory_path)):
             self.client_socket.send(
-                "<a href=%s> %s </a> %s <br>" % (
-                    (
-                        os.path.join(
-                            directory_path.replace(' ', '%20'),
-                            element.replace(' ', '%20')
-                        )
-                    ),
-                    element,
-                    EOL
-                )
+                "<li><a href=" +
+                os.path.join(
+                    urllib.quote(directory_path),
+                    urllib.quote(element)
+                ) +
+                ">" +
+                element +
+                "</a></li>"
             )
+        self.client_socket.send('</ul></body></html>')
