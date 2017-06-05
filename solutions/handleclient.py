@@ -121,13 +121,13 @@ class HandleClient(threading.Thread):
         for element in os \
                 .listdir(os.path.join(os.getcwd(), directory_path)):
             self.client_socket.send(
-                "<li><a href=" +
+                '<li><a href=' +
                 os.path.join(
                     urllib.quote(directory_path),
                     urllib.quote(element)
                 ) +
-                ">" +
+                '>' +
                 element +
-                "</a></li>"
+                '</a></li>'
             )
         self.client_socket.send('</ul></body></html>')
