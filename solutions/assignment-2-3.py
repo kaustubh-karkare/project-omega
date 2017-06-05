@@ -8,7 +8,7 @@ from server import Server
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', required=True, help='Server host')
-    parser.add_argument('--port', required=True, type=int, help='Server port')
+    parser.add_argument('--port', type=int, default=80, help='Server port')
     parser.add_argument('--document-root', default=os.getcwd())
     parsed_argument = parser.parse_args()
     server = Server(
