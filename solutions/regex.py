@@ -1,273 +1,257 @@
-import logging
-import string
-import sys
-
-SPECIAL_CHARACTERS = ['d', 's', 'w', 'D', 'S', 'W']
-MAXIMUM_REPETITIONS = 1000
+from tokenize import tokenizer
 
 
-def special_character_ascii_range(element):
-    ascii_range_limits = []
-    if element == 'd':
-        ascii_range_limits.append([ord('0'), ord('9')])
-    elif element == 's':
-        ascii_range_limits.append([ord(' '), ord(' ')])
-    elif element == 'w':
-        ascii_range_limits.append([ord('0'), ord('9')])
-        ascii_range_limits.append([ord('A'), ord('Z')])
-        ascii_range_limits.append([ord('a'), ord('z')])
-        ascii_range_limits.append([ord('_'), ord('_')])
-    elif element == 'D':
-        ascii_range_limits.append([0, ord('0') - 1])
-        ascii_range_limits.append([ord('9') + 1, 127])
-    elif element == 'S':
-        ascii_range_limits.append([0, ord(' ') - 1])
-        ascii_range_limits.append([ord(' ') + 1, 127])
-    elif element == 'W':
-        ascii_range_limits.append([0, ord(' ') - 1])
-        ascii_range_limits.append([ord(' ') + 1, ord('0') - 1])
-        ascii_range_limits.append([ord('9') + 1, ord('A') - 1])
-        ascii_range_limits.append([ord('Z') + 1, ord('_') - 1])
-        ascii_range_limits.append([ord('_') + 1, ord('a') - 1])
-        ascii_range_limits.append([ord('z') + 1, 127])
-    else:
-        logging.error('Special character is invalid')
-        sys.exit(1)
-    valid_ascii_codes = list()
-    for ascii_range in ascii_range_limits:
-        while ascii_range[0] <= ascii_range[1]:
-            valid_ascii_codes.append(ascii_range[0])
-            ascii_range[0] += 1
-    return valid_ascii_codes
+class InitialState:
 
+    def __init__(self):
 
-def escape_character_ascii_range(pattern, index):
-    valid_ascii_range = list()
-    index += 1
-    try:
-        if pattern[index] in SPECIAL_CHARACTERS:
-            valid_ascii_range = special_character_ascii_range(pattern[index])
-        else:
-            # Escape character will be treated as a literal
-            valid_ascii_range.append(ord(pattern[index]))
-    except IndexError:
-        logging.error('Escape character is missing')
-        raise
-    index += 1
-    return valid_ascii_range, index
-
-
-def parse_character_class(elements, index):
-    ascii_range = list()
-    if index >= len(elements):
-        return ascii_range, index
-    if elements[index] == '\\':
-        ascii_range, index = escape_character_ascii_range(elements, index)
-    elif elements[index] == '-':
-        if index == len(elements) - 1:
-            ascii_range.append(ord('-'))
-        elif elements[0] == '^' and index == 1:
-            ascii_range.append(ord('-'))
-        elif elements[0] == '-':
-            ascii_range.append(ord('-'))
-        else:
-            logging.error('Character class has invalid -')
-            sys.exit(1)
-        index += 1
-    else:
-        ascii_range.append(ord(elements[index]))
-        index += 1
-    return ascii_range, index
-
-
-def character_class(pattern, index):
-    ii = index + 1
-    elements = ''
-    while ii < len(pattern) and pattern[ii] != ']':
-        if pattern[ii] == '\\':
-            elements += pattern[ii]
-            ii += 1
-            try:
-                elements += pattern[ii]
-            except IndexError:
-                logging.error('Invalid escape character')
-                raise
-        else:
-            elements += pattern[ii]
-        ii += 1
-    if ii >= len(pattern):
-        logging.error('Character class missing closing bracket')
-        sys.exit(1)
-    index = ii + 1
-    ii = 0
-    acceptable_tokens = True
-    if len(elements):
-        if elements[ii] == '^':
-            acceptable_tokens = False
-            ii += 1
-    ascii_range = list()
-    while ii < len(elements):
-        lower_ascii_codes, ii = parse_character_class(elements, ii)
-        if ii < len(elements) and len(lower_ascii_codes) == 1 \
-                and elements[ii] == '-':
-            higher_ascii_codes, temporary_index = \
-                parse_character_class(elements, ii + 1)
-            if len(higher_ascii_codes) == 1:
-                if lower_ascii_codes[0] <= higher_ascii_codes:
-                    while lower_ascii_codes[0] <= \
-                            higher_ascii_codes[0]:
-                        ascii_range.append(lower_ascii_codes[0])
-                        lower_ascii_codes[0] += 1
-                    ii = temporary_index
-                else:
-                    logging.error('Range for character class not possible')
-                    sys.exit(1)
-            else:
-                ascii_range += lower_ascii_codes
-        else:
-            ascii_range += lower_ascii_codes
-    if acceptable_tokens:
-        return ascii_range, index
-    else:
-        valid_ascii_range = list()
-        for ii in range(128):
-            if ii not in ascii_range:
-                valid_ascii_range.append(ii)
-        return valid_ascii_range, index
-
-
-def get_number_of_repetitions(pattern, index):
-    minimum_number_of_repetitions = -1
-    maximum_number_of_repitions = -1
-    literals_between_brackets = ''
-    ii = index + 1
-    treat_elements_as_literals = False
-
-    while ii < len(pattern) and pattern[ii] != '}':
-        if pattern[ii] not in \
-                [',', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
-            treat_elements_as_literals = True
-            break
-        literals_between_brackets += pattern[ii]
-        ii += 1
-
-    if not treat_elements_as_literals and ii < len(pattern):
-        lower_limit, _, upper_limit = literals_between_brackets.partition(',')
-        if lower_limit != '':
-            minimum_number_of_repetitions = string.atoi(lower_limit)
-        if upper_limit != '':
-            maximum_number_of_repitions = string.atoi(upper_limit)
-        else:
-            maximum_number_of_repitions = minimum_number_of_repetitions
-        if minimum_number_of_repetitions > -1:
-            index = ii + 1
-    return minimum_number_of_repetitions, maximum_number_of_repitions, index
-
-
-class State:
-
-    def __init__(self, pattern, index):
-
+        self.state_type = 'initial-state'
         self.next_state = None
-        self.minimum_repetitions = 1
-        self.maximum_repetitions = 1
-        self.valid_paths = list()
-        if index >= len(pattern):
-            return
-        # Evaluate valid paths for next state
-        if pattern[index] == '\\':
-            self.valid_paths, index = \
-                escape_character_ascii_range(pattern, index)
-        elif pattern[index] in ['+', '?', '*']:
-            logging.error('Quantifiable token is missing')
-            sys.exit(1)
-        elif pattern[index] == '[':
-            self.valid_paths, index = character_class(pattern, index)
-        elif pattern[index] == '.':
-            for ii in range(ord('\n')):
-                self.valid_paths.append(ii)
-            for ii in range(ord('\n') + 1, ord('\r')):
-                self.valid_paths.append(ii)
-            for ii in range(ord('\r') + 1, 128):
-                self.valid_paths.append(ii)
-            index += 1
-        else:
-            self.valid_paths.append(ord(pattern[index]))
-            index += 1
 
-        if index < len(pattern):
-            # Check for repetition_qualifier
-            if pattern[index] == '?':
-                self.minimum_repetitions = 0
-                self.maximum_repetitions = 1
-                index += 1
-            elif pattern[index] == '*':
-                self.minimum_repetitions = 0
-                self.maximum_repetitions = MAXIMUM_REPETITIONS
-                index += 1
-            elif pattern[index] == '+':
-                self.minimum_repetitions = 1
-                self.maximum_repetitions = MAXIMUM_REPETITIONS
-                index += 1
-            elif pattern[index] == '{':
-                lower_limit, upper_limit, index = \
-                    get_number_of_repetitions(pattern, index)
-                if lower_limit > -1:
-                    self.minimum_repetitions = lower_limit
-                    self.maximum_repetitions = upper_limit
-            else:
-                pass
-
-        self.next_state = State(pattern, index)
+    def match(self, text, index):
+        return self.next_state.match(text, index)
 
 
-def match_text(current_state, text, index):
-    if current_state.next_state is None and index >= len(text):
-        return True
+class StartAnchor:
 
-    if index >= len(text):
-        if current_state.minimum_repetitions == 0:
-            return match_text(current_state.next_state, text, index)
-        else:
-            return False
-    lower_limit = current_state.minimum_repetitions
-    upper_limit = current_state.maximum_repetitions
-    for ii in range(lower_limit):
-        if (
-            index < len(text) and
-            ord(text[index]) in current_state.valid_paths
-        ):
-            index += 1
-        else:
-            return False
+    def __init__(self):
+        self.state_type = 'start-anchor'
+        self.next_state = None
 
-    if match_text(current_state.next_state, text, index):
-        return True
+    def match(self, text, index):
+        return self.next_state.match(text, index) if index == 0 else False
 
-    for ii in range(int(lower_limit), int(upper_limit)):
-        if (
-            index < len(text) and
-            ord(text[index]) in current_state.valid_paths
-        ):
-            index += 1
-            if match_text(current_state.next_state, text, index):
+
+class CharRange:
+
+    def __init__(self, char_ranges, acceptable_characters=True):
+        self.char_ranges = char_ranges
+        self.acceptable_characters = acceptable_characters
+
+    def check_if_character_in_range(self, character):
+        character_found = False
+        for char_range in self.char_ranges:
+            if (
+                character >= char_range['start'] and
+                character <= char_range['end']
+            ):
+                character_found = True
+                break
+        if self.acceptable_characters:
+            return True if character_found else False
+        return False if character_found else True
+
+
+class ConsumeCharacter:
+
+    def __init__(
+        self,
+        char_range_items,
+        minimum_characters_to_consume=1,
+        maximum_characters_to_consume=1
+    ):
+        self.state_type = 'consume-character'
+        self.char_range_items = char_range_items
+        self.minimum_characters_to_consume = minimum_characters_to_consume
+        self.maximum_characters_to_consume = maximum_characters_to_consume
+        self.next_state = None
+
+    def check_if_acceptable_character(self, character):
+        for char_range_item in self.char_range_items:
+            if char_range_item.check_if_character_in_range(character):
                 return True
+        return False
+
+    def match(self, text, index):
+        # The match tries to consume as many character as possible
+        for ii in range(self.minimum_characters_to_consume):
+            if index >= len(text):
+                return False
+            if self.check_if_acceptable_character(text[index]):
+                index += 1
+            else:
+                return False
+        current_index = index
+        # Consume as many character possible
+        for ii in range(
+            self.minimum_characters_to_consume,
+            self.maximum_characters_to_consume
+        ):
+            if current_index >= len(text):
+                break
+            if self.check_if_acceptable_character(text[current_index]):
+                current_index += 1
+            else:
+                break
+        while current_index >= index:
+            if self.next_state.match(text, current_index):
+                return True
+            else:
+                current_index -= 1
+        return False
+
+
+class EndAnchor:
+
+    def __init__(self):
+        self.state_type = 'end-anchor'
+        self.next_state = None
+
+    def match(self, text, index):
+        return self.next_state.match(text, index) \
+            if index == len(text) else False
+
+
+class FinalState:
+
+    def __init__(self):
+        self.state_type = 'final-state'
+        self.next_state = None
+
+    def match(self, text, index):
+        return True
+
+
+def parse_escape_character(escape_character, acceptable_characters=True):
+    if escape_character in ['D', 'S', 'W']:
+        acceptable_characters = not acceptable_characters
+        escape_character = escape_character.lower()
+    char_ranges = ()
+    if escape_character == 'd':
+        char_ranges += ({'start': '0', 'end': '9'},)
+    elif escape_character == 's':
+        char_ranges += ({'start': ' ', 'end': ' '},)
+    elif escape_character == 'w':
+        char_ranges += (
+            {'start': '0', 'end': '9'},
+            {'start': 'A', 'end': 'Z'},
+            {'start': 'a', 'end': 'z'},
+            {'start': '_', 'end': '_'},
+        )
+    else:
+        char_ranges += ({'start': escape_character, 'end': escape_character},)
+    return char_ranges, acceptable_characters
+
+
+def parse_character_class(character_set_elements):
+    character_set_tokens = tokenizer(character_set_elements)
+    char_ranges = ()
+    character_set_tokens_length = len(character_set_tokens)
+    acceptable_characters = True
+    if character_set_tokens_length == 0:
+        return char_ranges, acceptable_characters
+    start_index = 0
+    if character_set_tokens[start_index][0] == 'caret':
+        start_index += 1
+        acceptable_characters = False
+    ii = start_index
+    while ii < character_set_tokens_length:
+        if (
+            ii + 2 < character_set_tokens_length and
+            character_set_tokens[ii + 1][0] == 'literal' and
+            character_set_tokens[ii + 1][1] == '-'
+        ):
+            left_token = character_set_tokens[ii]
+            right_token = character_set_tokens[ii + 2]
+            if (
+                left_token[0] == 'escape-character' or
+                right_token[0] == 'escape-character' or
+                right_token[1] < left_token[1]
+            ):
+                raise Exception('Invalid character range in character set')
+            current_range = ({'start': left_token[1], 'end': right_token[1]},)
+            char_ranges += (CharRange(current_range, acceptable_characters),)
+            ii += 3
         else:
-            return match_text(current_state.next_state, text, index)
-    return False
+            if character_set_tokens[ii][0] == 'escape-character':
+                current_character_range, current_acceptable_range = (
+                    parse_escape_character(
+                        character_set_tokens[ii][1],
+                        acceptable_characters
+                    )
+                )
+                char_ranges += (
+                    CharRange(
+                        current_character_range,
+                        current_acceptable_range
+                    ),
+                )
+            else:
+                current_range = (
+                    {
+                        'start': character_set_tokens[ii][1],
+                        'end': character_set_tokens[ii][1]
+                    },
+                )
+                char_ranges += (
+                    CharRange(
+                        current_range,
+                        acceptable_characters
+                    ),
+                )
+            ii += 1
+    return char_ranges
+
+
+def compile(pattern):
+    tokens = tokenizer(pattern)
+    initial_state = InitialState()
+    previous_state = initial_state
+    ii = 0
+    while ii < len(tokens):
+        if tokens[ii][0] == 'consume-character':
+            raise Exception('No quantifiable token available')
+        elif tokens[ii][0] == 'caret':
+            previous_state.next_state = StartAnchor()
+        elif tokens[ii][0] == 'dollar':
+            previous_state.next_state = EndAnchor()
+        else:
+            char_range_items = ()
+            if tokens[ii][0] == 'escape-character':
+                char_ranges, acceptable_characters = \
+                    parse_escape_character(tokens[ii][1])
+                char_range_items += (
+                    CharRange(char_ranges, acceptable_characters),
+                )
+            elif tokens[ii][0] == 'character-class':
+                char_range_items += (parse_character_class(tokens[ii][1]))
+            elif tokens[ii][0] == 'dot':
+                character_ranges = (
+                    {'start': '\r', 'end': '\r'},
+                    {'start': '\n', 'end': '\n'},
+                )
+                char_range_items += (CharRange(character_ranges, False),)
+            else:
+                character_range = (
+                    {'start': tokens[ii][1], 'end': tokens[ii][1]},
+                )
+                char_range_items += (CharRange(character_range),)
+            minimum_characters_to_consume = 1
+            maximum_characters_to_consume = 1
+            if (
+                ii + 1 < len(tokens) and
+                tokens[ii + 1][0] == 'consume-character'
+            ):
+                ii += 1
+                minimum_characters_to_consume = tokens[ii][2]['minimum']
+                maximum_characters_to_consume = tokens[ii][2]['maximum']
+            previous_state.next_state = ConsumeCharacter(
+                char_range_items,
+                minimum_characters_to_consume,
+                maximum_characters_to_consume
+            )
+        ii += 1
+        previous_state = previous_state.next_state
+    previous_state.next_state = FinalState()
+    return initial_state
 
 
 def check(pattern, text):
-    match_start_from_beginning = False
-    pattern = pattern.rstrip('$')
-    if len(pattern) and pattern[0] == '^':
-        match_start_from_beginning = True
-        pattern = pattern.lstrip('^')
-    initial_state = State(pattern, 0)
-    if match_text(initial_state, text, 0):
+    initial_state = compile(pattern)
+    if initial_state.match(text, 0):
         return True
-    elif not match_start_from_beginning:
+    else:
         for ii in range(1, len(text)):
-            if match_text(initial_state, text, ii):
+            if initial_state.match(text, ii):
                 return True
     return False
