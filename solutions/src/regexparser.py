@@ -57,7 +57,7 @@ class RegexParser(object):
         current_path_start, current_path_end = (
             self.parse_repetition_quantifier(
                 current_path_start,
-                current_path_end
+                current_path_end,
             )
         )
         return current_path_start, current_path_end
@@ -158,7 +158,7 @@ class RegexParser(object):
                 character_class_items.append(
                     regexnodes.CharacterRange(
                         lower_limit,
-                        upper_limit
+                        upper_limit,
                     )
                 )
                 ii += 3
@@ -172,12 +172,12 @@ class RegexParser(object):
                         )
                     escape_sequence_ranges, escape_sequence_inverse_match = \
                         self.parse_escape_sequence(
-                            character_class_tokens[ii][1]
+                            character_class_tokens[ii][1],
                         )
                     character_class_items.append(
                         regexnodes.EscapeSequence(
                             escape_sequence_ranges,
-                            escape_sequence_inverse_match
+                            escape_sequence_inverse_match,
                         )
                     )
                 else:
@@ -189,7 +189,7 @@ class RegexParser(object):
                 ii += 1
         return regexnodes.CharacterClass(
             character_class_items,
-            inverse_match
+            inverse_match,
         )
 
     def dot(self):
@@ -216,7 +216,7 @@ class RegexParser(object):
     def plus_quantifier(self, current_path_start, current_path_end):
         current_path_end, _ = self.asterisk_quantifier(
             current_path_start,
-            current_path_end
+            current_path_end,
         )
         return current_path_start, current_path_end
 
@@ -295,7 +295,7 @@ class RegexParser(object):
     def parse_repetition_quantifier(
         self,
         current_path_start,
-        current_path_end
+        current_path_end,
     ):
         if self.index + 1 >= len(self.tokens):
             return current_path_start, current_path_end
@@ -304,7 +304,7 @@ class RegexParser(object):
             current_path_start, current_path_end = (
                 self.asterisk_quantifier(
                     current_path_start,
-                    current_path_end
+                    current_path_end,
                 )
             )
         elif self.tokens[self.index + 1][0] == TOKENS.plus.name:
@@ -312,7 +312,7 @@ class RegexParser(object):
             current_path_start, current_path_end = (
                 self.plus_quantifier(
                     current_path_start,
-                    current_path_end
+                    current_path_end,
                 )
             )
         elif self.tokens[self.index + 1][0] == TOKENS.question_mark.name:
@@ -333,6 +333,6 @@ class RegexParser(object):
                     current_path_start,
                     current_path_end,
                     minimum_repetition,
-                    maximum_repetition
+                    maximum_repetition,
                 )
         return current_path_start, current_path_end
