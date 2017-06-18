@@ -195,51 +195,6 @@ class RegexParser(object):
     def dot(self):
         return regexnodes.Dot()
 
-    def parse_repetition_quantifier(
-        self,
-        current_path_start,
-        current_path_end
-    ):
-        if self.index + 1 >= len(self.tokens):
-            return current_path_start, current_path_end
-        if self.tokens[self.index + 1][0] == TOKENS.asterisk.name:
-            self.index += 1
-            current_path_start, current_path_end = (
-                self.asterisk_quantifier(
-                    current_path_start,
-                    current_path_end
-                )
-            )
-        elif self.tokens[self.index + 1][0] == TOKENS.plus.name:
-            self.index += 1
-            current_path_start, current_path_end = (
-                self.plus_quantifier(
-                    current_path_start,
-                    current_path_end
-                )
-            )
-        elif self.tokens[self.index + 1][0] == TOKENS.question_mark.name:
-            self.index += 1
-            current_path_start, current_path_end = (
-                self.question_mark_quantifier(
-                    current_path_start,
-                    current_path_end,
-                )
-            )
-        elif self.tokens[self.index + 1][0] == TOKENS.opening_brace.name:
-            minimum_repetition, maximum_repetition = \
-                self.parse_brace_quantifier()
-            if minimum_repetition == -1:
-                return current_path_start, current_path_end
-            current_path_start, current_path_end = \
-                self.brace_quantifier(
-                    current_path_start,
-                    current_path_end,
-                    minimum_repetition,
-                    maximum_repetition
-                )
-        return current_path_start, current_path_end
-
     def asterisk_quantifier(self, current_path_start, current_path_end):
         quantifier_node = None
         repetition_type = regexnodes.REPETITION_TYPES.greedy.name
@@ -335,4 +290,49 @@ class RegexParser(object):
         )
         current_path_start = quantifier_node
         current_path_end = quantifier_node
+        return current_path_start, current_path_end
+
+    def parse_repetition_quantifier(
+        self,
+        current_path_start,
+        current_path_end
+    ):
+        if self.index + 1 >= len(self.tokens):
+            return current_path_start, current_path_end
+        if self.tokens[self.index + 1][0] == TOKENS.asterisk.name:
+            self.index += 1
+            current_path_start, current_path_end = (
+                self.asterisk_quantifier(
+                    current_path_start,
+                    current_path_end
+                )
+            )
+        elif self.tokens[self.index + 1][0] == TOKENS.plus.name:
+            self.index += 1
+            current_path_start, current_path_end = (
+                self.plus_quantifier(
+                    current_path_start,
+                    current_path_end
+                )
+            )
+        elif self.tokens[self.index + 1][0] == TOKENS.question_mark.name:
+            self.index += 1
+            current_path_start, current_path_end = (
+                self.question_mark_quantifier(
+                    current_path_start,
+                    current_path_end,
+                )
+            )
+        elif self.tokens[self.index + 1][0] == TOKENS.opening_brace.name:
+            minimum_repetition, maximum_repetition = \
+                self.parse_brace_quantifier()
+            if minimum_repetition == -1:
+                return current_path_start, current_path_end
+            current_path_start, current_path_end = \
+                self.brace_quantifier(
+                    current_path_start,
+                    current_path_end,
+                    minimum_repetition,
+                    maximum_repetition
+                )
         return current_path_start, current_path_end
