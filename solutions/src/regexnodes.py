@@ -17,7 +17,7 @@ class Node(object):
             and self.check_if_character_acceptable(text[index]) else False
 
 
-class Root(Node):
+class Source(Node):
 
     def match(self, text, index):
         return self.next_node.match(text, index)
@@ -200,7 +200,7 @@ class EndAnchor(Node):
             if index == len(text) else False
 
 
-class Leaf(Node):
+class Destination(Node):
 
     def match(self, text, index):
         return True
