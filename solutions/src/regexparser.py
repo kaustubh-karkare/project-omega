@@ -15,15 +15,15 @@ class RegexParser(object):
         self.index = 0
 
     def parse_regex(self):
-        root_node = regexnodes.Root()
-        previous_node = root_node
+        source_node = regexnodes.Source()
+        previous_node = source_node
         while self.index < len(self.tokens):
             current_path_start, current_path_end = self.parse_token()
             previous_node.next_node = current_path_start
             previous_node = current_path_end
             self.index += 1
-        previous_node.next_node = regexnodes.Leaf()
-        return root_node
+        previous_node.next_node = regexnodes.Destination()
+        return source_node
 
     def parse_token(self):
         current_path_start = None
