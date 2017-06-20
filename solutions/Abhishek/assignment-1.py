@@ -8,46 +8,55 @@ def main():
         print("No arguments in the input")
     
     else :
-        key,value,flag=0
+        flag=0
+        json = dict()                                    #dictionary to store arguments and values
         for cur_arg in range(1,num_of_args) :           # traverse through all arguments
             
-            arg = sys.argv[i]
-            if arg[0:6]== "--key=" :
+            arg = sys.argv[cur_arg]
+            if len(arg)>=5:                            #check for length of argument
                 
-                if len(arg) == 6 :                # check if not empty
-                     flag=1
-                     break
-                    
-                elif arg[6: ].isdigit():           #check if key is digit
-                    key.append(arg[6: ])
-                    
-                else :                              
-                    flag=2
-                    break
-                 
-            elif arg[0:8]== "--value=" :
 
-                if len(arg) == 8 :
-                    flag=1
-                    break
-                
+                if arg[0]=='-' and arg[1]=='-' :
+                     
+                     i=2
+                     intr_flag = 0
+                     while i<len(arg):                #check if a valid argument
+                         if arg[i]=='=' :
+                             intr_flag = 1
+                             break
+                         i=i+1;
+                            
+                     if intr_flag == 0 or i == len(arg) :
+                         flag = 1
+                         break
+
+                     if arg[2:i] in json :
+                         json[arg[2:i]].append(arg[i+1:])                     # add new value to an existing argument
+                     else :
+                         json[arg[2:i]] = [arg[i+1:]]                  #add new argument to dictionary
+
+
                 else :
-                    value.append(arg[8:])
+                         flag=3
+                         break
+
 
             else :
+                    flag=3
+                    break
+
                 
-                flag=3
-                break
+              
+                            
+                    
+           
 
         if flag==0 :
             
             print('{')                                          #print as JSON
-            for i in range(0,len(key)) :
-                print('"key": "' + key[0] + '",')
-                
-            for i in range(0,len(value)) :
-                print('"name": "' + key[0] + '",')
-                
+            for key in json.keys() :
+                for val in json[key]:
+                    print("'"+key+"'"+"'='"+val+"'")    
             print('}')
         
         elif flag==1 :
@@ -56,21 +65,9 @@ def main():
         elif flag==2 :
             print("Error: The value for the '--key' argument must be a positive integer.")
 
-        else :
+        elif flag==3 :
             print("Error : Arguments type not suported")
 
 
 if __name__=="__main__" : main()
-        
-            
-        
-                       
-
-                
-                
-        
-            
-            
-
-    
-
+      
