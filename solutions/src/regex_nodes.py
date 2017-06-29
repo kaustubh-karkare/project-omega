@@ -15,7 +15,7 @@ class Node(object):
     def match(self, text, index, groups):
         raise NotImplementedError()
 
-    def reset_repeatition_count(self):
+    def reset_repetition_count(self):
         raise NotImplementedError()
 
 
@@ -48,8 +48,8 @@ class CharacterRange(Node):
             self.next_node.match(text, index + 1, groups)
         )
 
-    def reset_repeatition_count(self):
-        self.next_node.reset_repeatition_count()
+    def reset_repetition_count(self):
+        self.next_node.reset_repetition_count()
 
 
 class Or(Node):
@@ -76,8 +76,8 @@ class Or(Node):
             self.next_node.match(text, index + 1, groups)
         )
 
-    def reset_repeatition_count(self):
-        self.next_node.reset_repeatition_count()
+    def reset_repetition_count(self):
+        self.next_node.reset_repetition_count()
 
 
 class GroupStart(Node):
@@ -89,14 +89,14 @@ class GroupStart(Node):
     def match(self, text, index, groups):
         previous_group_start_index = groups[self.group_number][0]
         groups[self.group_number][0] = index
-        self.reset_repeatition_count()
+        self.reset_repetition_count()
         if self.next_node.match(text, index, groups):
             return True
         groups[self.group_number][0] = previous_group_start_index
         return False
 
-    def reset_repeatition_count(self):
-        self.next_node.reset_repeatition_count()
+    def reset_repetition_count(self):
+        self.next_node.reset_repetition_count()
 
 
 class GroupEnd(Node):
@@ -113,7 +113,7 @@ class GroupEnd(Node):
         groups[self.group_number][1] = previous_group_end_index
         return False
 
-    def reset_repeatition_count(self):
+    def reset_repetition_count(self):
         return
 
 
@@ -186,9 +186,9 @@ class Repeat(Node):
             self.number_of_repetitions_done -= 1
         return False
 
-    def reset_repeatition_count(self):
+    def reset_repetition_count(self):
         self.number_of_repetitions_done = 0
-        self.next_node.reset_repeatition_count()
+        self.next_node.reset_repetition_count()
 
 
 class EndAnchor(Node):
