@@ -4,7 +4,8 @@ from enum import Enum
 
 TOKENS = Enum(
     'tokens',
-    """ASTERISK
+    """
+    ASTERISK
     CARET
     CLOSING_BRACE
     CLOSING_BRACKET
@@ -25,7 +26,7 @@ TOKENS = Enum(
 )
 
 
-Token = namedtuple('token', ['name', 'value'])
+Token = namedtuple('token', ['type', 'value'])
 
 
 def tokenizer(pattern):
@@ -33,41 +34,41 @@ def tokenizer(pattern):
     data_length = len(pattern)
     index = 0
     while index < data_length:
-        token_name = None
+        token_type = None
         if pattern[index] == '*':
-            token_name = TOKENS.ASTERISK.name
+            token_type = TOKENS.ASTERISK
         elif pattern[index] == '^':
-            token_name = TOKENS.CARET.name
+            token_type = TOKENS.CARET
         elif pattern[index] == '}':
-            token_name = TOKENS.CLOSING_BRACE.name
+            token_type = TOKENS.CLOSING_BRACE
         elif pattern[index] == ']':
-            token_name = TOKENS.CLOSING_BRACKET.name
+            token_type = TOKENS.CLOSING_BRACKET
         elif pattern[index] == ')':
-            token_name = TOKENS.CLOSING_PARENTHESIS.name
+            token_type = TOKENS.CLOSING_PARENTHESIS
         elif pattern[index] == ',':
-            token_name = TOKENS.COMMA.name
+            token_type = TOKENS.COMMA
         elif pattern[index] == '$':
-            token_name = TOKENS.DOLLAR.name
+            token_type = TOKENS.DOLLAR
         elif pattern[index] == '.':
-            token_name = TOKENS.DOT.name
+            token_type = TOKENS.DOT
         elif pattern[index] == '{':
-            token_name = TOKENS.OPENING_BRACE.name
+            token_type = TOKENS.OPENING_BRACE
         elif pattern[index] == '[':
-            token_name = TOKENS.OPENING_BRACKET.name
+            token_type = TOKENS.OPENING_BRACKET
         elif pattern[index] == '(':
-            token_name = TOKENS.OPENING_PARENTHESIS.name
+            token_type = TOKENS.OPENING_PARENTHESIS
         elif pattern[index] == '+':
-            token_name = TOKENS.PLUS.name
+            token_type = TOKENS.PLUS
         elif pattern[index] == '?':
-            token_name = TOKENS.QUESTION_MARK.name
+            token_type = TOKENS.QUESTION_MARK
         elif pattern[index] == '-':
-            token_name = TOKENS.MINUS.name
+            token_type = TOKENS.MINUS
         elif pattern[index] == '\\':
-            token_name = TOKENS.ESCAPE_SEQUENCE.name
+            token_type = TOKENS.ESCAPE_SEQUENCE
         elif pattern[index] >= '0' and pattern[index] <= '9':
-            token_name = TOKENS.DIGIT.name
+            token_type = TOKENS.DIGIT
         else:
-            token_name = TOKENS.LITERAL.name
-        tokens.append(Token(name=token_name, value=pattern[index]))
+            token_type = TOKENS.LITERAL
+        tokens.append(Token(type=token_type, value=pattern[index]))
         index += 1
     return tokens
