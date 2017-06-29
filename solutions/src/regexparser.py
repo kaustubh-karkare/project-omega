@@ -1,4 +1,4 @@
-import regexnodes
+import regex_nodes
 
 from tokenize import TOKENS
 
@@ -13,25 +13,26 @@ class RegexParser(object):
     def __init__(self, tokens):
         self.tokens = tokens
         self.index = 0
+        self.total_groups = 0
 
     def parse_regex(self):
-        source_node = regexnodes.Source()
+        source_node = regex_nodes.Source()
         previous_node = source_node
         while self.index < len(self.tokens):
             current_path_start, current_path_end = self.parse_token()
             previous_node.next_node = current_path_start
             previous_node = current_path_end
-        previous_node.next_node = regexnodes.Destination()
-        return source_node
+        previous_node.next_node = regex_nodes.Destination()
+        return source_node, self.total_groups
 
-    def check(self, token_name):
+    def check(self, token_type):
         return (
             self.index < len(self.tokens) and
-            self.tokens[self.index].name == token_name
+            self.tokens[self.index].type == token_type
         )
 
-    def ensure(self, token_name):
-        assert self.check(token_name)
+    def ensure(self, token_type):
+        assert self.check(token_type)
         self.index += 1
 
     def next(self):
@@ -44,24 +45,26 @@ class RegexParser(object):
     def parse_token(self):
         current_path_start = None
         current_path_end = None
-        if self.tokens[self.index].name in [
-            TOKENS.ASTERISK.name,
-            TOKENS.PLUS.name,
-            TOKENS.QUESTION_MARK.name,
+        if self.tokens[self.index].type in [
+            TOKENS.ASTERISK,
+            TOKENS.PLUS,
+            TOKENS.QUESTION_MARK,
         ]:
             raise RegexParserError('No quantifiable token present')
-        elif self.check(TOKENS.CARET.name):
-            current_path_start = self.parse_caret()
-        elif self.check(TOKENS.DOLLAR.name):
-            current_path_start = self.parse_dollar()
-        elif self.check(TOKENS.ESCAPE_SEQUENCE.name):
+        elif self.check(TOKENS.CARET):
+            current_path_start = self.parse_start_anchor()
+        elif self.check(TOKENS.DOLLAR):
+            current_path_start = self.parse_end_anchor()
+        elif self.check(TOKENS.ESCAPE_SEQUENCE):
             current_path_start = self.parse_escape_sequence()
-        elif self.check(TOKENS.OPENING_PARENTHESIS.name):
-            current_path_start, current_path_end = self.parse_group()
-        elif self.check(TOKENS.OPENING_BRACKET.name):
+        elif self.check(TOKENS.OPENING_PARENTHESIS):
+            self.total_groups += 1
+            current_path_start, current_path_end = \
+                self.parse_group(self.total_groups)
+        elif self.check(TOKENS.OPENING_BRACKET):
             current_path_start = self.parse_character_class()
-        elif self.check(TOKENS.DOT.name):
-            current_path_start = self.parse_dot()
+        elif self.check(TOKENS.DOT):
+            current_path_start = self.parse_wildcard()
         else:
             current_path_start = self.parse_literal()
         if current_path_end is None:
@@ -74,16 +77,16 @@ class RegexParser(object):
         )
         return current_path_start, current_path_end
 
-    def parse_caret(self):
-        self.ensure(TOKENS.CARET.name)
-        return regexnodes.StartAnchor()
+    def parse_start_anchor(self):
+        self.ensure(TOKENS.CARET)
+        return regex_nodes.StartAnchor()
 
-    def parse_dollar(self):
-        self.ensure(TOKENS.DOLLAR.name)
-        return regexnodes.EndAnchor()
+    def parse_end_anchor(self):
+        self.ensure(TOKENS.DOLLAR)
+        return regex_nodes.EndAnchor()
 
     def parse_escape_sequence(self):
-        self.ensure(TOKENS.ESCAPE_SEQUENCE.name)
+        self.ensure(TOKENS.ESCAPE_SEQUENCE)
         escape_sequence = self.next().value
         escape_sequence_ranges = []
         inverse_match = False
@@ -106,148 +109,141 @@ class RegexParser(object):
         character_ranges = []
         for escape_sequence_range in escape_sequence_ranges:
             character_ranges.append(
-                regexnodes.CharacterRange(
+                regex_nodes.CharacterRange(
                     escape_sequence_range['start'],
                     escape_sequence_range['end'],
                 )
             )
-        return regexnodes.Or(character_ranges, inverse_match)
+        return regex_nodes.Or(character_ranges, inverse_match)
 
     def parse_literal(self):
         literal = self.next().value
-        return regexnodes.CharacterRange(literal, literal)
+        return regex_nodes.CharacterRange(literal, literal)
 
-    def parse_group(self):
-        self.ensure(TOKENS.OPENING_PARENTHESIS.name)
-        group_start = regexnodes.GroupStart()
+    def parse_group(self, group_number):
+        self.ensure(TOKENS.OPENING_PARENTHESIS)
+        group_start = regex_nodes.GroupStart(group_number)
         previous_node = group_start
-        while not self.check(TOKENS.CLOSING_PARENTHESIS.name):
+        while not self.check(TOKENS.CLOSING_PARENTHESIS):
             current_path_start, current_path_end = self.parse_token()
             previous_node.next_node = current_path_start
             previous_node = current_path_end
-        try:
-            self.ensure(TOKENS.CLOSING_PARENTHESIS.name)
-        except AssertionError:
-            raise RegexParserError('Group missing closing parenthesis')
-        group_end = regexnodes.GroupEnd()
+        self.ensure(TOKENS.CLOSING_PARENTHESIS)
+        group_end = regex_nodes.GroupEnd(group_number)
         previous_node.next_node = group_end
         return group_start, group_end
 
     def parse_character_class(self):
-        self.ensure(TOKENS.OPENING_BRACKET.name)
+        self.ensure(TOKENS.OPENING_BRACKET)
         inverse_match = False
-        try:
-            self.ensure(TOKENS.CARET.name)
+        if self.check(TOKENS.CARET):
+            self.ensure(TOKENS.CARET)
             inverse_match = True
-        except AssertionError:
-            pass
         character_class_elements = []
-        while not self.check(TOKENS.CLOSING_BRACKET.name):
-            if (
-                self.index + 2 < len(self.tokens) and
-                self.tokens[self.index + 1].name == TOKENS.MINUS.name and
-                self.tokens[self.index + 2].name != \
-                    TOKENS.CLOSING_BRACKET.name
-            ):
-                # If the current literal is part of an ascii range.
-                if self.check(TOKENS.ESCAPE_SEQUENCE.name):
-                    raise RegexParserError('Invalid range in character class')
-                else:
-                    start = self.next()
-                self.ensure(TOKENS.MINUS.name)
-                if self.check(TOKENS.ESCAPE_SEQUENCE.name):
-                    raise RegexParserError('Invalid range in character class')
-                else:
-                    end = self.next()
-                start = start.value
-                end = end.value
-                if start > end:
+        while not self.check(TOKENS.CLOSING_BRACKET):
+            current_index = self.index
+            lower_limit = self.next()
+            upper_limit = None
+            if self.check(TOKENS.MINUS) and self.index < len(self.tokens):
+                self.ensure(TOKENS.MINUS)
+                upper_limit = self.next()
+            if upper_limit is not None:
+                if (
+                    lower_limit.type == TOKENS.ESCAPE_SEQUENCE or
+                    upper_limit.type == TOKENS.ESCAPE_SEQUENCE or
+                    lower_limit.value > upper_limit.value
+                ):
                     raise RegexParserError('Invalid range in character class')
                 character_class_elements.append(
-                    regexnodes.CharacterRange(
-                        start,
-                        end,
+                    regex_nodes.CharacterRange(
+                        start=lower_limit.value,
+                        end=upper_limit.value,
                     )
                 )
             else:
-                if self.check(TOKENS.ESCAPE_SEQUENCE.name):
+                self.index = current_index
+                if self.check(TOKENS.ESCAPE_SEQUENCE):
                     character_class_elements \
                         .append(self.parse_escape_sequence())
                 else:
                     character_class_elements.append(self.parse_literal())
-        self.ensure(TOKENS.CLOSING_BRACKET.name)
-        return regexnodes.Or(character_class_elements, inverse_match)
+        self.ensure(TOKENS.CLOSING_BRACKET)
+        return regex_nodes.Or(character_class_elements, inverse_match)
 
-    def parse_dot(self):
-        self.ensure(TOKENS.DOT.name)
-        return regexnodes.Dot()
+    def parse_wildcard(self):
+        self.ensure(TOKENS.DOT)
+        wildcard_characters = []
+        wildcard_characters \
+            .append(regex_nodes.CharacterRange(start='\n', end='\n'))
+        wildcard_characters \
+            .append(regex_nodes.CharacterRange(start='\r', end='\r'))
+        return regex_nodes.Or(wildcard_characters, inverse_match=True)
+
 
     def parse_brace_quantifier(self):
-        minimum_repetition = -1
-        maximum_repetition_limit = -1
+        minimum_repetition = None
+        maximum_repetition = None
         start_index = self.index
-        self.ensure(TOKENS.OPENING_BRACE.name)
+        self.ensure(TOKENS.OPENING_BRACE)
         lower_limit = ''
         upper_limit = ''
-        while self.check(TOKENS.DIGIT.name):
+        while self.check(TOKENS.DIGIT):
             lower_limit += self.next().value
         upper_limit_available = False
-        try:
-            self.ensure(TOKENS.COMMA.name)
+        if self.check(TOKENS.COMMA):
+            self.ensure(TOKENS.COMMA)
             upper_limit_available = True
-        except AssertionError:
+        else:
             upper_limit = lower_limit
         if upper_limit_available:
-            while self.check(TOKENS.DIGIT.name):
+            while self.check(TOKENS.DIGIT):
                 upper_limit += self.next().value
-        try:
-            self.ensure(TOKENS.CLOSING_BRACE.name)
-        except AssertionError:
+        if self.check(TOKENS.CLOSING_BRACE):
+            self.ensure(TOKENS.CLOSING_BRACE)
+        else:
             self.index = start_index
-            return minimum_repetition, maximum_repetition_limit
+            return minimum_repetition, maximum_repetition
         if lower_limit == '':
             self.index = start_index
-            return minimum_repetition, maximum_repetition_limit
+            return minimum_repetition, maximum_repetition
         minimum_repetition = int(lower_limit)
         if upper_limit == '':
-            maximum_repetition_limit = None
+            maximum_repetition = -1
         else:
-            maximum_repetition_limit = int(upper_limit)
-        return minimum_repetition, maximum_repetition_limit
+            maximum_repetition = int(upper_limit)
+        return minimum_repetition, maximum_repetition
 
     def parse_repetition_quantifier(
         self,
         current_path_start,
         current_path_end,
     ):
-        minimum_repetition = -1
-        maximum_repetition_limit = -1
-        if self.check(TOKENS.ASTERISK.name):
-            self.ensure(TOKENS.ASTERISK.name)
+        minimum_repetition = None
+        maximum_repetition = None
+        if self.check(TOKENS.ASTERISK):
+            self.ensure(TOKENS.ASTERISK)
             minimum_repetition = 0
-            maximum_repetition_limit = None
-        elif self.check(TOKENS.PLUS.name):
-            self.ensure(TOKENS.PLUS.name)
+            maximum_repetition = -1
+        elif self.check(TOKENS.PLUS):
+            self.ensure(TOKENS.PLUS)
             minimum_repetition = 1
-            maximum_repetition_limit = None
-        elif self.check(TOKENS.QUESTION_MARK.name):
-            self.ensure(TOKENS.QUESTION_MARK.name)
+            maximum_repetition = -1
+        elif self.check(TOKENS.QUESTION_MARK):
+            self.ensure(TOKENS.QUESTION_MARK)
             minimum_repetition = 0
-            maximum_repetition_limit = 1
-        elif self.check(TOKENS.OPENING_BRACE.name):
-            minimum_repetition, maximum_repetition_limit = \
+            maximum_repetition = 1
+        elif self.check(TOKENS.OPENING_BRACE):
+            minimum_repetition, maximum_repetition = \
                  self.parse_brace_quantifier()
-        if minimum_repetition != -1 and maximum_repetition_limit != -1:
+        if minimum_repetition is not None and maximum_repetition is not None:
             quantifier_node = None
-            quantifier_type = regexnodes.QUANTIFIER_TYPES.GREEDY.name
-            try:
-                self.ensure(TOKENS.QUESTION_MARK.name)
-                quantifier_type = regexnodes.QUANTIFIER_TYPES.LAZY.name
-            except AssertionError:
-                pass
-            quantifier_node = regexnodes.Repeat(
+            quantifier_type = regex_nodes.QUANTIFIER_TYPES.GREEDY
+            if self.check(TOKENS.QUESTION_MARK):
+                self.ensure(TOKENS.QUESTION_MARK)
+                quantifier_type = regex_nodes.QUANTIFIER_TYPES.LAZY
+            quantifier_node = regex_nodes.Repeat(
                 minimum_repetition=minimum_repetition,
-                maximum_repetition_limit=maximum_repetition_limit,
+                maximum_repetition=maximum_repetition,
                 repeat_path_start=current_path_start,
                 repeat_path_end=current_path_end,
                 quantifier_type=quantifier_type,
