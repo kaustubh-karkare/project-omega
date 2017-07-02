@@ -63,8 +63,7 @@ class RegexParser(object):
             current_path_start, current_path_end = \
                 self.parse_escape_sequence()
         elif self.check(TOKENS.OPENING_PARENTHESIS):
-            current_path_start, current_path_end = \
-                self.parse_group(self.total_groups)
+            current_path_start, current_path_end = self.parse_group()
         elif self.check(TOKENS.OPENING_BRACKET):
             current_path_start, current_path_end = \
                 self.parse_character_class()
@@ -128,18 +127,18 @@ class RegexParser(object):
         literal = self.next().value
         return regex_nodes.CharacterRange(literal, literal)
 
-    def parse_group(self, group_number):
+    def parse_group(self):
         self.ensure(TOKENS.OPENING_PARENTHESIS)
         self.total_groups += 1
-        current_group_number = self.total_groups
-        group_start = regex_nodes.GroupStart(current_group_number)
+        group_number = self.total_groups
+        group_start = regex_nodes.GroupStart(group_number)
         previous_node = group_start
         while not self.check(TOKENS.CLOSING_PARENTHESIS):
             current_path_start, current_path_end = self.parse_token()
             previous_node.next_node = current_path_start
             previous_node = current_path_end
         self.ensure(TOKENS.CLOSING_PARENTHESIS)
-        group_end = regex_nodes.GroupEnd(current_group_number)
+        group_end = regex_nodes.GroupEnd(group_number)
         previous_node.next_node = group_end
         return group_start, group_end
 
