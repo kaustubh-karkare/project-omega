@@ -9,9 +9,6 @@ class Node(object):
     def __init__(self, next_node=None):
         self.next_node = next_node
 
-    def check_if_character_acceptable(self, character):
-        raise NotImplementedError()
-
     def match(self, text, index, groups):
         raise NotImplementedError()
 
@@ -38,13 +35,10 @@ class CharacterRange(Node):
         self.end = end
         super(CharacterRange, self).__init__()
 
-    def check_if_character_acceptable(self, character):
-        return self.start <= character <= self.end
-
     def match(self, text, index, groups):
         return (
             index < len(text) and
-            self.check_if_character_acceptable(text[index]) and
+            self.start <= text[index] <= self.end and
             self.next_node.match(text, index + 1, groups)
         )
 
@@ -52,29 +46,51 @@ class CharacterRange(Node):
         self.next_node.reset_repetition_count()
 
 
-class Or(Node):
+class OrStart(Node):
 
-    def __init__(self, character_ranges, inverse_match=False):
-        self.character_ranges = character_ranges
+    def __init__(self, available_paths, inverse_match=False):
+        self.available_paths = available_paths
         self.inverse_match = inverse_match
-        super(Or, self).__init__()
+        self.or_end_node = None
+        super(OrStart, self).__init__()
 
-    def check_if_character_acceptable(self, character):
-        character_found = False
-        for character_range in self.character_ranges:
-            if character_range.check_if_character_acceptable(character):
-                character_found = True
-                break
-        if not self.inverse_match:
-            return character_found
-        return not character_found
+    def get_or_end(self):
+        or_end = OrEnd(self.inverse_match)
+        self.or_end_node = or_end
+        for available_path in self.available_paths:
+            available_path.end.next_node = or_end
+        self.next_node = or_end
+        return or_end
 
     def match(self, text, index, groups):
-        return (
-            index < len(text) and
-            self.check_if_character_acceptable(text[index]) and
-            self.next_node.match(text, index + 1, groups)
-        )
+        path_found = False
+        for available_path in self.available_paths:
+            if available_path.start.match(text, index, groups):
+                path_found = True
+                break
+        if not self.inverse_match:
+            return path_found
+        # For inverse match currently only matches of length 1 work.
+        if path_found:
+            # GroupEnd was reached, which should not have for inverse match.
+            return False
+        # Go to node which is next to the OrEnd node.
+        return self.or_end_node.next_node.match(text, index + 1, groups)
+
+    def reset_repetition_count(self):
+        self.next_node.reset_repetition_count()
+
+
+class OrEnd(Node):
+
+    def __init__(self, inverse_match=False):
+        self.inverse_match = inverse_match
+        super(OrEnd, self).__init__()
+
+    def match(self, text, index, groups):
+        if not self.inverse_match:
+            return self.next_node.match(text, index, groups)
+        return True
 
     def reset_repetition_count(self):
         self.next_node.reset_repetition_count()
@@ -87,12 +103,14 @@ class GroupStart(Node):
         super(GroupStart, self).__init__()
 
     def match(self, text, index, groups):
-        previous_group_start_index = groups[self.group_number][0]
-        groups[self.group_number][0] = index
+        previous_group_start_index = groups[self.group_number].start
+        groups[self.group_number] = \
+            groups[self.group_number]._replace(start=index)
         self.reset_repetition_count()
         if self.next_node.match(text, index, groups):
             return True
-        groups[self.group_number][0] = previous_group_start_index
+        groups[self.group_number] = groups[self.group_number] \
+            ._replace(start=previous_group_start_index)
         return False
 
     def reset_repetition_count(self):
@@ -106,11 +124,13 @@ class GroupEnd(Node):
         super(GroupEnd, self).__init__()
 
     def match(self, text, index, groups):
-        previous_group_end_index = groups[self.group_number][1]
-        groups[self.group_number][1] = index
+        previous_group_end_index = groups[self.group_number].end
+        groups[self.group_number] = \
+            groups[self.group_number]._replace(end=index)
         if self.next_node.match(text, index, groups):
             return True
-        groups[self.group_number][1] = previous_group_end_index
+        groups[self.group_number] = groups[self.group_number] \
+            ._replace(end=previous_group_end_index)
         return False
 
     def reset_repetition_count(self):
@@ -125,7 +145,7 @@ class Repeat(Node):
         maximum_repetition,
         repeat_path_start,
         repeat_path_end,
-        quantifier_type=QUANTIFIER_TYPES.GREEDY.name,
+        quantifier_type=QUANTIFIER_TYPES.GREEDY,
     ):
         self.minimum_repetition = minimum_repetition
         self.maximum_repetition = maximum_repetition
@@ -146,7 +166,7 @@ class Repeat(Node):
             self.number_of_repetitions_done -= 1
             return False
         else:
-            if self.quantifier_type == QUANTIFIER_TYPES.GREEDY.name:
+            if self.quantifier_type == QUANTIFIER_TYPES.GREEDY:
                 return self.greedy_match(text, index, groups)
             return self.lazy_match(text, index, groups)
 
