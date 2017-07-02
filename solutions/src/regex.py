@@ -21,13 +21,8 @@ def match(pattern, text):
     source_node, total_groups = RegexParser(pattern_tokens).parse_regex()
     groups = [Group(start=None, end=None) for ii in range(total_groups + 1)]
     source_node.match(text, 0, groups)
-    for ii in range(1, total_groups + 1):
-        if (
-            groups[ii].start is not None and
-            groups[ii].end is not None
-        ):
-            groups[ii - 1] = text[groups[ii].start:groups[ii].end]
-        else:
-            groups[ii - 1] = None
-    del groups[total_groups]
-    return groups
+    return [
+        text[groups[ii].start:groups[ii].end]
+        if groups[ii].start is not None and groups[ii].end is not None
+        else None for ii in range(1, total_groups + 1)
+    ]
