@@ -94,6 +94,24 @@ class RegexTest(unittest.TestCase):
         self.assertEqual(regex.check(r'(a{2,4}){2}b+', 'aaaaaab'), True)
         self.assertEqual(regex.check(r'(a{2,4}?){2}?b+', 'aaaaaab'), True)
 
+    def test_or(self):
+        self.assertEqual(regex.check(r'a|b', 'a'), True)
+        self.assertEqual(regex.check(r'a|b', 'b'), True)
+        self.assertEqual(regex.check(r'a|b', 'c'), False)
+        self.assertEqual(regex.check(r'a|b|c', 'c'), True)
+        self.assertEqual(regex.check(r'(cat|dog|fish)', 'cat'), True)
+        self.assertEqual(regex.check(r'(cat|dog|fish)', 'dog'), True)
+        self.assertEqual(regex.check(r'(cat|dog|fish)', 'fish'), True)
+        self.assertEqual(regex.check(r'(cat|dog|fish)', 'ant'), False)
+        self.assertEqual(regex.check(r'cat|dog|fish', 'cat'), True)
+        self.assertEqual(regex.check(r'cat|dog|fish', 'dog'), True)
+        self.assertEqual(regex.check(r'cat|dog|fish', 'fish'), True)
+        self.assertEqual(regex.check(r'cat|dog|fish', 'ant'), False)
+        self.assertEqual(regex.check(r'(cat)|(dog)|(fish)', 'cat'), True)
+        self.assertEqual(regex.check(r'(cat)|(dog)|(fish)', 'dog'), True)
+        self.assertEqual(regex.check(r'(cat)|(dog)|(fish)', 'fish'), True)
+        self.assertEqual(regex.check(r'(cat)|(dog)|(fish)', 'ant'), False)
+        self.assertEqual(regex.check(r'(cat|frog)(dog|ant)', 'frogdog'), True)
 
 
 if __name__ == '__main__':
