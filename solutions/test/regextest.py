@@ -91,6 +91,9 @@ class RegexTest(unittest.TestCase):
         self.assertEqual(regex.check(r'(a(b+c)+)+', 'ab'), False)
         self.assertEqual(regex.check(r'(a(b+c)+)+', 'abc'), True)
         self.assertEqual(regex.check(r'(a(b+c)+)+', 'abbcbc'), True)
+        self.assertEqual(regex.check(r'(a{2,4}){2}b+', 'aaaaaab'), True)
+        self.assertEqual(regex.check(r'(a{2,4}?){2}?b+', 'aaaaaab'), True)
+
 
 
 if __name__ == '__main__':
