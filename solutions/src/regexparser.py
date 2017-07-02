@@ -1,11 +1,15 @@
 import regex_nodes
 
 from tokenize import TOKENS
+from collections import namedtuple
 
 
 class RegexParserError(Exception):
     """Base class for exceptions in regexparser"""
     pass
+
+
+Path = namedtuple('path', ['start', 'end'])
 
 
 class RegexParser(object):
@@ -56,15 +60,16 @@ class RegexParser(object):
         elif self.check(TOKENS.DOLLAR):
             current_path_start = self.parse_end_anchor()
         elif self.check(TOKENS.ESCAPE_SEQUENCE):
-            current_path_start = self.parse_escape_sequence()
+            current_path_start, current_path_end = \
+                self.parse_escape_sequence()
         elif self.check(TOKENS.OPENING_PARENTHESIS):
-            self.total_groups += 1
             current_path_start, current_path_end = \
                 self.parse_group(self.total_groups)
         elif self.check(TOKENS.OPENING_BRACKET):
-            current_path_start = self.parse_character_class()
+            current_path_start, current_path_end = \
+                self.parse_character_class()
         elif self.check(TOKENS.DOT):
-            current_path_start = self.parse_wildcard()
+            current_path_start, current_path_end = self.parse_wildcard()
         else:
             current_path_start = self.parse_literal()
         if current_path_end is None:
@@ -108,13 +113,16 @@ class RegexParser(object):
             )
         character_ranges = []
         for escape_sequence_range in escape_sequence_ranges:
-            character_ranges.append(
-                regex_nodes.CharacterRange(
-                    escape_sequence_range['start'],
-                    escape_sequence_range['end'],
-                )
+            escape_sequence_range = regex_nodes.CharacterRange(
+                escape_sequence_range['start'],
+                escape_sequence_range['end'],
             )
-        return regex_nodes.Or(character_ranges, inverse_match)
+            character_ranges.append(
+                Path(start=escape_sequence_range, end=escape_sequence_range)
+            )
+        or_start = regex_nodes.OrStart(character_ranges, inverse_match)
+        or_end = or_start.get_or_end()
+        return or_start, or_end
 
     def parse_literal(self):
         literal = self.next().value
@@ -122,14 +130,16 @@ class RegexParser(object):
 
     def parse_group(self, group_number):
         self.ensure(TOKENS.OPENING_PARENTHESIS)
-        group_start = regex_nodes.GroupStart(group_number)
+        self.total_groups += 1
+        current_group_number = self.total_groups
+        group_start = regex_nodes.GroupStart(current_group_number)
         previous_node = group_start
         while not self.check(TOKENS.CLOSING_PARENTHESIS):
             current_path_start, current_path_end = self.parse_token()
             previous_node.next_node = current_path_start
             previous_node = current_path_end
         self.ensure(TOKENS.CLOSING_PARENTHESIS)
-        group_end = regex_nodes.GroupEnd(group_number)
+        group_end = regex_nodes.GroupEnd(current_group_number)
         previous_node.next_node = group_end
         return group_start, group_end
 
@@ -154,31 +164,50 @@ class RegexParser(object):
                     lower_limit.value > upper_limit.value
                 ):
                     raise RegexParserError('Invalid range in character class')
+                character_range = regex_nodes.CharacterRange(
+                    start=lower_limit.value,
+                    end=upper_limit.value,
+                )
+                current_path_start, current_path_end = \
+                    character_range, character_range
                 character_class_elements.append(
-                    regex_nodes.CharacterRange(
-                        start=lower_limit.value,
-                        end=upper_limit.value,
-                    )
+                    Path(start=current_path_start, end=current_path_end)
                 )
             else:
                 self.index = current_index
                 if self.check(TOKENS.ESCAPE_SEQUENCE):
-                    character_class_elements \
-                        .append(self.parse_escape_sequence())
+                    current_path_start, current_path_end = \
+                        self.parse_escape_sequence()
+                    character_class_elements.append(
+                        Path(start=current_path_start, end=current_path_end)
+                    )
                 else:
-                    character_class_elements.append(self.parse_literal())
+                    current_path_start = self.parse_literal()
+                    current_path_end = current_path_start
+                    character_class_elements.append(
+                        Path(start=current_path_start, end=current_path_end)
+                    )
         self.ensure(TOKENS.CLOSING_BRACKET)
-        return regex_nodes.Or(character_class_elements, inverse_match)
+        or_start = \
+            regex_nodes.OrStart(character_class_elements, inverse_match)
+        or_end = or_start.get_or_end()
+        return or_start, or_end
 
     def parse_wildcard(self):
         self.ensure(TOKENS.DOT)
         wildcard_characters = []
-        wildcard_characters \
-            .append(regex_nodes.CharacterRange(start='\n', end='\n'))
-        wildcard_characters \
-            .append(regex_nodes.CharacterRange(start='\r', end='\r'))
-        return regex_nodes.Or(wildcard_characters, inverse_match=True)
-
+        character_range = regex_nodes.CharacterRange(start='\n', end='\n')
+        wildcard_characters.append(
+            Path(start=character_range, end=character_range)
+        )
+        character_range = regex_nodes.CharacterRange(start='\r', end='\r')
+        wildcard_characters.append(
+            Path(start=character_range, end=character_range)
+        )
+        or_start = \
+            regex_nodes.OrStart(wildcard_characters, inverse_match=True)
+        or_end = or_start.get_or_end()
+        return or_start, or_end
 
     def parse_brace_quantifier(self):
         minimum_repetition = None
