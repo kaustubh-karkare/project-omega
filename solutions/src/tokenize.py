@@ -20,6 +20,7 @@ TOKENS = Enum(
     OPENING_BRACE
     OPENING_BRACKET
     OPENING_PARENTHESIS
+    OR
     PLUS
     QUESTION_MARK
     """
@@ -57,6 +58,8 @@ def tokenizer(pattern):
             token_type = TOKENS.OPENING_BRACKET
         elif pattern[index] == '(':
             token_type = TOKENS.OPENING_PARENTHESIS
+        elif pattern[index] == '|':
+            token_type = TOKENS.OR
         elif pattern[index] == '+':
             token_type = TOKENS.PLUS
         elif pattern[index] == '?':
