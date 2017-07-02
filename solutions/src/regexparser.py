@@ -20,12 +20,39 @@ class RegexParser(object):
         self.total_groups = 0
 
     def parse_regex(self):
+        available_paths = []
+        available_paths.append(Path(start=None, end=None))
         source_node = regex_nodes.Source()
         previous_node = source_node
         while self.index < len(self.tokens):
+            if self.check(TOKENS.OR):
+                self.ensure(TOKENS.OR)
+                available_paths.append(Path(start=None, end=None))
+                continue
             current_path_start, current_path_end = self.parse_token()
+            available_paths_count = len(available_paths) - 1
+            available_path_start = \
+                available_paths[available_paths_count].start
+            available_path_end = \
+                available_paths[available_paths_count].end
+            if available_path_start is None:
+                available_path_start = current_path_start
+                available_path_end = current_path_end
+            else:
+                available_path_end = current_path_end
             previous_node.next_node = current_path_start
             previous_node = current_path_end
+            available_paths[available_paths_count] = (
+                available_paths[available_paths_count]._replace(
+                    start=available_path_start,
+                    end=available_path_end
+                )
+            )
+        or_start = regex_nodes.OrStart(available_paths)
+        or_end = or_start.get_or_end()
+        source_node.next_node = or_start
+        previous_node.next_node = or_end
+        previous_node = or_end
         previous_node.next_node = regex_nodes.Destination()
         return source_node, self.total_groups
 
@@ -129,18 +156,47 @@ class RegexParser(object):
 
     def parse_group(self):
         self.ensure(TOKENS.OPENING_PARENTHESIS)
+        available_paths = []
+        available_paths.append(Path(start=None, end=None))
         self.total_groups += 1
         group_number = self.total_groups
         group_start = regex_nodes.GroupStart(group_number)
         previous_node = group_start
         while not self.check(TOKENS.CLOSING_PARENTHESIS):
-            current_path_start, current_path_end = self.parse_token()
+            if self.check(TOKENS.OR):
+                self.ensure(TOKENS.OR)
+                available_paths.append(Path(start=None, end=None))
+                continue
+            current_path_start, current_path_end = \
+                self.parse_token()
+            available_paths_count = len(available_paths) - 1
+            available_path_start = \
+                available_paths[available_paths_count].start
+            available_path_end = \
+                available_paths[available_paths_count].end
+            if available_path_start is None:
+                available_path_start = current_path_start
+                available_path_end = current_path_end
+            else:
+                available_path_end = current_path_end
             previous_node.next_node = current_path_start
             previous_node = current_path_end
+            available_paths[available_paths_count] = (
+                available_paths[available_paths_count]._replace(
+                    start=available_path_start,
+                    end=available_path_end
+                )
+            )
         self.ensure(TOKENS.CLOSING_PARENTHESIS)
+        or_start = regex_nodes.OrStart(available_paths)
+        or_end = or_start.get_or_end()
+        group_start.next_node = or_start
+        previous_node.next_node = or_end
+        previous_node = or_end
         group_end = regex_nodes.GroupEnd(group_number)
         previous_node.next_node = group_end
         return group_start, group_end
+
 
     def parse_character_class(self):
         self.ensure(TOKENS.OPENING_BRACKET)
@@ -264,18 +320,18 @@ class RegexParser(object):
             minimum_repetition, maximum_repetition = \
                  self.parse_brace_quantifier()
         if minimum_repetition is not None and maximum_repetition is not None:
-            quantifier_node = None
+            repeat_node = None
             quantifier_type = regex_nodes.QUANTIFIER_TYPES.GREEDY
             if self.check(TOKENS.QUESTION_MARK):
                 self.ensure(TOKENS.QUESTION_MARK)
                 quantifier_type = regex_nodes.QUANTIFIER_TYPES.LAZY
-            quantifier_node = regex_nodes.Repeat(
+            repeat_node = regex_nodes.Repeat(
                 minimum_repetition=minimum_repetition,
                 maximum_repetition=maximum_repetition,
                 repeat_path_start=current_path_start,
                 repeat_path_end=current_path_end,
                 quantifier_type=quantifier_type,
             )
-            current_path_start = quantifier_node
-            current_path_end = quantifier_node
+            current_path_start = repeat_node
+            current_path_end = repeat_node
         return current_path_start, current_path_end
