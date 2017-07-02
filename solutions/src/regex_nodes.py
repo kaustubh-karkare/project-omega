@@ -223,4 +223,6 @@ class EndAnchor(Node):
 class Destination(Node):
 
     def match(self, text, index, groups):
+        if index > len(text):
+            return False
         return True
