@@ -113,12 +113,12 @@ class RegexParser(object):
             )
         character_ranges = []
         for escape_sequence_range in escape_sequence_ranges:
-            escape_sequence_range = regex_nodes.CharacterRange(
+            character_range = regex_nodes.CharacterRange(
                 escape_sequence_range['start'],
                 escape_sequence_range['end'],
             )
             character_ranges.append(
-                Path(start=escape_sequence_range, end=escape_sequence_range)
+                Path(start=character_range, end=character_range)
             )
         or_start = regex_nodes.OrStart(character_ranges, inverse_match)
         or_end = or_start.get_or_end()
