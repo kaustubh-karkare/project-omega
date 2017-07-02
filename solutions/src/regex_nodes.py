@@ -66,20 +66,30 @@ class OrStart(Node):
             if available_path.start.match(text, index, groups):
                 path_found = True
                 break
-        if not self.inverse_match:
-            if not path_found:
+        if self.inverse_match:
+            if path_found:
+                # GroupEnd was reached, which should not have for inverse match.
                 return False
-            return self.or_end_node.next_node.match(
-                text,
-                self.or_end_node.path_end_index + 1,
-                groups,
-            )
-        if path_found:
-            # GroupEnd was reached, which should not have for inverse match.
-            return False
-        # For inverse match currently only matches of length 1 work.
-        # Go to node which is next to the OrEnd node.
-        return self.or_end_node.next_node.match(text, index + 1, groups)
+            else:
+                # Go to node which is next to the OrEnd node.
+                if index < len(text):
+                    # Check to ensure one character is atleast consumed.
+                    return self.or_end_node.next_node.match(
+                        text,
+                        index + 1,
+                        groups
+                    )
+                else:
+                    return False
+        else:
+            if path_found:
+                return self.or_end_node.next_node.match(
+                    text,
+                    self.or_end_node.path_end_index + 1,
+                    groups,
+                )
+            else:
+                return False
 
 
 class OrEnd(Node):
@@ -108,9 +118,10 @@ class GroupStart(Node):
         self.reset_repetition_count()
         if self.next_node.match(text, index, groups):
             return True
-        groups[self.group_number] = groups[self.group_number] \
-            ._replace(start=previous_group_start_index)
-        return False
+        else:
+            groups[self.group_number] = groups[self.group_number] \
+                ._replace(start=previous_group_start_index)
+            return False
 
 
 class GroupEnd(Node):
@@ -125,9 +136,10 @@ class GroupEnd(Node):
             groups[self.group_number]._replace(end=index)
         if self.next_node.match(text, index, groups):
             return True
-        groups[self.group_number] = groups[self.group_number] \
-            ._replace(end=previous_group_end_index)
-        return False
+        else:
+            groups[self.group_number] = groups[self.group_number] \
+                ._replace(end=previous_group_end_index)
+            return False
 
     def reset_repetition_count(self):
         return
@@ -159,12 +171,14 @@ class Repeat(Node):
             self.number_of_repetitions_done += 1
             if self.repeat_path_start.match(text, index, groups):
                 return True
-            self.number_of_repetitions_done -= 1
-            return False
+            else:
+                self.number_of_repetitions_done -= 1
+                return False
         else:
             if self.quantifier_type == QUANTIFIER_TYPES.GREEDY:
                 return self.greedy_match(text, index, groups)
-            return self.lazy_match(text, index, groups)
+            else:
+                return self.lazy_match(text, index, groups)
 
     def greedy_match(self, text, index, groups):
         # The quantifier being greedy will consume as many character
@@ -179,7 +193,8 @@ class Repeat(Node):
             self.number_of_repetitions_done += 1
             if self.repeat_path_start.match(text, index, groups):
                 return True
-            self.number_of_repetitions_done -= 1
+            else:
+                self.number_of_repetitions_done -= 1
         # consume zero character and go to the next node.
         return self.next_node.match(text, index, groups)
 
@@ -199,7 +214,8 @@ class Repeat(Node):
             self.number_of_repetitions_done += 1
             if self.repeat_path_start.match(text, index, groups):
                 return True
-            self.number_of_repetitions_done -= 1
+            else:
+                self.number_of_repetitions_done -= 1
         return False
 
     def reset_repetition_count(self):
@@ -219,6 +235,4 @@ class EndAnchor(Node):
 class Destination(Node):
 
     def match(self, text, index, groups):
-        if index > len(text):
-            return False
         return True
