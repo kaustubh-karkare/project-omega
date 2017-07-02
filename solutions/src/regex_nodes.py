@@ -13,7 +13,7 @@ class Node(object):
         raise NotImplementedError()
 
     def reset_repetition_count(self):
-        raise NotImplementedError()
+        self.next_node.reset_repetition_count()
 
 
 class Source(Node):
@@ -42,9 +42,6 @@ class CharacterRange(Node):
             self.next_node.match(text, index + 1, groups)
         )
 
-    def reset_repetition_count(self):
-        self.next_node.reset_repetition_count()
-
 
 class OrStart(Node):
 
@@ -64,36 +61,38 @@ class OrStart(Node):
 
     def match(self, text, index, groups):
         path_found = False
+        # Check if a path is available.
         for available_path in self.available_paths:
             if available_path.start.match(text, index, groups):
                 path_found = True
                 break
         if not self.inverse_match:
-            return path_found
-        # For inverse match currently only matches of length 1 work.
+            if not path_found:
+                return False
+            return self.or_end_node.next_node.match(
+                text,
+                self.or_end_node.path_end_index + 1,
+                groups,
+            )
         if path_found:
             # GroupEnd was reached, which should not have for inverse match.
             return False
+        # For inverse match currently only matches of length 1 work.
         # Go to node which is next to the OrEnd node.
         return self.or_end_node.next_node.match(text, index + 1, groups)
-
-    def reset_repetition_count(self):
-        self.next_node.reset_repetition_count()
 
 
 class OrEnd(Node):
 
     def __init__(self, inverse_match=False):
         self.inverse_match = inverse_match
+        self.path_end_index = None
         super(OrEnd, self).__init__()
 
     def match(self, text, index, groups):
-        if not self.inverse_match:
-            return self.next_node.match(text, index, groups)
+        # Path from OrStart exists.
+        self.path_end_index = index - 1
         return True
-
-    def reset_repetition_count(self):
-        self.next_node.reset_repetition_count()
 
 
 class GroupStart(Node):
@@ -112,9 +111,6 @@ class GroupStart(Node):
         groups[self.group_number] = groups[self.group_number] \
             ._replace(start=previous_group_start_index)
         return False
-
-    def reset_repetition_count(self):
-        self.next_node.reset_repetition_count()
 
 
 class GroupEnd(Node):
