@@ -1,5 +1,5 @@
-import regex
 import unittest
+import regex
 
 
 class RegexTest(unittest.TestCase):
@@ -93,6 +93,7 @@ class RegexTest(unittest.TestCase):
         self.assertEqual(regex.check(r'(a(b+c)+)+', 'abbcbc'), True)
         self.assertEqual(regex.check(r'(a{2,4}){2}b+', 'aaaaaab'), True)
         self.assertEqual(regex.check(r'(a{2,4}?){2}?b+', 'aaaaaab'), True)
+        self.assertEqual(regex.check(r'(a{3,4}){2}b', 'aaaab'), False)
 
     def test_or(self):
         self.assertEqual(regex.check(r'a|b', 'a'), True)
@@ -112,6 +113,19 @@ class RegexTest(unittest.TestCase):
         self.assertEqual(regex.check(r'(cat)|(dog)|(fish)', 'fish'), True)
         self.assertEqual(regex.check(r'(cat)|(dog)|(fish)', 'ant'), False)
         self.assertEqual(regex.check(r'(cat|frog)(dog|ant)', 'frogdog'), True)
+
+    def test_match(self):
+        self.assertEqual(regex.match(r'(a)(b)', 'abc'), ['ab', 'a', 'b'])
+        self.assertEqual(regex.match(r'(a|b)c', 'bc'), ['bc', 'b'])
+        self.assertEqual(regex.match(r'(a*)bc', 'aaabc'), ['aaabc', 'aaa'])
+        self.assertEqual(regex.match(r'(a)*bc', 'aaabc'), ['aaabc', 'a'])
+        self.assertEqual(regex.match(r'(a*)(a*)', 'aaa'), ['aaa', 'aaa', ''])
+        self.assertEqual(regex.match(r'(a+)(a+)', 'aaa'), ['aaa', 'aa', 'a'])
+        self.assertEqual(regex.match(r'(a*?)(a*)', 'aaa'), ['aaa', '', 'aaa'])
+        self.assertEqual(regex.match(r'(a+?)(a+)', 'aaa'), ['aaa', 'a', 'aa'])
+        self.assertEqual(regex.match(r'(abc)', 'a'), None)
+        self.assertEqual(regex.match(r'(a{3,4}){2}b', 'aaaab'), None)
+        self.assertEqual(regex.match(r'(a{1,2}?){2}', 'aaa'), ['aa', 'a'])
 
 
 if __name__ == '__main__':
