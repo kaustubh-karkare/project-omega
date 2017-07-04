@@ -1,7 +1,7 @@
 import regex_nodes
 
-from tokenize import TOKENS
 from collections import namedtuple
+from tokenize import TOKENS
 
 
 class RegexParserError(Exception):
@@ -20,40 +20,11 @@ class RegexParser(object):
         self.total_groups = 0
 
     def parse_regex(self):
-        available_paths = []
-        available_paths.append(Path(start=None, end=None))
         source_node = regex_nodes.Source()
-        previous_node = source_node
-        while self.index < len(self.tokens):
-            if self.check(TOKENS.OR):
-                self.ensure(TOKENS.OR)
-                available_paths.append(Path(start=None, end=None))
-                continue
-            current_path_start, current_path_end = self.parse_token()
-            available_paths_count = len(available_paths) - 1
-            available_path_start = \
-                available_paths[available_paths_count].start
-            available_path_end = \
-                available_paths[available_paths_count].end
-            if available_path_start is None:
-                available_path_start = current_path_start
-                available_path_end = current_path_end
-            else:
-                available_path_end = current_path_end
-            previous_node.next_node = current_path_start
-            previous_node = current_path_end
-            available_paths[available_paths_count] = (
-                available_paths[available_paths_count]._replace(
-                    start=available_path_start,
-                    end=available_path_end
-                )
-            )
-        or_start = regex_nodes.OrStart(available_paths)
-        or_end = or_start.get_or_end()
-        source_node.next_node = or_start
-        previous_node.next_node = or_end
-        previous_node = or_end
-        previous_node.next_node = regex_nodes.Destination()
+        current_path_start, current_path_end = self.parse_group()
+        destination_node = regex_nodes.Destination()
+        source_node.next_node = current_path_start
+        current_path_end.next_node = destination_node
         return source_node, self.total_groups
 
     def check(self, token_type):
@@ -155,39 +126,34 @@ class RegexParser(object):
         return regex_nodes.CharacterRange(literal, literal)
 
     def parse_group(self):
-        self.ensure(TOKENS.OPENING_PARENTHESIS)
-        available_paths = []
-        available_paths.append(Path(start=None, end=None))
-        self.total_groups += 1
         group_number = self.total_groups
+        if group_number > 0:
+            self.ensure(TOKENS.OPENING_PARENTHESIS)
+        self.total_groups += 1
         group_start = regex_nodes.GroupStart(group_number)
         previous_node = group_start
-        while not self.check(TOKENS.CLOSING_PARENTHESIS):
+        available_paths = []
+        available_path = Path(start=None, end=None)
+        while (
+            not self.check(TOKENS.CLOSING_PARENTHESIS) and
+            self.index < len(self.tokens)
+        ):
             if self.check(TOKENS.OR):
                 self.ensure(TOKENS.OR)
-                available_paths.append(Path(start=None, end=None))
+                available_paths.append(available_path)
+                available_path = available_path._replace(start=None, end=None)
                 continue
             current_path_start, current_path_end = \
                 self.parse_token()
-            available_paths_count = len(available_paths) - 1
-            available_path_start = \
-                available_paths[available_paths_count].start
-            available_path_end = \
-                available_paths[available_paths_count].end
-            if available_path_start is None:
-                available_path_start = current_path_start
-                available_path_end = current_path_end
-            else:
-                available_path_end = current_path_end
             previous_node.next_node = current_path_start
             previous_node = current_path_end
-            available_paths[available_paths_count] = (
-                available_paths[available_paths_count]._replace(
-                    start=available_path_start,
-                    end=available_path_end
-                )
-            )
-        self.ensure(TOKENS.CLOSING_PARENTHESIS)
+            if available_path.start is None:
+                available_path = \
+                    available_path._replace(start=current_path_start)
+            available_path = available_path._replace(end=current_path_end)
+        available_paths.append(available_path)
+        if group_number > 0:
+            self.ensure(TOKENS.CLOSING_PARENTHESIS)
         or_start = regex_nodes.OrStart(available_paths)
         or_end = or_start.get_or_end()
         group_start.next_node = or_start
