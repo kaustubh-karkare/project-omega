@@ -48,61 +48,48 @@ class OrStart(Node):
     def __init__(self, available_paths, inverse_match=False):
         self.available_paths = available_paths
         self.inverse_match = inverse_match
-        self.or_end_node = None
+        self.inverse_match_allowed = True
         super(OrStart, self).__init__()
 
     def get_or_end(self):
-        or_end = OrEnd(self.inverse_match)
-        self.or_end_node = or_end
+        or_end = OrEnd(self)
         for available_path in self.available_paths:
             available_path.end.next_node = or_end
         self.next_node = or_end
         return or_end
 
     def match(self, text, index, groups):
-        path_found = False
-        # Check if a path is available.
         for available_path in self.available_paths:
-            if available_path.start.match(text, index, groups):
-                path_found = True
-                break
-        if self.inverse_match:
-            if path_found:
-                # GroupEnd was reached, which should not have for inverse match.
-                return False
-            else:
-                # Go to node which is next to the OrEnd node.
-                if index < len(text):
-                    # Check to ensure one character is atleast consumed.
-                    return self.or_end_node.next_node.match(
-                        text,
-                        index + 1,
-                        groups
-                    )
-                else:
-                    return False
+            if (
+                available_path.start.match(text, index, groups) and
+                not self.inverse_match
+            ):
+                return True
+        if (
+            self.inverse_match and
+            self.inverse_match_allowed and
+            index < len(text)
+        ):
+            return self.next_node.next_node.match(text, index + 1, groups)
         else:
-            if path_found:
-                return self.or_end_node.next_node.match(
-                    text,
-                    self.or_end_node.path_end_index + 1,
-                    groups,
-                )
-            else:
-                return False
+            return False
+
+    def reset_repetition_count(self):
+        for available_path in self.available_paths:
+            available_path.start.reset_repetition_count()
 
 
 class OrEnd(Node):
 
-    def __init__(self, inverse_match=False):
-        self.inverse_match = inverse_match
-        self.path_end_index = None
-        super(OrEnd, self).__init__()
+    def __init__(self, or_start_node):
+        self.or_start_node = or_start_node
 
     def match(self, text, index, groups):
-        # Path from OrStart exists.
-        self.path_end_index = index - 1
-        return True
+        if self.or_start_node.inverse_match:
+            self.or_start_node.inverse_match_allowed = False
+            return False
+        else:
+            return self.next_node.match(text, index, groups)
 
 
 class GroupStart(Node):
