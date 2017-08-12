@@ -54,7 +54,6 @@ class Parser :
                 if error_type == "req_missing":
                         print("Error : required argument --"+arg+" is missing from input.")
             
-
     def result_display(self):
         """function to print result as JSON"""
         print('{')                                          
@@ -78,7 +77,6 @@ class Parser :
                 key = h.partition("=")[0]                              #separating key and value part of argument
                 value =  h.partition("=")[2]
                 print(key +" : "+ value)
-
 
     def check_required(self):
         """function to check for required arguments in input"""
