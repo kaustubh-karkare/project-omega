@@ -71,7 +71,7 @@ end
 def diff()
     head = File.join(Dir.getwd, ".vcs", "HEAD")
     files_in_previous_commit = {}
-    files_in_previous_commit = get_files_from_previous_commit(
+    files_in_previous_commit = get_files_from_commit(
         parse_commit_object(File.read(head)).fetch("sha"),
         Dir.getwd
     )
