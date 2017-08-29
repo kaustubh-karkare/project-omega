@@ -139,7 +139,7 @@ def get_modified_files(**kwargs)
                     {
                         :file_name => file_name,
                         :old_sha => old_files[file_name],
-                        :new_sha => new_sha
+                        :new_sha => new_sha,
                     }
                 )
             end
@@ -157,7 +157,7 @@ def get_modified_files(**kwargs)
             modified_files.push(
                 {
                     :file_name => file_name,
-                    :old_sha => old_sha
+                    :old_sha => old_sha,
                 }
             )
         end
