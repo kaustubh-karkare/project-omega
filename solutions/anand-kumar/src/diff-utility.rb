@@ -4,6 +4,21 @@ require_relative 'vcs_internals'
 NodeValue = Struct.new(:key, :parent_x, :parent_y)
 
 
+def get_lines(input_file_path)
+    lines = []
+    open(input_file_path, "r") do |input_file|
+            while true
+                data = input_file.gets
+                if data.nil?
+                    break
+                end
+                lines.push(data)
+            end
+        end
+    return lines
+end
+
+
 def get_lcs(old_lines, new_lines)
     lcs = Array.new(old_lines.length + 1) \
         {Array.new(new_lines.length + 1, NodeValue.new(0, 0, 0))}
@@ -13,7 +28,7 @@ def get_lcs(old_lines, new_lines)
                 lcs[ii][jj] = NodeValue.new(
                     lcs[ii - 1][jj - 1].key + 1,
                     ii - 1,
-                    jj - 1
+                    jj - 1,
                 )
             else
                 lcs[ii][jj] = NodeValue.new(lcs[ii][jj - 1].key, ii, jj - 1)
@@ -25,21 +40,21 @@ def get_lcs(old_lines, new_lines)
             end
         end
     end
-    lcs_old = Array.new(old_lines.length + 1, 0)
-    lcs_new = Array.new(new_lines.length + 1, 0)
+    equivalent_line_in_new_file = Array.new(old_lines.length + 1, 0)
+    equivalent_line_in_old_file = Array.new(new_lines.length + 1, 0)
     current_x = old_lines.length
     current_y = new_lines.length
     while current_x != 0 || current_y != 0
         parent_x = lcs[current_x][current_y].parent_x
         parent_y = lcs[current_x][current_y].parent_y
         if current_x - 1 == parent_x && current_y - 1 == parent_y
-            lcs_old[current_x] = current_y
-            lcs_new[current_y] = current_x
+            equivalent_line_in_new_file[current_x] = current_y
+            equivalent_line_in_old_file[current_y] = current_x
         end
         current_x = parent_x
         current_y = parent_y
     end
-    return lcs_old, lcs_new
+    return equivalent_line_in_new_file, equivalent_line_in_old_file
 end
 
 
@@ -92,8 +107,8 @@ end
 def display_diff_change(
     old_lines,
     new_lines,
-    lcs_old,
-    lcs_new,
+    equivalent_line_in_new_file,
+    equivalent_line_in_old_file,
     start_old_index,
     start_new_index,
     line_new
@@ -109,8 +124,8 @@ def display_diff_change(
     while (
         start_old_index <= old_lines.length &&
         start_new_index <= new_lines.length &&
-        lcs_old[start_old_index] == 0 &&
-        lcs_new[start_new_index] == 0
+        equivalent_line_in_new_file[start_old_index] == 0 &&
+        equivalent_line_in_old_file[start_new_index] == 0
     )
         start_old_index += 1
         end_old += 1
@@ -144,68 +159,62 @@ def find_diff(file1, file2)
     old_lines = []
     new_lines = []
     if File.file?(file1)
-        open(file1, "r") do |old_file|
-            while true
-                data = old_file.gets
-                if data.nil?
-                    break
-                end
-                old_lines.push(data)
-            end
-        end
+        old_lines = get_lines(file1)
     else
         old_lines.push(file1)
     end
     if File.file?(file2)
-        open(file2, "r") do |new_file|
-            while true
-                data = new_file.gets
-                if data.nil?
-                    break
-                end
-                new_lines.push(data)
-            end
-        end
+        new_lines = get_lines(file2)
     else
         new_lines.push(file2)
     end
-    lcs_old, lcs_new = get_lcs(old_lines, new_lines)
+    equivalent_line_in_new_file, equivalent_line_in_old_file = \
+        get_lcs(old_lines, new_lines)
     line_number_new = 0
     old_index = 1
     new_index = 1
     while old_index <= old_lines.length || new_index <= new_lines.length
         if (
-            lcs_old[old_index] == 0 &&
-            (new_index > new_lines.length || lcs_new[new_index] != 0)
+            equivalent_line_in_new_file[old_index] == 0 &&
+            (
+                new_index > new_lines.length ||
+                equivalent_line_in_old_file[new_index] != 0
+            )
         )
             old_index = display_diff_delete(
                 old_lines,
-                lcs_old,
+                equivalent_line_in_new_file,
                 old_index,
-                line_number_new
+                line_number_new,
             )
         elsif (
-            lcs_new[new_index] == 0 &&
-            (old_index > old_lines.length || lcs_old[old_index] != 0)
+            equivalent_line_in_old_file[new_index] == 0 &&
+            (
+                old_index > old_lines.length ||
+                equivalent_line_in_new_file[old_index] != 0
+            )
         )
             new_index, line_number_new = display_diff_append(
                 new_lines,
-                lcs_new,
+                equivalent_line_in_old_file,
                 new_index,
                 old_index - 1,
-                line_number_new
+                line_number_new,
             )
-        elsif lcs_old[old_index] == 0 && lcs_new[new_index] == 0
+        elsif (
+            equivalent_line_in_new_file[old_index] == 0 &&
+            equivalent_line_in_old_file[new_index] == 0
+        )
             old_index, new_index, line_number_new = display_diff_change(
                 old_lines,
                 new_lines,
-                lcs_old,
-                lcs_new,
+                equivalent_line_in_new_file,
+                equivalent_line_in_old_file,
                 old_index,
                 new_index,
-                line_number_new
+                line_number_new,
             )
-        else lcs_new[new_index] == old_index
+        else equivalent_line_in_old_file[new_index] == old_index
             line_number_new += 1
             old_index += 1
             new_index += 1
