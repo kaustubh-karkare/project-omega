@@ -106,7 +106,7 @@ def get_files_in_tree(sha_hash, directory_path=Dir.getwd)
             files_in_commit = files_in_commit.merge(
                 get_files_in_tree(
                     sha_hash,
-                    File.join(directory_path, file_name)
+                    File.join(directory_path, file_name),
                 )
             )
         end
