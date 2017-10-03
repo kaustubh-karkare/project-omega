@@ -1,117 +1,91 @@
 require 'fileutils'
-require 'tempfile'
 require_relative 'file_storage'
-require_relative 'diff-utility'
-require_relative 'vcs_internals'
 
 
 EOL = "\n"
 
 
-def init(directory_path=Dir.getwd)
-    if not File.directory? FilePath::VCS
-        Dir.mkdir(FilePath::VCS)
-        Dir.mkdir(FilePath::OBJECTS)
-        open(FilePath::CONFIG, "w").close
-        open(FilePath::HEAD, "w").close
+def init(directory_path=Dir.getwd())
+    vcs_path = VcsPath.new(directory_path)
+    if not File.directory? vcs_path.vcs
+        Dir.mkdir(vcs_path.vcs)
+        Dir.mkdir(vcs_path.objects)
+        open(vcs_path.config, "w").close
+        open(vcs_path.head, "w").close
     end
 end
 
 
 def log(commit_hash)
-    commit_object_content = Commit.parse_commit_object(commit_hash)
-    puts "Author: #{commit_object_content.fetch("author")}"
-    puts "Author Email: #{commit_object_content.fetch("email")}"
-    puts "Time: #{commit_object_content.fetch("time")}"
-    puts "Message: #{commit_object_content.fetch("message")}#{EOL}#{EOL}"
-    if not commit_object_content.fetch("parent").empty?
-        log(commit_object_content.fetch("parent"))
+    commit_content = Commit.new(commit_hash).get_commit_content()
+    print "Author: #{commit_content.fetch("author")}#{EOL}"
+    print "Author Email: #{commit_content.fetch("email")}#{EOL}"
+    print "Time: #{commit_content.fetch("time")}#{EOL}"
+    print "Message: #{commit_content.fetch("message")}#{EOL}#{EOL}"
+    if not commit_content.fetch("parent").empty?
+        log(commit_content.fetch("parent"))
     end
 end
 
 
 def checkout(commit_hash)
-    working_directory_files = get_files_in_directory(Dir.getwd)
-    commit_object_content = Commit.parse_commit_object(commit_hash)
-    files_in_commit = get_files_in_tree(commit_object_content["sha"])
-    files_in_commit.each do |file_name, sha|
-        if working_directory_files.key? file_name
-            if working_directory_files[file_name] != sha
-                FileUtils.remove_entry(file_name)    
-                Blob.restore_blob(sha, file_name)
-            end
-        else
-            Blob.restore_blob(sha, file_name)
-        end
-    end
-    working_directory_files.each do |file_name, sha|
-        if not files_in_commit.key? file_name
-            FileUtils.remove_entry(file_name)
-        end
-    end
+    Commit.new(commit_hash).restore(Dir.getwd())
 end
 
 
 def reset()
-    commit_hash = File.read(FilePath::HEAD)
+    commit_hash = File.read(VcsPath.new(Dir.getwd()).head)
     checkout(commit_hash)
 end
 
 
 def commit(commit_message)
-    commit_hash = Commit.create_commit(
-        commit_message,
-        parent=File.read(FilePath::HEAD)
-    )
-    open(FilePath::HEAD, "w") do |head_file|
+    commit_hash = Commit.new().create(commit_message)
+    open(VcsPath.new().head, "w") do |head_file|
         head_file.write("#{commit_hash}")
     end
     return commit_hash
 end
 
 
-def status(**kwargs)
-    modified_files = []
-    modified_files = get_modified_files(kwargs)
-    if modified_files.empty?
-        puts "Nothing to commit."
-    else
-        puts "Untracked files:#{EOL}#{EOL}"
-        modified_files.each do |element|
-            puts "\t#{File.basename(element.fetch(:file_name))}"
+def status()
+    commit_hash = File.read(VcsPath.new().head)
+    commit_tree_root = Commit.new(commit_hash).commit_tree_root
+    files_in_commit = Tree.new(commit_tree_root).get_files_in_tree(Dir.getwd())
+    files_in_working_directory = get_files_in_directory(Dir.getwd())
+    # Modified Files
+    files_in_commit.each do |file_path, file_hash|
+        if (
+            files_in_working_directory.key? file_path and
+            files_in_working_directory[file_path] != file_hash
+        )
+            puts "\tmodified:\t#{File.basename(file_path)}"
+        end
+    end
+    # Deleted Files
+    files_in_commit.each do |file_path, file_hash|
+        if not files_in_working_directory.key? file_path
+            puts "\tdeleted:\t#{File.basename(file_path)}"
+        end
+    end
+    # Untracked Files
+    files_in_working_directory.each do |file_path, file_hash|
+        if not files_in_commit.key? file_path
+            puts "\tuntracked:\t#{File.basename(file_path)}"
         end
     end
 end
 
 
-def diff(**kwargs)
-    modified_files = []
-    modified_files = get_modified_files(kwargs)
-    modified_files.each do |element|
-        puts File.basename(element.fetch(:file_name))
-        original_file = nil
-        modified_file = nil
-        original_file = File.join(FilePath::VCS, "original_file")
-        modified_file = File.join(FilePath::VCS, "modified_file")
-        if element.fetch(:old_sha, nil) != nil
-            original_file = Tempfile.new("original_file").path
-            Blob.restore_blob(element.fetch(:old_sha), original_file)
-        end
-        if (
-            (element.fetch(:new_sha, nil) != nil) &&
-            (
-                File.file? File.join(
-                    FilePath::OBJECTS,
-                    element.fetch(:new_sha)
-                )
-            )
-        )
-            modified_file = Tempfile.new("modified_file").path
-            Blob.restore_blob(element.fetch(:new_sha), modified_file)
-        else
-            modified_file = element.fetch(:file_name)
-        end
-        find_diff(original_file, modified_file)
-        puts "#{EOL}#{EOL}"
+def diff(
+    old_commit=File.read(VcsPath.new().head),
+    new_commit_or_path=Dir.getwd()
+)
+    if File.directory? new_commit_or_path
+        directory_tree = Tree.new().create(new_commit_or_path)
+        old_commit_tree = Commit.new(old_commit).commit_tree_root
+        Tree.new(old_commit_tree).diff(directory_tree)
+    else
+        Commit.new(old_commit).diff(new_commit_or_path)
     end
 end
