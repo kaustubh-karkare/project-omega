@@ -1,26 +1,92 @@
 require 'fileutils'
+require 'json'
+require 'tempfile'
+require_relative 'diff-utility'
 require_relative 'vcs_internals'
 
 
 SHA_SIZE = 40
 
 
-class Blob
+class ObjectFile
 
-    def self.create_blob(content_file_path)
-        header = "blob #{File.size(content_file_path)}#{NULL}"
-        sha_hash = get_sha_hash(header, content_file_path)
-        create_object_file(header, content_file_path, sha_hash)
-        return sha_hash
+    def initialize(object_hash=nil)
+        @hash = object_hash
+        @header = nil
+        @type = nil
+        if not @hash.nil?
+            @header = get_current_hash_header()
+            @type = %r{[a-z]+}.match(@header).to_s
+        end
     end
 
-    def self.restore_blob(sha_hash, output_file_path)
-        input_file_path = File.join(FilePath::OBJECTS, sha_hash)
-        open(input_file_path, "r") do |input_file|
-            open(output_file_path, "w") do |output_file|
-                data = ""
-                _header, data = extract_header(input_file)
-                output_file.write(data)
+    def create(type, path_or_content)
+        if not path_or_content.include? NULL and File.file? path_or_content
+            @header = "#{type} #{File.size(path_or_content)}#{NULL}"
+        else
+            @header = "#{type} #{path_or_content.length()}#{NULL}"
+        end
+        @type = type
+        @hash = get_sha_hash(@header, path_or_content)
+        object_file_path = File.join(VcsPath.new().objects, @hash)
+        open(object_file_path, "wb") do |object_file|
+            object_file.write(@header)
+            if not path_or_content.include? NULL and File.file? path_or_content
+                open(path_or_content, "rb") do |content_file|
+                    while true
+                        data = content_file.read(BLOCK_SIZE)
+                        if data.nil?
+                            break
+                        end
+                        object_file.write(data)
+                    end
+                end
+            else
+                object_file.write(path_or_content)
+            end
+        end
+    end
+
+    def get_current_hash_header()
+        data = ""
+        object_file_path = File.join(VcsPath.new().objects, @hash)
+        open(object_file_path, "rb") do |object_file|
+            while not data.include? NULL
+                current_data = object_file.read(BLOCK_SIZE)
+                if current_data.nil?
+                    break
+                end
+                data += current_data
+            end
+        end
+        header, _separator, _content = data.partition(NULL)
+        return header
+    end
+
+    def restore()
+        raise NotImplementedError
+    end
+
+    def diff()
+        raise NotImplementedError
+    end
+
+    attr_reader :type
+end
+
+
+class Blob < ObjectFile
+
+    def create(content_or_path)
+        super("blob", content_or_path)
+        return @hash
+    end
+
+    def restore(output_file_path)
+        input_file_path = File.join(VcsPath.new().objects, @hash)
+        open(input_file_path, "rb") do |input_file|
+            open(output_file_path, "wb") do |output_file|
+                input_file.seek((@header + NULL).length())
                 while true
                     data = input_file.read(BLOCK_SIZE)
                     if data.nil?
@@ -31,58 +97,58 @@ class Blob
             end
         end
     end
+
+    def diff(other_blob, file_name=nil)
+        old_file = Tempfile.new()
+        new_file = Tempfile.new()
+        if file_name.nil?
+            file_name = @hash
+        end
+        restore(old_file.path)
+        if other_blob.nil?
+            # The file does not not exist anymore.
+        else
+            Blob.new(other_blob).restore(new_file.path)
+        end
+        Diff.new(old_file.path, new_file.path, file_name).show()
+        old_file.close()
+        new_file.close()
+    end
+
 end
 
 
-class Tree
+class Tree < ObjectFile
 
-    def self.build_tree(directory_path)
+    def create(directory_path)
         files = {}
-        for element in Dir.glob(File.join(directory_path, '*'))
-            file_name = File.basename(element)
-            if File.file?(element)
-                sha_hash = Blob.create_blob(element)
-                files[file_name] = sha_hash
+        for file_path in Dir.glob(File.join(directory_path, '*'))
+            file_name = File.basename(file_path)
+            if File.file? file_path
+                blob_hash = Blob.new().create(file_path)
+                files[file_name] = blob_hash
             else
-                sha_hash = Tree.build_tree(element)
-                files[file_name] = sha_hash
+                tree_hash = Tree.new().create(file_path)
+                files[file_name] = tree_hash
             end
         end
         content = ""
-        files.each do |file_name, sha_hash|
-            content = content + file_name + NULL + sha_hash
+        files.each do |file_name, file_hash|
+            content = content + file_name + NULL + file_hash
         end
-        header = "tree #{content.length}#{NULL}"
-        sha_hash = get_sha_hash(header, content)
-        create_object_file(header, content, sha_hash)
-        return sha_hash
+        super("tree", content)
+        return @hash
     end
 
-    def self.build_working_directory(sha_hash, directory_path)
-        files = Tree.get_directory_content(sha_hash)
-        files.each do |file_name, sha_hash|
-            if type(sha_hash).eql? "blob"
-                restore_blob(sha_hash, File.join(directory_path, file_name))
-            else
-                Dir.mkdir(File.join(directory_path, file_name))
-                build_working_directory(
-                    sha_hash,
-                    File.join(directory_path, file_name),
-                )
-            end
-        end
-    end
-
-    def self.get_directory_content(sha_hash)
-        input_file_path = File.join(FilePath::OBJECTS, sha_hash)
-        header = nil
+    def get_files_from_tree_hash()
+        object_file_path = File.join(VcsPath.new().objects, @hash)
         files = {}
-        open(input_file_path, "r") do |input_file|
+        open(object_file_path, "rb") do |object_file|
             data = ""
-            header, data = extract_header(input_file)
+            object_file.seek((@header + NULL).length())
             while true
                 while not data.include? NULL
-                    current_data = input_file.read(BLOCK_SIZE)
+                    current_data = object_file.read(BLOCK_SIZE)
                     if current_data.nil?
                         break
                     end
@@ -92,8 +158,8 @@ class Tree
                     break
                 end
                 file_name, _separator, data = data.partition(NULL)
-                while data.length < SHA_SIZE
-                    current_data = input_file.read(BLOCK_SIZE)
+                while data.length() < SHA_SIZE
+                    current_data = object_file.read(BLOCK_SIZE)
                     if current_data.nil?
                         break
                     end
@@ -106,45 +172,110 @@ class Tree
         end
         return files
     end
+
+    def get_files_in_tree(directory_path)
+        files_in_tree = {}
+        files_in_current_directory = {}
+        files_in_current_directory = get_files_from_tree_hash()
+        files_in_current_directory.each do |file_name, file_hash|
+            if ObjectFile.new(file_hash).type.eql? "blob"
+                files_in_tree[File.join(directory_path, file_name)] = file_hash
+            else
+                files_in_tree = files_in_tree.merge(
+                    Tree.new(file_hash).get_files_in_tree(
+                        File.join(directory_path, file_name),
+                    )
+                )
+            end
+        end
+        return files_in_tree
+    end
+
+    def restore(base_directory)
+        working_directory_files = get_files_in_directory(base_directory)
+        files_in_tree = get_files_in_tree(base_directory)
+        files_in_tree.each do |file_path, file_hash|
+            if working_directory_files.key? file_path
+                if working_directory_files[file_path] != file_hash
+                    FileUtils.remove_entry(file_path)
+                    Blob.new(file_hash).restore(file_path)
+                end
+            else
+                Blob.new(file_hash).restore(file_path)
+            end
+        end
+        working_directory_files.each do |file_path, file_hash|
+            if not files_in_tree.key? file_path
+                FileUtils.remove_entry(file_path)
+            end
+        end
+    end
+
+    def diff(other_tree)
+        old_tree_files = {}
+        new_tree_files = {}
+        old_tree_files = get_files_in_tree(Dir.getwd())
+        new_tree_files = Tree.new(other_tree).get_files_in_tree(Dir.getwd())
+        old_tree_files.each do |file_path, file_hash|
+            Blob.new(file_hash).diff(new_tree_files[file_path], file_path)
+        end
+        new_tree_files.each do |file_path, file_hash|
+            if not old_tree_files.key? file_path
+                old_file = Tempfile.new()
+                new_file = Tempfile.new()
+                Blob.new(file_hash).restore(new_file.path)
+                Diff.new(old_file.path, new_file.path, file_path).show()
+                old_file.close()
+                new_file.close()
+            end
+        end
+    end
 end
 
 
-class Commit
+class Commit < ObjectFile
 
-    def self.create_commit(commit_message, parent)
-        config_parameters = {}
-        open(FilePath::CONFIG, "r") do |config_file|
-            while true
-                data = config_file.gets
-                if data.nil?
-                    break
-                end
-                key, _separator, value = data.partition(':')
-                config_parameters[key] = value
-            end
+    def initialize(commit_hash=nil)
+        super(commit_hash)
+        @commit_tree_root = nil
+        if not @hash.nil?
+            commit_parameters = {}
+            commit_parameters = get_commit_content()
+            @commit_tree_root = commit_parameters.fetch("hash")
         end
-        header = ""
-        content = ""
-        content = "sha:#{Tree.build_tree(Dir.getwd)}#{EOL}"
-        content += "parent:#{parent}#{EOL}"
-        content += "author:#{config_parameters.fetch("author")}#{EOL}"
-        content += "email:#{config_parameters.fetch("email")}#{EOL}"
-        content += "time:#{Time.now}#{EOL}"
-        content += "message:#{commit_message}"
-        header = "commit #{content.length}#{NULL}"
-        commit_hash = get_sha_hash(header, content)
-        create_object_file(header, content, commit_hash)
-        return commit_hash
     end
 
-    def self.parse_commit_object(commit_hash)
-        content = {}
-        input_file_path = File.join(FilePath::OBJECTS, commit_hash)
-        open(input_file_path, "r") do |input_file|
+    def create(commit_message)
+        config_parameters = {}
+        open(VcsPath.new().config, "r") do |config_file|
+            config_parameters = JSON.load(config_file)
+        end
+        @commit_tree_root = Tree.new().create(Dir.getwd())
+        commit_parameters = {}
+        commit_parameters[:hash] = @commit_tree_root
+        commit_parameters[:parent] = File.read(VcsPath.new().head)
+        commit_parameters[:author] = config_parameters.fetch("author")
+        commit_parameters[:email] = config_parameters.fetch("email")
+        commit_parameters[:time] = Time.now().to_s
+        commit_parameters[:message] = commit_message
+        header = ""
+        content = ""
+        commit_parameters.each do |key, value|
+            content = content + key.to_s + ": " + value + EOL
+        end
+        super("commit", content)
+        @commit_tree_root = commit_parameters[:hash]
+        return @hash
+    end
+
+    def get_commit_content()
+        commit_parameters = {}
+        object_file_path = File.join(VcsPath.new().objects, @hash)
+        open(object_file_path, "rb") do |object_file|
             data = ""
-            _header, data = extract_header(input_file)
+            object_file.seek((@header + NULL).length())
             while true
-                current_data = input_file.read(BLOCK_SIZE)
+                current_data = object_file.read(BLOCK_SIZE)
                 if current_data.nil?
                     break
                 end
@@ -152,10 +283,21 @@ class Commit
             end
             data = data.split(EOL)
             for parameter in data
-                key, _separator, value = parameter.partition(':')
-                content[key] = value
+                key, _separator, value = parameter.partition(': ')
+                commit_parameters[key] = value.chomp()
             end
         end
-        return content
+        return commit_parameters
     end
+
+    def restore(base_directory)
+        Tree.new(@commit_tree_root).restore(base_directory)
+    end
+
+    def diff(other_commit_hash)
+        other_commit = Commit.new(other_commit_hash)
+        Tree.new(@commit_tree_root).diff(other_commit.commit_tree_root)
+    end
+
+    attr_reader :commit_tree_root
 end
