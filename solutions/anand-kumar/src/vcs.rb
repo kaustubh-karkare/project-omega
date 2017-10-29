@@ -1,91 +1,45 @@
-require 'fileutils'
-require_relative 'file_storage'
+require 'json'
+require './exceptions'
 
 
-EOL = "\n"
+class VCS
 
+    attr_reader :vcs, :objects, :config
 
-def init(directory_path=Dir.getwd())
-    vcs_path = VcsPath.new(directory_path)
-    if not File.directory? vcs_path.vcs
-        Dir.mkdir(vcs_path.vcs)
-        Dir.mkdir(vcs_path.objects)
-        open(vcs_path.config, "w").close
-        open(vcs_path.head, "w").close
+    def initialize(directory = Dir.getwd())
+        # Initialize paths in the directory
+        @vcs = File.join(directory, ".vcs")
+        @objects = File.join(@vcs, "objects")
+        @config = File.join(@vcs, ".config")
     end
-end
 
+    def get_option(config_key)
+        # The method returns the the config parameter value.
 
-def log(commit_hash)
-    commit_content = Commit.new(commit_hash).get_commit_content()
-    print "Author: #{commit_content.fetch("author")}#{EOL}"
-    print "Author Email: #{commit_content.fetch("email")}#{EOL}"
-    print "Time: #{commit_content.fetch("time")}#{EOL}"
-    print "Message: #{commit_content.fetch("message")}#{EOL}#{EOL}"
-    if not commit_content.fetch("parent").empty?
-        log(commit_content.fetch("parent"))
-    end
-end
-
-
-def checkout(commit_hash)
-    Commit.new(commit_hash).restore(Dir.getwd())
-end
-
-
-def reset()
-    commit_hash = File.read(VcsPath.new(Dir.getwd()).head)
-    checkout(commit_hash)
-end
-
-
-def commit(commit_message)
-    commit_hash = Commit.new().create(commit_message)
-    open(VcsPath.new().head, "w") do |head_file|
-        head_file.write("#{commit_hash}")
-    end
-    return commit_hash
-end
-
-
-def status()
-    commit_hash = File.read(VcsPath.new().head)
-    commit_tree_root = Commit.new(commit_hash).commit_tree_root
-    files_in_commit = Tree.new(commit_tree_root).get_files_in_tree(Dir.getwd())
-    files_in_working_directory = get_files_in_directory(Dir.getwd())
-    # Modified Files
-    files_in_commit.each do |file_path, file_hash|
-        if (
-            files_in_working_directory.key? file_path and
-            files_in_working_directory[file_path] != file_hash
-        )
-            puts "\tmodified:\t#{File.basename(file_path)}"
+        config_parameters = {}
+        File.open(@config, "rb") do |config_file|
+            config_parameters = JSON.load(config_file)
+        end
+        if config_parameters.include? (config_key)
+            return config_parameters.fetch(config_key)
+        else
+            raise MissingConfigParameter.new("#{config_key} not found")
         end
     end
-    # Deleted Files
-    files_in_commit.each do |file_path, file_hash|
-        if not files_in_working_directory.key? file_path
-            puts "\tdeleted:\t#{File.basename(file_path)}"
-        end
-    end
-    # Untracked Files
-    files_in_working_directory.each do |file_path, file_hash|
-        if not files_in_commit.key? file_path
-            puts "\tuntracked:\t#{File.basename(file_path)}"
-        end
-    end
-end
 
+    def set_option(config_key, config_value)
+        # The method adds/updates the config file parameters.
 
-def diff(
-    old_commit=File.read(VcsPath.new().head),
-    new_commit_or_path=Dir.getwd()
-)
-    if File.directory? new_commit_or_path
-        directory_tree = Tree.new().create(new_commit_or_path)
-        old_commit_tree = Commit.new(old_commit).commit_tree_root
-        Tree.new(old_commit_tree).diff(directory_tree)
-    else
-        Commit.new(old_commit).diff(new_commit_or_path)
+        File.open(@config, "rb") do |config_file|
+            config_parameters = JSON.load(config_file)
+        end
+        if config_parameters.nil?
+            # File has not been initialized.
+            config_parameters = Hash.new()
+        end
+        config_parameters[config_key] = config_value
+        File.open(@config, "wb") do |config_file|
+            JSON.dump(config_parameters, config_file)
+        end
     end
 end
