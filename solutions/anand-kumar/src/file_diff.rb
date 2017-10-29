@@ -1,37 +1,42 @@
-require './lcs'
+require "./lcs"
 
 
 class FileDiff < LongestCommonSubsequence
 
     @@hunk = Struct.new(:old_start, :old_end, :new_start, :new_end)
+    INSERT = '+'
+    DELETE = '-'
+    UNCHANGED = ' '
 
     def generate(old_data, new_data, context_lines = 3)
         # The method generates the unified format of diff.
         
+        old_data = old_data.lines()
+        new_data = new_data.lines()
         hunks = get_hunks(old_data, new_data)
         hunks_with_context = add_context_around_hunks(
             hunks,
             context_lines,
-            old_data.size(),
-            new_data.size(),
+            old_data.length(),
+            new_data.length(),
         )
-        diff = []
+        diff = String.new()
         common_subsequence = get_lcs(old_data, new_data)
         hunks_with_context.each do |hunk_with_context|
             old_start = hunk_with_context.old_start
             old_end = hunk_with_context.old_end
             new_start = hunk_with_context.new_start
             new_end = hunk_with_context.new_end
-            diff << get_context_header(hunk_with_context)
+            diff += get_context_header(hunk_with_context)
             while (old_start <= old_end) || (new_start <= new_end)
                 if common_subsequence[old_start].nil?
-                    diff << "-#{old_data[old_start - 1]}"
+                    diff += "#{DELETE}#{old_data[old_start - 1]}"
                     old_start += 1
                 elsif common_subsequence.index(new_start).nil?
-                    diff << "+#{new_data[new_start - 1]}"
+                    diff += "#{INSERT}#{new_data[new_start - 1]}"
                     new_start += 1
                 else
-                    diff << " #{old_data[old_start - 1]}"
+                    diff += "#{UNCHANGED}#{old_data[old_start - 1]}"
                     old_start += 1
                     new_start += 1
                 end
@@ -66,8 +71,8 @@ class FileDiff < LongestCommonSubsequence
     def add_context_around_hunks(
         hunks,
         context_lines,
-        old_data_size,
-        new_data_size
+        old_data_length,
+        new_data_length
     )
         hunks_with_context = []
         
@@ -95,7 +100,7 @@ class FileDiff < LongestCommonSubsequence
 
             # Context after the hunk.
             (1..context_lines).each do
-                if (old_end > old_data_size) || (new_end > new_data_size)
+                if (old_end > old_data_length) || (new_end > new_data_length)
                     break
                 end
                 hunk.old_end = old_end
@@ -128,67 +133,100 @@ class FileDiff < LongestCommonSubsequence
     def get_context_header(hunk)
         old_hunk_length = hunk.old_end - hunk.old_start + 1
         new_hunk_length = hunk.new_end - hunk.new_start + 1
-        header = ""
-        header << "@@ "
+        header = String.new()
+        header += "@@ "
         if old_hunk_length.zero?
-            header << "-#{hunk.old_start - 1}"
+            header += "#{DELETE}#{hunk.old_start - 1}"
         else
-            header << "-#{hunk.old_start}"
+            header += "#{DELETE}#{hunk.old_start}"
         end
         if old_hunk_length != 1
-            header << ",#{old_hunk_length}"
+            header += ",#{old_hunk_length}"
         end
+        header += ' '
         if new_hunk_length.zero?
-            header << " +#{hunk.new_start - 1}"
+            header += "#{INSERT}#{hunk.new_start - 1}"
         else
-            header << " +#{hunk.new_start}"
+            header += "#{INSERT}#{hunk.new_start}"
         end
         if new_hunk_length != 1
-            header << ",#{new_hunk_length}"
+            header += ",#{new_hunk_length}"
         end
-        header << " @@"
+        header += " @@\n"
         return header
     end
+end
 
-    def apply_diff(old_data, diff)
-        old_data_index = nil
-        deletions = 0
-        insertions = 0
-        diff.each do |line|
-            header = /
-                ^
-                @@\s
-                -(?<old_start>\d)
-                (?:,(?<old_data_length>\d))?
-                \s
-                \+(?<new_start>\d)
-                (?<new_data_length>(?:,\d))?
-                \s@@
-            $/x.match(line)
-            if !header.nil?
-                old_data_index = header[:old_start].to_i
-                if (
-                    !header[:old_data_length].nil? &&
-                    header[:old_data_length].to_i.zero?
+class DirectoryDiff
+
+    def generate(old_directory, new_directory)
+        old_files = (Dir.entries(old_directory) - ['.', '..']).sort()
+        new_files = (Dir.entries(new_directory) - ['.', '..']).sort()
+        diff = String.new()
+        ii = 0
+        jj = 0
+        while (ii < old_files.size()) || (jj < new_files.size())
+            if (
+                (ii < old_files.size()) &&
+                (jj < new_files.size()) &&
+                (old_files[ii] == new_files[jj])
+            )
+                old_file = File.join(old_directory, old_files[ii])
+                new_file = File.join(new_directory, new_files[jj])
+                if (File.file? (old_file)) && (File.file? (new_file))
+                    diff += FileDiff.new().generate(
+                        get_data(old_file),
+                        get_data(new_file),
+                        )
+                elsif (
+                    (File.directory? (old_file)) &&
+                    (File.directory? (new_file))
                 )
-                    old_data_index += 1
-                end
-                old_data_index = old_data_index - deletions + insertions
-            else
-                command = /^(?<operation>[-\s\+])(?<data>.*)/.match(line)
-                case command[:operation]
-                when '-'
-                    old_data.delete_at(old_data_index - 1)
-                    deletions += 1
-                when '+'
-                    old_data.insert(old_data_index - 1, command[:data])
-                    insertions += 1
-                    old_data_index += 1
+                    diff += generate(
+                        File.join(old_directory, old_files[ii]),
+                        File.join(new_directory, new_files[jj]),
+                    )
+                elsif File.directory? (old_file)
+                    diff += "File #{old_file} is a directory while "\
+                            "file #{new_file} is a regular file\n"
                 else
-                    old_data_index += 1
+                    diff += "File #{old_file} is a regular file while "\
+                            "file #{new_file} is a directory\n"
+                end
+                ii += 1
+                jj += 1
+            elsif (ii < old_files.size()) && (jj < new_files.size())
+                if old_files[ii] < new_files[jj]
+                    diff += "Only in #{old_directory}: #{old_files[ii]}\n"
+                    ii += 1
+                else
+                    diff += "Only in #{new_directory}: #{new_files[jj]}\n"
+                    jj += 1
+                end
+            else
+                if ii < old_files.size()
+                    diff += "Only in #{old_directory}: #{old_files[ii]}\n"
+                    ii += 1
+                else
+                    diff += "Only in #{new_directory}: #{new_files[jj]}\n" 
+                    jj += 1
                 end
             end
         end
-        return old_data
+        return diff
+    end
+
+    def get_data(file_path)
+        data = String.new()
+        File.open(file_path, "rb") do |file|
+            while true
+                data_block = file.read(1024)
+                if data_block.nil?
+                    break
+                end
+                data += data_block
+            end
+        end
+        return data
     end
 end
