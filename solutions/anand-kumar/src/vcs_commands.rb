@@ -50,7 +50,7 @@ class StatusCommand < BaseCommand
 
     def self.execute()
         self.class.ensure_initialized()
-        commit_hash = VCS.new().get_options("HEAD")
+        commit_hash = VCS.new().get_option("HEAD")
         # old_files contains the file path along with the checksum.
         if commit_hash.nil?
             old_files = {}
@@ -153,7 +153,7 @@ class ResetCommand < BaseCommand
     
     def self.execute()
         self.class.ensure_initialized()
-        commit_hash = VCS.new().get_options('HEAD')
+        commit_hash = VCS.new().get_option('HEAD')
         if commit_hash.nil?
             STDOUT.write("No commit made in the repository\n")
         else
@@ -225,7 +225,7 @@ module CommandParser
 
     def self.diff()
         options = {
-            old_commit: VCS.new().get_options('HEAD'),
+            old_commit: VCS.new().get_option('HEAD'),
             new_commit: nil,
         }
         OptionParser.new() do |opts|
@@ -274,7 +274,7 @@ module CommandParser
     end
 
     def self.log()
-        options = {hash: VCS.new().get_options('HEAD'), diff: false}
+        options = {hash: VCS.new().get_option('HEAD'), diff: false}
         OptionParser.new() do |opts|
             opts.banner = "usage: vcs log <options>"
             opts.on(
@@ -292,7 +292,7 @@ module CommandParser
     end
 
     def self.checkout()
-        options = {hash: VCS.new().get_options('HEAD')}
+        options = {hash: VCS.new().get_option('HEAD')}
         OptionParser.new() do |opts|
             opts.banner = "usage: vcs checkout <options>"
             opts.on(
