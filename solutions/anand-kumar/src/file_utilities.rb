@@ -8,8 +8,8 @@ module FileUtilities
     def self.concatenate(file1_path, file2_path, offset = 0)
         # The content of file2 is concatenated to file1.
         
-        File.open(file1_path, "wb") do |file1|
-            File.open(file2_path, "rb") do |file2|
+        File.open(file1_path, 'ab') do |file1|
+            File.open(file2_path, 'rb') do |file2|
                 file2.seek(offset)
                 while true
                     data = file2.read(BLOCK_SIZE)
@@ -28,7 +28,7 @@ module FileUtilities
         # then it returns the entire content available.
 
         content = String.new()
-        File.open(file_path, "rb") do |file|
+        File.open(file_path, 'rb') do |file|
             file.seek(offset)
             while not content.include? delimiter
                 data = file.read(BLOCK_SIZE)
@@ -38,15 +38,16 @@ module FileUtilities
                 content += data
             end
         end
-        content, _separator, _unwanted_data = content.partition(delimiter)
+        content, _separator, _data = content.partition(delimiter)
         return content
     end
     
     def self.split_into_lines(file_path, offset = 0)
         lines = []
-        File.open(file_path, "rb") do |file|
+        File.open(file_path, 'rb') do |file|
+            file.seek(offset)
             while true
-                data = file.read(BLOCK_SIZE)
+                data = file.gets()
                 if data.nil?
                     break
                 end
@@ -56,16 +57,16 @@ module FileUtilities
         return lines
     end
 
-    def self.write(file_path, data, mode = "wb")
+    def self.write(file_path, data, mode = 'wb')
         File.open(file_path, mode) {|file| file.write(data)}
     end
 
     def self.get_sha1_hash(header, file_path)
-        hash = Digest::SHA1.new
+        hash = Digest::SHA1.new()
         hash.update(header)
-        open(path_or_content, "rb") do |content_file|
+        open(file_path, 'rb') do |file|
             while true
-                data = content_file.read(BLOCK_SIZE)
+                data = file.read(BLOCK_SIZE)
                 if data.nil?
                     break
                 end
@@ -75,13 +76,20 @@ module FileUtilities
         return hash.hexdigest
     end
 
-    def self.get_files(directory_path)
-        files = Dir.entries(directory_path) - ['.', '..']
-        files.each do |file|
-            file_path = File.join(directory_path, file)
-            if File.directory? (file_path)
-                files += get_files(file_path)
+    def self.get_files(directory_path = Dir.getwd(), recursive = false)
+        # Returns the list of file paths
+
+        files = []
+        original_path = Dir.getwd()
+        begin
+            Dir.chdir(directory_path)
+            if recursive
+                files = Dir["*/*"] - ['.', '..']
+            else
+                files = Dir["*"] - ['.', '..']
             end
+        ensure
+            Dir.chdir(original_path)
         end
         return files
     end

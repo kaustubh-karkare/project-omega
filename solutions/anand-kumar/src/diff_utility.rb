@@ -1,4 +1,7 @@
+require "ostruct"
+require "./file_utilities"
 require "./lcs"
+
 
 
 class FileDiff < LongestCommonSubsequence
@@ -157,12 +160,47 @@ class FileDiff < LongestCommonSubsequence
     end
 end
 
+
 class DirectoryDiff
 
     def generate(old_directory, new_directory)
-        old_files = (Dir.entries(old_directory) - ['.', '..']).sort()
-        new_files = (Dir.entries(new_directory) - ['.', '..']).sort()
+        hunks = get_changes_in_directory(old_directory, new_directory)
         diff = String.new()
+        hunks.each do |hunk|
+            if hunk.old_file.nil?
+                diff += "Only in #{new_directory}: "\
+                        "#{File.basename(hunk.new_file)}\n"
+            elsif hunk.new_file.nil?
+                diff += "Only in #{old_directory}: "\
+                        "#{File.basename(hunk.old_file)}\n"
+            elsif (
+                (File.file? (hunk.old_file)) &&
+                (File.file? (hunk.new_file))
+            )
+                diff += "--- old/#{File.basename(hunk.old_file)} "\
+                        "#{Time.now()}\n"
+                diff += "+++ new/#{File.basename(hunk.new_file)} "\
+                        "#{Time.now()}\n"
+                diff += FileDiff.new().generate(
+                    File.read(hunk.old_file),
+                    File.read(hunk.new_file),
+                )
+            elsif File.file? (hunk.old_file)
+                diff += "File #{hunk.old_file} is a regular file "\
+                        "while file #{hunk.new_file} is a directory\n"
+            else
+                diff += "File #{hunk.old_file} is a directory "\
+                        "while file #{hunk.new_file} is a regular file\n"
+            end
+        end
+        return diff
+    end
+
+
+    def get_changes_in_directory(old_directory, new_directory)
+        old_files = FileUtilities.get_files(old_directory)
+        new_files = FileUtilities.get_files(new_directory)
+        hunks = []
         ii = 0
         jj = 0
         while (ii < old_files.size()) || (jj < new_files.size())
@@ -174,59 +212,51 @@ class DirectoryDiff
                 old_file = File.join(old_directory, old_files[ii])
                 new_file = File.join(new_directory, new_files[jj])
                 if (File.file? (old_file)) && (File.file? (new_file))
-                    diff += FileDiff.new().generate(
-                        get_data(old_file),
-                        get_data(new_file),
-                        )
+                    diff = FileDiff.new().generate(
+                        File.read(old_file),
+                        File.read(new_file),
+                    )
+                    if not diff.empty?
+                        hunks << modified(old_file, new_file)
+                    end
                 elsif (
                     (File.directory? (old_file)) &&
                     (File.directory? (new_file))
                 )
-                    diff += generate(
-                        File.join(old_directory, old_files[ii]),
-                        File.join(new_directory, new_files[jj]),
-                    )
-                elsif File.directory? (old_file)
-                    diff += "File #{old_file} is a directory while "\
-                            "file #{new_file} is a regular file\n"
+                    hunks += generate(old_file, new_file)
                 else
-                    diff += "File #{old_file} is a regular file while "\
-                            "file #{new_file} is a directory\n"
+                    hunks << modified(old_file, new_file)
                 end
                 ii += 1
                 jj += 1
             elsif (ii < old_files.size()) && (jj < new_files.size())
                 if old_files[ii] < new_files[jj]
-                    diff += "Only in #{old_directory}: #{old_files[ii]}\n"
+                    hunks << delete(File.join(old_directory, old_files[ii]))
                     ii += 1
                 else
-                    diff += "Only in #{new_directory}: #{new_files[jj]}\n"
+                    hunks << insert(File.join(new_directory, new_files[jj]))
                     jj += 1
                 end
+            elsif ii < old_files.size()
+                hunks << delete(File.join(old_directory, old_files[ii]))
+                ii += 1
             else
-                if ii < old_files.size()
-                    diff += "Only in #{old_directory}: #{old_files[ii]}\n"
-                    ii += 1
-                else
-                    diff += "Only in #{new_directory}: #{new_files[jj]}\n" 
-                    jj += 1
-                end
+                hunks << insert(File.join(new_directory, new_files[jj]))
+                jj += 1
             end
         end
-        return diff
+        return hunks
     end
 
-    def get_data(file_path)
-        data = String.new()
-        File.open(file_path, "rb") do |file|
-            while true
-                data_block = file.read(1024)
-                if data_block.nil?
-                    break
-                end
-                data += data_block
-            end
-        end
-        return data
+    def insert(file)
+        return OpenStruct.new(old_file: nil, new_file: file)
+    end
+
+    def delete(file)
+        return OpenStruct.new(old_file: file, new_file: nil)
+    end
+
+    def modified(old_file, new_file)
+        return OpenStruct.new(old_file: old_file, new_file: new_file)
     end
 end

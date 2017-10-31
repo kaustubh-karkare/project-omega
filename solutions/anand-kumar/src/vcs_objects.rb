@@ -1,8 +1,7 @@
 require 'digest/sha1'
-require 'optparse'
 require './exceptions'
 require './file_utilities'
-require './vcs'
+require './vcs_internals'
 
 
 BLOCK_SIZE = 1024
@@ -30,7 +29,6 @@ class VCSObject
     def get_type(hash)
         content = String.new()
         type = FileUtilities.read(File.join(@vcs.objects, hash), ' ')
-        
         case type
         when BLOB
             type = BLOB
@@ -39,14 +37,14 @@ class VCSObject
         when COMMIT
             type = COMMIT
         else
-            raise ObjectFileError.new("Invalid object type")
+            raise ObjectFileError.new('Invalid object type')
         end
         return type
     end
 
     def ensure_type(type)
         if @type != type
-            raise ObjectFileError.new('Object type not matching with class')
+            raise ObjectFileError.new('Invalid object type')
         end
     end
 end
@@ -66,6 +64,7 @@ class Blob < VCSObject
     def restore(output_file_path)
         object_file_path = File.join(@vcs.objects, @hash)
         header = FileUtilities.read(object_file_path, NULL)
+        File.open(output_file_path, "wb").close()
         FileUtilities.concatenate(
             output_file_path,
             object_file_path,
@@ -79,24 +78,20 @@ class Tree < VCSObject
 
     def self.create(directory_path)
         directory_content = {}
-        Dir.foreach(directory_path) do |file_name|
-            if ['.', '..'].include? (file_name)
-                next
-            end
+        directory_files = FileUtilities.get_files(directory_path)
+        directory_files.each do |file_name|
             if File.file? (file_name)
-                directory_content[file_name] = \
-                    Blob.create(File.join(directory_path, file_name))
+                directory_content[file_name] = Blob.create(file_name)
             else
-                directory_content[file_name] = \
-                    Tree.create(File.join(directory_path, file_name))
+                directory_content[file_name] = Tree.create(file_name)
             end
         end
         content = String.new()
         directory_content.each do |file_name, hash|
-            content += "#{file_name} #{NULL}#{hash}"
+            content += "#{file_name}#{NULL}#{hash}"
         end
         header = "#{TREE} #{content.length()}#{NULL}"
-        hash = Digest::SHA1.new(header + content).hexdigest
+        hash = Digest::SHA1.hexdigest(header + content)
         FileUtilities.write(
             File.join(VCS.new().objects, hash),
             header + content,
@@ -105,8 +100,8 @@ class Tree < VCSObject
     end
 
     def self.parse_object(hash)
-        self.class.ensure_type(TREE)
-        object_file_path = File.join(@vcs.objects, hash)
+        self.new(hash).ensure_type(TREE)
+        object_file_path = File.join(VCS.new().objects, hash)
         directory_files = {}
         header = FileUtilities.read(object_file_path, NULL)
         offset = (header + NULL).length()
@@ -120,11 +115,9 @@ class Tree < VCSObject
                 break
             end
             offset += (file_name + NULL).length()
-            File.open(object_file_path, "rb") {
-                |file|  hash = file.read(SHA_SIZE, offset)
-            }
-            directory_files[file_name] = hash
-            offset += hash.length()
+            file_hash = File.read(object_file_path, SHA_SIZE, offset)
+            directory_files[file_name] = file_hash
+            offset += file_hash.length()
         end
         return directory_files
     end
@@ -135,30 +128,24 @@ class Tree < VCSObject
             FileUtils.mkdir(directory_path)
         end
 
+        # Removing files that are not required in the working directory.
+        FileUtilities.get_files(directory_path).each do |file_path|
+            if not directory_files.include? (file_path)
+                FileUtils.remove_entry(file_path)
+            end
+        end
+
         # Creating and updating files in the  working directory.
         directory_files.each do |file_name, hash|
             type = get_type(hash)
             file_path = File.join(directory_path, file_name)
-            if type == BLOB
+            case type
+            when BLOB
                 Blob.new(hash).restore(file_path)
-            elsif type == TREE
+            when TREE
                 Tree.new(hash).restore(file_path)
             else
                 raise ObjectFileError.new("#{@hash} is corrupt")
-            end
-        end
-
-        # Removing files that do not belong in the working directory.
-        Dir.foreach(directory_path) do |file_name|
-            if ['.', '..'].include? (file_name)
-                next
-            end
-            if not directory_files.include? (file_name)
-                if File.file? (file_name)
-                    FileUtils.rm(file_name)
-                else
-                    FileUtils.rm_r(file_name)
-                end
             end
         end
     end
@@ -182,7 +169,7 @@ class Commit < VCSObject
             content += "#{key.to_s}: #{value}\n"
         end
         header = "#{COMMIT} #{content.length()}#{NULL}"
-        hash = Digest::SHA1.new(header + content).hexdigest
+        hash = Digest::SHA1.hexdigest(header + content)
         FileUtilities.write(
             File.join(vcs.objects, hash),
             header + content,
@@ -191,23 +178,17 @@ class Commit < VCSObject
     end
 
     def self.parse_object(hash)
-        self.class.ensure_type(COMMIT)
-        object_file_path = File.join(@vcs.config, hash)
+        self.new(hash).ensure_type(COMMIT)
+        object_file_path = File.join(VCS.new().objects, hash)
         commit_parameters = Hash.new()
         header = FileUtilities.read(object_file_path, NULL)
-        offset = (header + NULL).length()
-        while true
-            parameter = FileUtilities.read(
-                object_file_path,
-                NULL,
-                offset,
-            )
-            if parameter.empty?
-                break
-            end
-            key, _separator, value = parameter.partition(": ")
-            commit_parameters[key] = value
-            offset += parameter
+        commit_data = FileUtilities::split_into_lines(
+            object_file_path,
+            offset = (header + NULL).length(),
+        )
+        commit_data.each do |parameter|
+            key, _separator, value = parameter.partition(': ')
+            commit_parameters[key] = value.chomp()
         end
         return commit_parameters
     end
@@ -217,7 +198,7 @@ class Commit < VCSObject
         return commit_parameters[commit_key]
     end
 
-    def restore()
-        Tree.new(get_commit('Tree')).restore(Dir.getwd())
+    def restore(directory_path = Dir.getwd())
+        Tree.new(get_commit('Tree')).restore(directory_path)
     end
 end
