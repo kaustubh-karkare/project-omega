@@ -294,18 +294,18 @@ class VCSParser
             options = parse_config()
             ConfigCommand.new().execute(options)
         else
-            STDOUT.write("usage: vcs subcommand <options>#{EOL}")
-            STDOUT.write("init\tCreate an empty vcs repository#{EOL}")
-            STDOUT.write("status\tShow the working tree status#{EOL}")
             STDOUT.write(
+                "usage: vcs subcommand <options>#{EOL}"\
+                "init\tCreate an empty vcs repository#{EOL}"\
+                "status\tShow the working tree status#{EOL}"\
                 "diff\tShow changes between commits,"\
-                "commit and working tree#{EOL}"
+                "commit and working tree#{EOL}"\
+                "commit\tRecord changes to the repository#{EOL}"\
+                "reset\tReset changes to working tree#{EOL}"\
+                "log\tShow commit logs#{EOL}"\
+                "checkout\tSwitch to another commit#{EOL}"\
+                "config\tupdate repository config file#{EOL}"\
             )
-            STDOUT.write("commit\tRecord changes to the repository#{EOL}")
-            STDOUT.write("reset\tReset changes to working tree#{EOL}")
-            STDOUT.write("log\tShow commit logs#{EOL}")
-            STDOUT.write("checkout\tSwitch to another commit#{EOL}")
-            STDOUT.write("config\tupdate repository config file#{EOL}")
             exit()
         end
     end
