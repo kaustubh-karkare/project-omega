@@ -182,7 +182,7 @@ class Commit < VCSObject
         object_file_path = File.join(VCS.new().objects, hash)
         commit_parameters = Hash.new()
         header = FileUtilities.read(object_file_path, NULL)
-        commit_data = FileUtilities::split_into_lines(
+        commit_data = FileUtilities.split_into_lines(
             object_file_path,
             offset = (header + NULL).length(),
         )
