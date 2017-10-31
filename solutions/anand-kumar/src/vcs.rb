@@ -8,6 +8,9 @@ require './exceptions'
 require './vcs_internals'
 
 
+EOL = "\n"
+
+
 class BaseCommand
 
     def initialize(directory_path = Dir.getwd())
@@ -48,7 +51,7 @@ class InitCommand < BaseCommand
             # it is assumed that it doesn't contain any file.
             @vcs.set_option('HEAD', nil)
         end
-        STDOUT.write("Initialized VCS repository in #{@vcs.vcs}\n")
+        STDOUT.write("Initialized VCS repository in #{@vcs.vcs}#{EOL}")
     end
 end
 
@@ -61,7 +64,7 @@ class StatusCommand < BaseCommand
         ensure_initialized()
         commit_hash = @vcs.get_option('HEAD')
         if commit_hash.nil?
-            STDOUT.write("No commits yet\n")
+            STDOUT.write("No commits yet#{EOL}")
             return
         end
         status = Hash.new()
@@ -92,31 +95,31 @@ class StatusCommand < BaseCommand
                 new_file = File.basename(hunk.new_file)
             end
             if old_file.nil?
-                STDOUT.write("new: #{new_file}\n")
+                STDOUT.write("new: #{new_file}#{EOL}")
             elsif new_file.nil?
-                STDOUT.write("deleted: #{old_file}\n")
+                STDOUT.write("deleted: #{old_file}#{EOL}")
             elsif (
                 (File.file? (hunk.old_file)) &&
                 (File.file? (hunk.new_file))
             )
-                STDOUT.write("modified: #{old_file}\n")
+                STDOUT.write("modified: #{old_file}#{EOL}")
             elsif File.file? (hunk.old_file)
-                STDOUT.write("deleted: #{old_file}\n")
+                STDOUT.write("deleted: #{old_file}#{EOL}")
                 new_files = FileUtilities.get_files(
                     hunk.new_file,
                     recursive = true,
                 )
                 new_files.each do |new_file|
-                    STDOUT.write("new: #{new_file}\n")
+                    STDOUT.write("new: #{new_file}#{EOL}")
                 end
             else
-                STDOUT.write("new: #{new_file}\n")
+                STDOUT.write("new: #{new_file}#{EOL}")
                 old_files = FileUtilities.get_files(
                     hunk.old_file,
                     recursive = true,
                 )
                 old_files.each do |old_file|
-                    STDOUT.write("deleted: #{old_file}\n")
+                    STDOUT.write("deleted: #{old_file}#{EOL}")
                 end
             end
         end
@@ -132,7 +135,7 @@ class DiffCommand < BaseCommand
         ensure_initialized()
         diff = String.new()
         if options.old_commit.nil? && options.new_commit.nil?
-            STDOUT.write("No commits yet\n")
+            STDOUT.write("No commits yet#{EOL}")
             return
         end
         diff = String.new()
@@ -184,7 +187,9 @@ class CommitCommand < BaseCommand
         ensure_initialized()
         commit_hash = Commit.create(options.message)
         @vcs.set_option('HEAD', commit_hash)
-        STDOUT.write("commit #{commit_hash}\n\n#{options.message}\n\n")
+        STDOUT.write(
+            "commit #{commit_hash}#{EOL}#{EOL}#{options.message}#{EOL}#{EOL}"
+        )
     end
 end
 
@@ -195,12 +200,12 @@ class ResetCommand < BaseCommand
         ensure_initialized()
         commit_hash = @vcs.get_option('HEAD')
         if commit_hash.nil?
-            STDOUT.write("No commits yet\n")
+            STDOUT.write("No commits yet#{EOL}")
         else
             commit = Commit.new(commit_hash)
             commit.restore(Dir.getwd())
             @vcs.set_option('HEAD', commit_hash)
-            STDOUT.write("commit #{commit_hash} restored\n")
+            STDOUT.write("commit #{commit_hash} restored#{EOL}")
         end
     end
 end
@@ -213,17 +218,17 @@ class LogCommand < BaseCommand
     def execute(options)
         ensure_initialized()
         if options.commit_hash.nil?
-            STDOUT.write("No commits yet\n")
+            STDOUT.write("No commits yet#{EOL}")
             return
         end
         commit = Commit.new(options.commit_hash)
-        STDOUT.write("commit #{options.commit_hash}\n")
+        STDOUT.write("commit #{options.commit_hash}#{EOL}")
         STDOUT.write(
             "Author: #{commit.get_commit('Author')} "\
-            "<#{commit.get_commit('Email')}>\n"
+            "<#{commit.get_commit('Email')}>#{EOL}"
         )
-        STDOUT.write("Date: #{commit.get_commit('Date')}\n")
-        STDOUT.write("\n#{commit.get_commit('Message')}\n\n")
+        STDOUT.write("Date: #{commit.get_commit('Date')}#{EOL}")
+        STDOUT.write("#{EOL}#{commit.get_commit('Message')}#{EOL}#{EOL}")
         commit_parent = commit.get_commit('Parent')
         if not commit_parent.empty?
             options.commit_hash = commit_parent
@@ -240,7 +245,7 @@ class CheckoutCommand < BaseCommand
         commit = Commit.new(options.commit_hash)
         commit.restore(Dir.getwd())
         @vcs.set_option('HEAD', options.commit_hash)
-        STDOUT.write("Checked-out commit: #{options.commit_hash}\n")
+        STDOUT.write("Checked-out commit: #{options.commit_hash}#{EOL}")
     end
 end
 
@@ -289,18 +294,18 @@ class VCSParser
             options = parse_config()
             ConfigCommand.new().execute(options)
         else
-            STDOUT.write("usage: vcs subcommand <options>\n")
-            STDOUT.write("init\tCreate an empty vcs repository\n")
-            STDOUT.write("status\tShow the working tree status\n")
+            STDOUT.write("usage: vcs subcommand <options>#{EOL}")
+            STDOUT.write("init\tCreate an empty vcs repository#{EOL}")
+            STDOUT.write("status\tShow the working tree status#{EOL}")
             STDOUT.write(
                 "diff\tShow changes between commits,"\
-                "commit and working tree\n"
+                "commit and working tree#{EOL}"
             )
-            STDOUT.write("commit\tRecord changes to the repository\n")
-            STDOUT.write("reset\tReset changes to working tree\n")
-            STDOUT.write("log\tShow commit logs\n")
-            STDOUT.write("checkout\tSwitch to another commit\n")
-            STDOUT.write("config\tupdate repository config file\n")
+            STDOUT.write("commit\tRecord changes to the repository#{EOL}")
+            STDOUT.write("reset\tReset changes to working tree#{EOL}")
+            STDOUT.write("log\tShow commit logs#{EOL}")
+            STDOUT.write("checkout\tSwitch to another commit#{EOL}")
+            STDOUT.write("config\tupdate repository config file#{EOL}")
             exit()
         end
     end
