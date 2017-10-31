@@ -3,6 +3,8 @@ require "./file_utilities"
 require "./lcs"
 
 
+EOL = "\n"
+
 
 class FileDiff < LongestCommonSubsequence
 
@@ -155,7 +157,7 @@ class FileDiff < LongestCommonSubsequence
         if new_hunk_length != 1
             header += ",#{new_hunk_length}"
         end
-        header += " @@\n"
+        header += " @@#{EOL}"
         return header
     end
 end
@@ -169,28 +171,28 @@ class DirectoryDiff
         hunks.each do |hunk|
             if hunk.old_file.nil?
                 diff += "Only in #{new_directory}: "\
-                        "#{File.basename(hunk.new_file)}\n"
+                        "#{File.basename(hunk.new_file)}#{EOL}"
             elsif hunk.new_file.nil?
                 diff += "Only in #{old_directory}: "\
-                        "#{File.basename(hunk.old_file)}\n"
+                        "#{File.basename(hunk.old_file)}#{EOL}"
             elsif (
                 (File.file? (hunk.old_file)) &&
                 (File.file? (hunk.new_file))
             )
                 diff += "--- old/#{File.basename(hunk.old_file)} "\
-                        "#{Time.now()}\n"
+                        "#{Time.now()}#{EOL}"
                 diff += "+++ new/#{File.basename(hunk.new_file)} "\
-                        "#{Time.now()}\n"
+                        "#{Time.now()}#{EOL}"
                 diff += FileDiff.new().generate(
                     File.read(hunk.old_file),
                     File.read(hunk.new_file),
                 )
             elsif File.file? (hunk.old_file)
                 diff += "File #{hunk.old_file} is a regular file "\
-                        "while file #{hunk.new_file} is a directory\n"
+                        "while file #{hunk.new_file} is a directory#{EOL}"
             else
                 diff += "File #{hunk.old_file} is a directory "\
-                        "while file #{hunk.new_file} is a regular file\n"
+                        "while file #{hunk.new_file} is a regular file#{EOL}"
             end
         end
         return diff
