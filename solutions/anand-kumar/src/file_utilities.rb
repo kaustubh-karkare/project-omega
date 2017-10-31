@@ -77,7 +77,7 @@ module FileUtilities
     end
 
     def self.get_files(directory_path = Dir.getwd(), recursive = false)
-        # Returns the list of file paths
+        # Returns the list of file paths, dot files are ignored.
 
         files = []
         original_path = Dir.getwd()
