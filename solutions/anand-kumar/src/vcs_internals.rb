@@ -8,6 +8,7 @@ class VCS
 
     def initialize(directory = Dir.getwd())
         # Initialize paths in the directory
+        
         @vcs = File.join(directory, ".vcs")
         @objects = File.join(@vcs, "objects")
         @config = File.join(@vcs, "config")
@@ -35,7 +36,7 @@ class VCS
             config_parameters = JSON.load(config_file)
         end
         if config_parameters.nil?
-            # File has not been initialized.
+            # File has not been initialized, create an empty hash.
             config_parameters = Hash.new()
         end
         config_parameters[config_key] = config_value
