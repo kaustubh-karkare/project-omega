@@ -1,5 +1,5 @@
 # Examples
-
+```
 $ node parser.js --key=12345 --name=kaustubh
 { key: '12345',
   name: 'kaustubh',
@@ -23,3 +23,4 @@ Error: The '--key' argument is required, but missing from input.
 
 $ node parser.js --local --remote --key=12345
 Error: The "--local" and "--remote" arguments cannot be used together.
+```
