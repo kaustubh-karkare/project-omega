@@ -82,11 +82,9 @@ class parser:
         for commands in self.copyargs:
             temp = self.copyargs[commands][1]
             if temp == "r":
-                # self.requiredargs[commands] = self.copyargs[commands]
                 self.record.add_required_args(
                     commands, self.copyargs[commands])
             else:
-              #   self.nonrequiredargs[commands] = self.copyargs[commands]
                 self.record.add_nonrequired_args(
                     commands, self.copyargs[commands])
         # return wargs
@@ -112,8 +110,6 @@ class parser:
                 self.record.add_user_nonrequired_args(
                     commands, self.userpassedargs)
 
-        # print(self.userpassnonrequiredargs)
-        # return ("Nothing")
         return self.validateargs()
 
     def validateargs(self):
@@ -126,16 +122,12 @@ class parser:
             if commands not in self.record.get_user_require_args():
                 self.checking = "mandatoryerror"
                 self.errorlisting(self.checking, commands)
-                # exit()
                 return self.checking
-
-       # print(self.record.get_required_args())
 
         for commands in self.userpassedargs:
             if commands not in self.record.get_all_args():
                 self.checking = "overflow"
                 self.errorlisting(self.checking, commands)
-                # exit()
                 return self.checking
 
         # Checking for type for the argument values
