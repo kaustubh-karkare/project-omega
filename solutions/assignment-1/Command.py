@@ -2,7 +2,7 @@ import re
 
 
 class Command(object):
-    """Command contains the features related to particular class. It also has validators to validate conditions while parsing."""
+    """Command contains the features related to particular command. It also has validators to validate conditions while parsing."""
 
     def __init__(self, name, usage, regex, type_allowed, no_of_arg, conflicting_commands, required_commands, overwrite):
         self.name = name  # Command name
