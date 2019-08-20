@@ -33,15 +33,15 @@ class Argument {
    * @constructor
    * @param {string} smallArg
    * @param {string} largeArg
-   * @param {type} value
+   * @param {type} defaultValue
    * @param {string} description
    * @param {string} type
    * @param {boolean} isRequired
    */
-  constructor(smallArg, largeArg, value, description, type, isRequired) {
+  constructor(smallArg, largeArg, defaultValue, description, type, isRequired) {
     this.smallArg = smallArg;
     this.largeArg = largeArg;
-    this.value = value;
+    this.defaultValue = defaultValue;
     this.description = description;
     this.type = type;
     this.isRequired = isRequired;
@@ -56,7 +56,7 @@ module.exports = class Parser {
     // Stores serialized arguments
     this.jsonArgs = undefined;
 
-    // Stores argument data with indexed key starting from 1 (index : {Data})
+    // Stores argument description with indexed key starting from 1
     this.indexedArgs = {};
 
     // Stores Indexes for each argument (argName: index)
@@ -99,7 +99,7 @@ module.exports = class Parser {
 
   /**
    * Defines and arguments and it's options
-   * Valid Types: 'string', 'positive-integer', 'boolean
+   * Valid Types: 'string', 'positive-integer', 'boolean'
    * @param {string} smallArg
    * @param {sring} largeArg
    * @param {string} description
@@ -148,9 +148,11 @@ module.exports = class Parser {
   /**
    * Populates arg values and checks for syntactic and type correctness
    * @param {object} argList
-   * @return {this}
+   * @return {Object} args
    */
   parse(argList) {
+    const argValues = {};
+
     argList = argList.slice(2); // Remove node and executable name from list
 
     argList.forEach((arg) => {
@@ -178,7 +180,7 @@ module.exports = class Parser {
                 '" argument must be a ' + this.indexedArgs[index]['type'] +
                 '.');
           }
-          this.indexedArgs[index]['value'] = value;
+          argValues[this.indexedArgs[index]['largeArg']] = value;
         });
       } else if (this.isLargeArg(arg)) {
         // Large version of arg passed
@@ -194,36 +196,40 @@ module.exports = class Parser {
               '" argument must be a ' + this.indexedArgs[index]['type'] +
               '.');
         }
-        this.indexedArgs[index]['value'] = value;
+        argValues[this.indexedArgs[index]['largeArg']] = value;
       } else {
         // Malformed Argument
         throw new MalformedArgumentException(
             'Error: Malformed argument ' + arg);
       }
     });
-    return this;
+
+    Object.keys(this.indexedArgs).forEach((key, index) => {
+      const arg = this.indexedArgs[key];
+      if (argValues[arg.largeArg] === undefined) {
+        argValues[arg.largeArg] = arg.defaultValue;
+      }
+    });
+    return argValues;
   }
 
   /**
    * Serializes/Stores argList and returns it
+   * @param {list} argList
    * @return {object} Serialized Argument List
    */
-  opts() {
-    if (this.jsonArgs === undefined) {
-      const json = {};
-      Object.keys(this.indexedArgs).forEach((key, index) => {
-        const arg = this.indexedArgs[key];
-        if (arg.isRequired && arg.value === undefined) {
-          // Check if required=True arg has been set
-          throw new MissingRequiredArgumentException(
-              'Error: The \'--' + arg.largeArg +
-              '\' argument is required, but missing from input.');
-        }
-        json[arg.largeArg] = arg.value;
-      });
-      this.jsonArgs = json;
-    }
-    return this.jsonArgs;
+  parseOpts(argList) {
+    const argsValue = this.parse(argList);
+    Object.keys(this.indexedArgs).forEach((key, index) => {
+      const arg = this.indexedArgs[key];
+      if (arg.isRequired && argsValue[arg['largeArg']] === undefined) {
+        // Check if required=True arg has been set
+        throw new MissingRequiredArgumentException(
+            'Error: The \'--' + arg.largeArg +
+            '\' argument is required, but missing from input.');
+      }
+    });
+    return argsValue;
   }
 };
 
@@ -271,12 +277,13 @@ options.forEach((option) => {
 });
 
 try {
-  parser.parse(process.argv);
-  if (parser.opts().local && parser.opts().remote) {
+  // parser.parse(process.argv);
+  const args = parser.parseOpts(process.argv);
+  if (args.local && args.remote) {
     console.log(
         'Error:The "--local" and "--remote" arguments cannot be used together');
   } else {
-    console.log(parser.opts());
+    console.log(args);
   }
 } catch (e) {
   console.log(e.message);
