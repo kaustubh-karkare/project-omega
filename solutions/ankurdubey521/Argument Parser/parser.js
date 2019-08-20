@@ -26,6 +26,13 @@ function MalformedArgumentException(message) {
 function MissingRequiredArgumentException(message) {
   this.message = message;
 }
+/**
+ * Exception Class
+ * @param {string} message
+ */
+function MutuallyExclusiveArgumentsPassedException(message) {
+  this.message = message;
+}
 
 // eslint-disable-next-line require-jsdoc
 class Argument {
@@ -64,6 +71,9 @@ module.exports = class Parser {
 
     // Used to keep track of new arguments
     this.indexOfNewArg = 1;
+
+    // List of mutually exclusive argument groups
+    this.exclusiveGroups = [];
   }
 
   /**
@@ -214,12 +224,22 @@ module.exports = class Parser {
   }
 
   /**
+   * Sets arguments passed to be mutually exclusive
+   * @param {list} argList
+   */
+  setMutuallyExclusive(argList) {
+    this.exclusiveGroups.push(argList);
+  }
+
+  /**
    * Serializes/Stores argList and returns it
    * @param {list} argList
    * @return {object} Serialized Argument List
    */
   parseOpts(argList) {
     const argsValue = this.parse(argList);
+
+    // Check for required arguments
     Object.keys(this.indexedArgs).forEach((key, index) => {
       const arg = this.indexedArgs[key];
       if (arg.isRequired && argsValue[arg['largeArg']] === undefined) {
@@ -229,6 +249,25 @@ module.exports = class Parser {
             '\' argument is required, but missing from input.');
       }
     });
+
+    // Check for mutually exclusive arguments
+    this.exclusiveGroups.forEach((list) => {
+      let setArgCount = 0;
+      const setArgs = [];
+      list.forEach((arg) => {
+        const trimmedArg = arg.replace('--', ''); 
+        if (argsValue[trimmedArg] != undefined) {
+          ++setArgCount;
+          setArgs.push(trimmedArg);
+        }
+      });
+      if (setArgCount > 1) {
+        throw new MutuallyExclusiveArgumentsPassedException(
+            'Error: The arguments "' + setArgs.toString() + '" cannot be passed together.'
+        );
+      }
+    });
+
     return argsValue;
   }
 };
@@ -275,6 +314,8 @@ const options = [
 options.forEach((option) => {
   parser.option(option);
 });
+
+parser.setMutuallyExclusive(['--local', '--remote']);
 
 try {
   // parser.parse(process.argv);
