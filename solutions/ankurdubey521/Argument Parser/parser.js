@@ -1,40 +1,6 @@
 /**
- * Exception Class
- * @param {string} message
+ * Argument Definition Class
  */
-function InvalidArgumentException(message) {
-  this.message = message;
-}
-/**
- * Exception Class
- * @param {string} message
- */
-function InvalidArgumentTypeException(message) {
-  this.message = message;
-}
-/**
- * Exception Class
- * @param {string} message
- */
-function MalformedArgumentException(message) {
-  this.message = message;
-}
-/**
- * Exception Class
- * @param {string} message
- */
-function MissingRequiredArgumentException(message) {
-  this.message = message;
-}
-/**
- * Exception Class
- * @param {string} message
- */
-function MutuallyExclusiveArgumentsPassedException(message) {
-  this.message = message;
-}
-
-// eslint-disable-next-line require-jsdoc
 class Argument {
   /**
    * @constructor
@@ -56,6 +22,43 @@ class Argument {
 };
 
 module.exports = class Parser {
+
+  /**
+   * Exception Class
+   * @param {string} message
+   */
+  InvalidArgumentException(message) {
+    this.message = message;
+  }
+  /**
+   * Exception Class
+   * @param {string} message
+   */
+  InvalidArgumentTypeException(message) {
+    this.message = message;
+  }
+  /**
+   * Exception Class
+   * @param {string} message
+   */
+  MalformedArgumentException(message) {
+    this.message = message;
+  }
+  /**
+   * Exception Class
+   * @param {string} message
+   */
+  MissingRequiredArgumentException(message) {
+    this.message = message;
+  }
+  /**
+   * Exception Class
+   * @param {string} message
+   */
+  MutuallyExclusiveArgumentsPassedException(message) {
+    this.message = message;
+  }
+
   /**
    * @constructor
    */
@@ -181,11 +184,11 @@ module.exports = class Parser {
         arg.replace('-', '').split('').forEach((smallArg) => {
           const index = this.argnameIndexMap[smallArg];
           if (index === undefined) {
-            throw new InvalidArgumentException(
+            throw new this.InvalidArgumentException(
                 'Error: "' + arg + '" is not a valid argument');
           }
           if (!this.indexedArgs[index]['validator'](value)) {
-            throw new InvalidArgumentTypeException(
+            throw new this.InvalidArgumentTypeException(
                 'Error: The value for the "-' + smallArg.toString() +
                 '" argument must be a ' + this.indexedArgs[index]['type'] +
                 '.');
@@ -197,11 +200,11 @@ module.exports = class Parser {
         const largeArg = arg.replace('--', '');
         const index = this.argnameIndexMap[largeArg];
         if (index === undefined) {
-          throw new InvalidArgumentException(
+          throw new this.InvalidArgumentException(
               'Error: "' + arg + '" is not a valid argument');
         }
         if (!this.indexedArgs[index]['validator'](value)) {
-          throw new InvalidArgumentTypeException(
+          throw new this.InvalidArgumentTypeException(
               'Error: The value for the "-' + largeArg.toString() +
               '" argument must be a ' + this.indexedArgs[index]['type'] +
               '.');
@@ -209,7 +212,7 @@ module.exports = class Parser {
         argValues[this.indexedArgs[index]['largeArg']] = value;
       } else {
         // Malformed Argument
-        throw new MalformedArgumentException(
+        throw new this.MalformedArgumentException(
             'Error: Malformed argument ' + arg);
       }
     });
@@ -225,7 +228,7 @@ module.exports = class Parser {
 
   /**
    * Sets arguments passed to be mutually exclusive
-   * @param {list} argList
+   * @param {list} argList: list of argument names (large version only)
    */
   setMutuallyExclusive(argList) {
     this.exclusiveGroups.push(argList);
@@ -244,7 +247,7 @@ module.exports = class Parser {
       const arg = this.indexedArgs[key];
       if (arg.isRequired && argsValue[arg['largeArg']] === undefined) {
         // Check if required=True arg has been set
-        throw new MissingRequiredArgumentException(
+        throw new this.MissingRequiredArgumentException(
             'Error: The \'--' + arg.largeArg +
             '\' argument is required, but missing from input.');
       }
@@ -262,7 +265,8 @@ module.exports = class Parser {
         }
       });
       if (setArgCount > 1) {
-        throw new MutuallyExclusiveArgumentsPassedException(
+        throw new
+        this.MutuallyExclusiveArgumentsPassedException(
             'Error: The arguments "' + setArgs.toString() + '" cannot be passed together.'
         );
       }
@@ -271,61 +275,3 @@ module.exports = class Parser {
     return argsValue;
   }
 };
-
-const Parser = require('./parser');
-
-const parser = new Parser();
-
-const options = [
-  {
-    smallArg: 'k',
-    largeArg: '--key',
-    description: 'key value, must be + integer',
-    defaultValue: undefined,
-    type: 'positive-integer',
-    isRequired: true,
-  },
-  {
-    smallArg: '-n',
-    largeArg: '--name',
-    description: '',
-    defaultValue: undefined,
-    type: 'string',
-    isRequired: false,
-  },
-  {
-    smallArg: '-l',
-    largeArg: '--local',
-    description: '',
-    defaultValue: undefined,
-    type: 'boolean',
-    isRequired: false,
-  },
-  {
-    smallArg: '-r',
-    largeArg: '--remote',
-    description: '',
-    defaultValue: undefined,
-    type: 'boolean',
-    isRequired: false,
-  },
-];
-
-options.forEach((option) => {
-  parser.option(option);
-});
-
-parser.setMutuallyExclusive(['--local', '--remote']);
-
-try {
-  // parser.parse(process.argv);
-  const args = parser.parseOpts(process.argv);
-  if (args.local && args.remote) {
-    console.log(
-        'Error:The "--local" and "--remote" arguments cannot be used together');
-  } else {
-    console.log(args);
-  }
-} catch (e) {
-  console.log(e.message);
-}
