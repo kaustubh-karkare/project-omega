@@ -27,6 +27,27 @@ function MissingRequiredArgumentException(message) {
   this.message = message;
 }
 
+// eslint-disable-next-line require-jsdoc
+class Argument {
+  /**
+   * @constructor
+   * @param {string} smallArg
+   * @param {string} largeArg
+   * @param {type} value
+   * @param {string} description
+   * @param {string} type
+   * @param {boolean} isRequired
+   */
+  constructor(smallArg, largeArg, value, description, type, isRequired) {
+    this.smallArg = smallArg;
+    this.largeArg = largeArg;
+    this.value = value;
+    this.description = description;
+    this.type = type;
+    this.isRequired = isRequired;
+  }
+};
+
 module.exports = class Parser {
   /**
    * @constructor
@@ -92,14 +113,9 @@ module.exports = class Parser {
     smallArg = smallArg.replace('-', ''); // single character version of arg
     largeArg = largeArg.replace('--', ''); // multi-character version of arg
 
-    this.indexedArgs[this.indexOfNewArg] = {
-      smallArg: smallArg,
-      largeArg: largeArg,
-      value: defaultValue,
-      description: description,
-      type: type,
-      isRequired: isRequired,
-    };
+    this.indexedArgs[this.indexOfNewArg] = new Argument(smallArg, largeArg,
+        defaultValue, description, type, isRequired);
+
 
     // Set the validator function, which checks if value is of correct type
     switch (type) {
