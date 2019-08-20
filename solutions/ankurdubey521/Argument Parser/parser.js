@@ -39,7 +39,7 @@ module.exports = class Parser {
     this.indexedArgs = {};
 
     // Stores Indexes for each argument (argName: index)
-    this.argIndices = {};
+    this.argnameIndexMap = {};
 
     // Used to keep track of new arguments
     this.indexOfNewArg = 1;
@@ -121,9 +121,9 @@ module.exports = class Parser {
       }
     }
 
-    // Store in argIndices
-    this.argIndices[smallArg] = this.indexOfNewArg.toString();
-    this.argIndices[largeArg] = this.indexOfNewArg.toString();
+    // Store in argnameIndexMap
+    this.argnameIndexMap[smallArg] = this.indexOfNewArg.toString();
+    this.argnameIndexMap[largeArg] = this.indexOfNewArg.toString();
     ++this.indexOfNewArg;
 
     return this;
@@ -151,7 +151,7 @@ module.exports = class Parser {
       if (this.isSmallArg(arg)) {
         // Small version of Arg passed
         arg.replace('-', '').split('').forEach((smallArg) => {
-          const index = this.argIndices[smallArg];
+          const index = this.argnameIndexMap[smallArg];
           if (index === undefined) {
             throw new InvalidArgumentException(
                 'Error: "' + arg + '" is not a valid argument');
@@ -167,7 +167,7 @@ module.exports = class Parser {
       } else if (this.isLargeArg(arg)) {
         // Large version of arg passed
         const largeArg = arg.replace('--', '');
-        const index = this.argIndices[largeArg];
+        const index = this.argnameIndexMap[largeArg];
         if (index === undefined) {
           throw new InvalidArgumentException(
               'Error: "' + arg + '" is not a valid argument');
