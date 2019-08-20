@@ -87,8 +87,8 @@ module.exports = class Parser {
    * @param {boolean} isRequired
    * @return {this}
    */
-  option(smallArg, largeArg, description,
-      defaultValue, type = 'string', isRequired = false) {
+  option({smallArg, largeArg, description,
+    defaultValue, type = 'string', isRequired = false}) {
     smallArg = smallArg.replace('-', ''); // single character version of arg
     largeArg = largeArg.replace('--', ''); // multi-character version of arg
 
@@ -214,12 +214,45 @@ module.exports = class Parser {
 const Parser = require('./parser');
 
 const parser = new Parser();
-parser
-    .option('-k', '--key', 'key value, must be + integer'
-        , undefined, 'positive-integer', true)
-    .option('-n', '--name', '', undefined, 'string', false)
-    .option('-l', '--local', '', undefined, 'boolean', false)
-    .option('-r', '--remote', '', undefined, 'boolean', false);
+
+const options = [
+  {
+    smallArg: 'k',
+    largeArg: '--key',
+    description: 'key value, must be + integer',
+    defaultValue: undefined,
+    type: 'positive-integer',
+    isRequired: true,
+  },
+  {
+    smallArg: '-n',
+    largeArg: '--name',
+    description: '',
+    defaultValue: undefined,
+    type: 'string',
+    isRequired: false,
+  },
+  {
+    smallArg: '-l',
+    largeArg: '--local',
+    description: '',
+    defaultValue: undefined,
+    type: 'boolean',
+    isRequired: false,
+  },
+  {
+    smallArg: '-r',
+    largeArg: '--remote',
+    description: '',
+    defaultValue: undefined,
+    type: 'boolean',
+    isRequired: false,
+  },
+];
+
+options.forEach((option) => {
+  parser.option(option);
+});
 
 try {
   parser.parse(process.argv);
