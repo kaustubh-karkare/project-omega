@@ -33,26 +33,23 @@ options.forEach((option) => {
 
 parser.setMutuallyExclusive(['--local', '--remote']);
 
-test('PassKeyNameResultsInOutput', () => {
+test('PassKeyAndNameParsesCorrectly', () => {
   const argv = ['--key=12345', '--name=kaustubh'];
   expect(parser.parseOpts(argv)).toEqual(
       {
         key: '12345',
         name: 'kaustubh',
-        local: undefined,
-        remote: undefined,
       }
   );
 });
 
-test('PassKeyNameLocalResultsInOutput', () => {
+test('PassKeyNameLocalParsesCorrectly', () => {
   const argv = ['--key=12345', '--name=kaustubh', '--local'];
   expect(parser.parseOpts(argv)).toEqual(
       {
         key: '12345',
         name: 'kaustubh',
         local: true,
-        remote: undefined,
       }
   );
 });
