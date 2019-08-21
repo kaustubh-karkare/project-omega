@@ -22,7 +22,6 @@ class Argument {
 };
 
 module.exports = class Parser {
-
   /**
    * Exception Class
    * @param {string} message
@@ -77,6 +76,13 @@ module.exports = class Parser {
 
     // List of mutually exclusive argument groups
     this.exclusiveGroups = [];
+
+    // Enums for Argument Types
+    this.type = {
+      STRING: 'string',
+      POSITIVE_INTEGER: 'positive-integer',
+      BOOLEAN: 'boolean',
+    };
   }
 
   /**
@@ -132,17 +138,17 @@ module.exports = class Parser {
 
     // Set the validator function, which checks if value is of correct type
     switch (type) {
-      case 'positive-integer': {
+      case this.type.POSITIVE_INTEGER: {
         this.indexedArgs[this.indexOfNewArg].validator = this.isPositiveNumber;
         break;
       }
-      case 'string': {
+      case this.type.STRING: {
         this.indexedArgs[this.indexOfNewArg].validator = (arg) => {
           return true;
         };
         break;
       }
-      case 'boolean': {
+      case this.type.BOOLEAN: {
         this.indexedArgs[this.indexOfNewArg].validator = (arg) => {
           return typeof (arg) === 'boolean';
         };
@@ -258,7 +264,7 @@ module.exports = class Parser {
       let setArgCount = 0;
       const setArgs = [];
       list.forEach((arg) => {
-        const trimmedArg = arg.replace('--', ''); 
+        const trimmedArg = arg.replace('--', '');
         if (argsValue[trimmedArg] != undefined) {
           ++setArgCount;
           setArgs.push(trimmedArg);
@@ -267,7 +273,8 @@ module.exports = class Parser {
       if (setArgCount > 1) {
         throw new
         this.MutuallyExclusiveArgumentsPassedException(
-            'Error: The arguments "' + setArgs.toString() + '" cannot be passed together.'
+            'Error: The arguments "'
+            + setArgs.toString() + '" cannot be passed together.'
         );
       }
     });

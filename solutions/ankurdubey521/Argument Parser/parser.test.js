@@ -8,7 +8,7 @@ const options = [
     largeArg: '--key',
     description: 'key value, must be + integer',
     defaultValue: undefined,
-    type: 'positive-integer',
+    type: parser.type.POSITIVE_INTEGER,
     isRequired: true,
   },
   {
@@ -16,7 +16,7 @@ const options = [
     largeArg: '--name',
     description: '',
     defaultValue: undefined,
-    type: 'string',
+    type: parser.type.STRING,
     isRequired: false,
   },
   {
@@ -24,7 +24,7 @@ const options = [
     largeArg: '--local',
     description: '',
     defaultValue: undefined,
-    type: 'boolean',
+    type: parser.type.BOOLEAN,
     isRequired: false,
   },
   {
@@ -32,7 +32,7 @@ const options = [
     largeArg: '--remote',
     description: '',
     defaultValue: undefined,
-    type: 'boolean',
+    type: parser.type.BOOLEAN,
     isRequired: false,
   },
 ];
