@@ -34,7 +34,7 @@ options.forEach((option) => {
 parser.setMutuallyExclusive(['--local', '--remote']);
 
 test('PassKeyNameResultsInOutput', () => {
-  const argv = ['node', 'parser.js', '--key=12345', '--name=kaustubh'];
+  const argv = ['--key=12345', '--name=kaustubh'];
   expect(parser.parseOpts(argv)).toEqual(
       {
         key: '12345',
@@ -46,8 +46,7 @@ test('PassKeyNameResultsInOutput', () => {
 });
 
 test('PassKeyNameLocalResultsInOutput', () => {
-  const argv =
-   ['node', 'parser.js', '--key=12345', '--name=kaustubh', '--local'];
+  const argv = ['--key=12345', '--name=kaustubh', '--local'];
   expect(parser.parseOpts(argv)).toEqual(
       {
         key: '12345',
@@ -59,26 +58,24 @@ test('PassKeyNameLocalResultsInOutput', () => {
 });
 
 test('PassInvalidArgumentResultsException', () => {
-  const argv = ['node', 'parser.js',
-    '--key=12345', '--name=kaustubh', '--local', '--2ojdeij'];
+  const argv = ['--key=12345', '--name=kaustubh', '--local', '--2ojdeij'];
   expect(() => parser.parseOpts(argv)).toThrow(Parser.InvalidArgumentException);
 });
 
 test('PassInvalidArgumentTypeResultsException', () => {
-  const argv = ['node', 'parser.js',
-    '--key=fwfef', '--name=kaustubh'];
+  const argv = ['--key=fwfef', '--name=kaustubh'];
   expect(() => parser.parseOpts(argv))
       .toThrow(Parser.InvalidArgumentTypeException);
 });
 
 test('NotPassingRequiredArgumentResultsInException', () => {
-  const argv = ['node', 'parser.js', '--name=kaustubh'];
+  const argv = ['--name=kaustubh'];
   expect(() => parser.parseOpts(argv))
       .toThrow(Parser.MissingRequiredArgumentException);
 });
 
 test('PassingMutuallyExclusiveArgumentResultsInException', () => {
-  const argv = ['node', 'parser.js', '--name=kaustubh', '--local', '--remote'];
+  const argv = ['--name=kaustubh', '--local', '--remote'];
   expect(() => parser.parseOpts(argv))
       .toThrow(Parser.MutuallyExclusiveArgumentsPassedException);
 });

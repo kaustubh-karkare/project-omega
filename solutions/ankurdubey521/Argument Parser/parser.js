@@ -172,8 +172,6 @@ module.exports = class Parser {
   parse(argList) {
     const argValues = {};
 
-    argList = argList.slice(2); // Remove node and executable name from list
-
     argList.forEach((arg) => {
       // Check if arg has a value explicitly defined
       // if yes extract it else interpret as a boolean true
