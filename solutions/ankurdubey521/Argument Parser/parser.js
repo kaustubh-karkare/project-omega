@@ -177,8 +177,7 @@ module.exports = class Parser {
       // if yes extract it else interpret as a boolean true
       let value = '';
       if (arg.indexOf('=') != -1) {
-        value = arg.slice(arg.indexOf('=') + 1);
-        arg = arg.slice(0, arg.indexOf('='));
+        [arg, value] = arg.split('=');
       } else {
         value = true;
       }
