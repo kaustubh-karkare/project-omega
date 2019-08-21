@@ -191,7 +191,7 @@ module.exports = class Parser {
             throw new this.InvalidArgumentException(
                 'Error: "' + arg + '" is not a valid argument');
           }
-          if (!this.indexedArgs[index]['validator'](value)) {
+          if (!this.indexedArgs[index].validator(value)) {
             throw new this.InvalidArgumentTypeException(
                 'Error: The value for the "-' + smallArg.toString() +
                 '" argument must be a ' + this.indexedArgs[index]['type'] +
@@ -207,7 +207,7 @@ module.exports = class Parser {
           throw new this.InvalidArgumentException(
               'Error: "' + arg + '" is not a valid argument');
         }
-        if (!this.indexedArgs[index]['validator'](value)) {
+        if (!this.indexedArgs[index].validator(value)) {
           throw new this.InvalidArgumentTypeException(
               'Error: The value for the "-' + largeArg.toString() +
               '" argument must be a ' + this.indexedArgs[index]['type'] +
