@@ -38,7 +38,7 @@ const options = [
 ];
 
 options.forEach((option) => {
-  parser.option(option);
+  parser.setOption(option);
 });
 
 parser.setMutuallyExclusive(['--local', '--remote']);
