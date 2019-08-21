@@ -7,33 +7,23 @@ const options = [
     smallArg: 'k',
     largeArg: '--key',
     description: 'key value, must be + integer',
-    defaultValue: undefined,
     type: parser.type.POSITIVE_INTEGER,
     isRequired: true,
   },
   {
     smallArg: '-n',
     largeArg: '--name',
-    description: '',
-    defaultValue: undefined,
     type: parser.type.STRING,
-    isRequired: false,
   },
   {
     smallArg: '-l',
     largeArg: '--local',
-    description: '',
-    defaultValue: undefined,
     type: parser.type.BOOLEAN,
-    isRequired: false,
   },
   {
     smallArg: '-r',
     largeArg: '--remote',
-    description: '',
-    defaultValue: undefined,
     type: parser.type.BOOLEAN,
-    isRequired: false,
   },
 ];
 
