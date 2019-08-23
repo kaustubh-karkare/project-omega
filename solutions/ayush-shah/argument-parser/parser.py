@@ -1,8 +1,9 @@
 import sys
 Integer, String, Others, Required = set(), set(), set(), set()
 errors, Json = dict(), dict()
-class Parser:
-    def addArgument(self, argument, required, types):
+class Parser:    
+    """Class for adding the arguments, storing errors, storing result and displaying them"""
+    def add_argument(self, argument, required, types):
         if types == 'integer':
             Integer.add(argument)
             if required == 'yes':
@@ -15,23 +16,23 @@ class Parser:
             Others.add(argument)
             if required == 'yes':
                 Required.add(argument)
-    def storeError(self, key, error):
+    def store_error(self, key, error):
         errors.setdefault(key, []).append(error)
-    def storeResult(self, key, value):
+    def store_result(self, key, value):
         Json[key] = value
-    def checkRequired(self, keys):
+    def check_required(self, keys):
         for check in Required:
             flag = False
             for key in keys:
                 if key == check:
                     flag = True
             if not flag:
-                return False,check
+                return False, check
         return True, "ok"
-    def displayError(self):
+    def display_error(self):
         for key in errors:
             for error in errors[key]:
-                if error == "no-value" and not(key == "--local" or key == "--remote"):
+                if error == "no-value" and key not in ("--local", "--remote"):
                     print("Error: The value for argument '"+key+"' is missing")
                 if error == "required":
                     print("Error: The argument'"+key+"' is required, but missing from input")
@@ -43,54 +44,55 @@ class Parser:
                     print("Error: The value for argument '"+key+"' must be string")
                 if error == "invalid-argument":
                     print("Error: invalid argument "+key)
-    def displayResult(self):
+    def display_result(self):
         print('{')
         for key in Json:
             print("'"+key+"' : '"+Json[key]+"',")
         print('}')
 
-def main():
+def main(argument):
     parse = Parser()
-    parse.addArgument('--key', 'yes', 'integer')
-    parse.addArgument('--name', 'no', 'string')
-    parse.addArgument('--local', 'no', 'others')
-    parse.addArgument('--remote', 'no', 'others')
-    length_of_arguments = len(sys.argv)
+    parse.add_argument('--key', 'yes', 'integer')
+    parse.add_argument('--name', 'no', 'string')
+    parse.add_argument('--local', 'no', 'others')
+    parse.add_argument('--remote', 'no', 'others')
+    length_of_arguments = len(argument)
     if length_of_arguments == 1:
         print("Error: no arguments given in input")
         return 0
     check = False
     keys = list()
     for arguments in range(1, length_of_arguments):
-        args = sys.argv[arguments]
+        args = argument[arguments]
         key = args.partition('=')[0]
         value = args.partition('=')[2]
         keys.append(key)
-        if key != "--remote" and key != "--local":
-            parse.storeResult(key, value)
+        if key not in ("--remote", "--local"):
+            parse.store_result(key, value)
             if (key not in Integer) and (key not in String) and(key not in Others):
-                parse.storeError(key, "invalid-argument")
+                parse.store_error(key, "invalid-argument")
             if '=' not in args:
-                parse.storeError(key, "no-value")
+                parse.store_error(key, "no-value")
             if key in Integer:
                 if not value.isdigit():
-                    parse.storeError(key, "not-int")
+                    parse.store_error(key, "not-int")
             if key in String:
                 if not value.isalpha():
-                    parse.storeError(key, "not-string")
+                    parse.store_error(key, "not-string")
         if key == '--local' and not check:
             check = True
         elif key == '--remote' and not check:
             check = True
-        elif check and (key == '--local' or key == '--remote'):
-            parse.storeError(key, "local and remote")
-    response, key = parse.checkRequired(keys)
+        elif check and key in ('--local', '--remote'):
+            parse.store_error(key, "local and remote")
+    response, key = parse.check_required(keys)
     if not response:
-        parse.storeError(key, "required")
+        parse.store_error(key, "required")
     if bool(errors):
-        parse.displayError()
+        parse.display_error()
     else:
-        parse.displayResult()
-             
+        parse.display_result()
+
 if __name__ == '__main__':
-    main()  
+    main(sys.argv)
+    
