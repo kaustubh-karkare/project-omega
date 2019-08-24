@@ -172,13 +172,16 @@ class Parser {
     }
 
     listArgsProvided() {
+        /**
+        * For Argument type : -key
+        */
         var shortArgv = "^-[\\w]+$";
         /**
         * For Argument type : --key
         */
         var largeArgv = "^--[\\w]+$";
         /**
-        * For Argument type : --key
+        * For Argument type : -key=value
         */
         var shortInputArgv = "^-[\\w]+=[\\w ]+$"
         /**
@@ -188,7 +191,7 @@ class Parser {
         /**
          * Reuired if argument is of type : -key value
          */
-        var inputValue = "^[\\w -]+$";
+        var inputValue = "^[\\w ]+$";
 
         for(var itr=2; itr < process.argv.length; itr++) {    
             if(process.argv[itr].match(shortArgv) != null 
