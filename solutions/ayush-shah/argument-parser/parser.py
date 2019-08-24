@@ -32,6 +32,8 @@ class Parser:
     def display_error(self):
         for key in errors:
             for error in errors[key]:
+                if error == "invalid-argument":
+                    print("Error: invalid argument '"+key+"'")
                 if error == "no-value" and key not in ("--local", "--remote"):
                     print("Error: The value for argument '"+key+"' is missing")
                 if error == "required":
@@ -42,8 +44,6 @@ class Parser:
                     print("Error: The value for argument '"+key+"' must be integer")
                 if error == "not-string":
                     print("Error: The value for argument '"+key+"' must be string")
-                if error == "invalid-argument":
-                    print("Error: invalid argument '"+key+"'")
     def display_result(self):
         print('{')
         for key in Json:
@@ -71,6 +71,12 @@ def main(argument):
             parse.store_result(key, value)
             if (key not in Integer) and (key not in String) and(key not in Others):
                 parse.store_error(key, "invalid-argument")
+            if key == '--local' and not check:
+                check = True
+            elif key == '--remote' and not check:
+                check = True
+            elif check and key in ('--local', '--remote'):
+                parse.store_error(key, "local and remote")
             if '=' not in args:
                 parse.store_error(key, "no-value")
             if key in Integer:
@@ -79,12 +85,7 @@ def main(argument):
             if key in String:
                 if not value.isalpha():
                     parse.store_error(key, "not-string")
-        if key == '--local' and not check:
-            check = True
-        elif key == '--remote' and not check:
-            check = True
-        elif check and key in ('--local', '--remote'):
-            parse.store_error(key, "local and remote")
+
     response, key = parse.check_required(keys)
     if not response:
         parse.store_error(key, "required")
