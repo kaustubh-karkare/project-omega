@@ -1,8 +1,27 @@
+/**
+ * { 
+ *   'Author' : 'Shubham Kumar',
+ *   'Handle' : scheleon
+ * }
+ */
+
+/**
+ * Capitalize first letter of string
+ * @param {String} string 
+ */
 function capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
 class Argument{
+    /**
+     * @constructor
+     * @param {String} shortLabel 
+     * @param {String} largeLabel 
+     * @param {Boolean} isValueRequired 
+     * @param {*} valueType 
+     * @param {*} defaultValue 
+     */
     constructor (shortLabel, largeLabel, isValueRequired, valueType, defaultValue) {
         this.shortLabel = shortLabel;
         this.largeLabel = largeLabel;
@@ -18,6 +37,9 @@ class Argument{
         }
     }
 
+    /**
+     * Getters & Setters
+     */
     getShortLabel() {
         return this.shortLabel;
     }
@@ -42,28 +64,57 @@ class Argument{
         return this.value;
     }
 
+    /**
+     * Check for required value types from String, Number, Boolean
+     * set value after type casting to {valueType}
+     * @param {*} value 
+     */
     setValue(value){
-        var valueType = typeof value;
-        valueType = capitalizeFirstLetter(valueType)
-        
-        if (this.valueType == "Number" && this.valueType == valueType) {
-            this.value = Number(value);
-        } else if (this.valueType == "String" && this.valueType == valueType) {
-            this.value = String(value);
-        } else if(this.valueType == "Boolean" && this.valueType == valueType) {
-            this.value = Boolean(value);
+        if (this.valueType == "String") {
+            try {
+                this.value = String(value);
+            } catch (err) {
+                var valueType = typeof value;
+                throw "Expected : " + this.valueType + ", but got " + capitalizeFirstLetter(valueType);
+            }
+        } else if (this.valueType == "Number") {
+            try {
+                this.value = Number(value);
+                if (isNaN(this.value)) {
+                    throw "Expected : " + this.valueType + ", but got " + capitalizeFirstLetter(valueType);
+                }
+            } catch (err) {
+                var valueType = typeof value;
+                throw "Expected : " + this.valueType + ", but got " + capitalizeFirstLetter(valueType);
+            }
         } else {
-            throw "Expected : " + this.valueType + ", but got " + valueType;
+            try {
+                this.value = Boolean(value);
+            } catch (err) {
+                var valueType = typeof value;
+                throw "Expected : " + this.valueType + ", but got " + capitalizeFirstLetter(valueType);
+            }
         }
     }
 }
 
 class Parser {
+    /**
+     * Initiate argument array and argumentJson hashmap
+     */
     constructor() {
         this.arguments = new Array();
         this.argumentJson = {};
     }
 
+    /**
+    * Check if ans Argument with same label exists in the list else add an entry in the list
+    * @param {String} shortLabel 
+    * @param {String} largeLabel 
+    * @param {Boolean} isValueRequired 
+    * @param {*} valueType 
+    * @param {*} defaultValue 
+    */
     addArgument(shortLabel, largeLabel, isValueRequired, valueType, defaultValue) {
         for (var i = 0; i < this.arguments.length; i++) {
             if(shortLabel == this.arguments[i].getShortLabel() || largeLabel == this.arguments[i].getLargeLabel()) {
@@ -75,15 +126,24 @@ class Parser {
         this.arguments[index] = new Argument(shortLabel, largeLabel, isValueRequired, valueType, defaultValue);
     }
 
+    /**
+     * Set the argument value from the list if it matches with argument's shortLabel or largeLabel   
+     * @param {String} label 
+     * @param {String} value 
+     */
     setValue(label, value) {
         for (var i = 0; i < this.arguments.length; i++) {
             if(label == this.arguments[i].getShortLabel() || label == this.arguments[i].getLargeLabel()) {
-                return this.arguments[i].setValue(value);
+                return this.arguments[i].setValue(String(value));
             }
         }
         throw "Argument not found!";
     } 
 
+    /**
+     * Returns index of argument label from the list if it matches with argument's shortLabel or largeLabel   
+     * @param {String} label 
+     */
     findArgumentIndexByLabel(label) {
         for (var i = 0; i < this.arguments.length; i++) {
             if(label == this.arguments[i].getShortLabel() || label == this.arguments[i].getLargeLabel()) {
@@ -95,8 +155,17 @@ class Parser {
 
     listArgsProvided() {
         var shortArgv = "^-[\\w]+$";
+        /**
+        * For Argument type : --key
+        */
         var largeArgv = "^--[\\w]+$";
+        /**
+        * For Argument type : --key
+        */
         var shortInputArgv = "^-[\\w]+=[\\w ]+$"
+        /**
+         * For Argument type : -key=value
+         */
         var largeInputArgv = "^--[\\w]+=[\\w ]+$";
         /**
          * Reuired if argument is of type : -key value
@@ -110,10 +179,18 @@ class Parser {
                 var argumentIndex = this.findArgumentIndexByLabel(label);
                 
                 /**
-                 * Set { "value" : true }, if isValueRequired == false
+                 * Set { "value" : true }, if isValueRequired == false, else
+                 * increase the iterator and perform a check for value on next argument 
                  */
                 if (this.arguments[argumentIndex].getIsValueRequired() == true) {
                     itr++;
+
+                    /**
+                     * Check if the iterator reaches the end of the passed arguments array
+                     */
+                    if(itr == process.argv.length) {
+                        throw "Argument " + label + " cannot be empty";
+                    }
                     var argvValueProvided = process.argv[itr].match(inputValue);
                     if(argvValueProvided != null) {
                         this.arguments[argumentIndex].setValue(argvValueProvided);
@@ -121,26 +198,46 @@ class Parser {
                         throw "Argument " + label + " cannot be empty";
                     }
                 } else {
+
+                    /**
+                     * if isValueRequired == false, then provided argv is a flag, set true
+                     */
                     this.arguments[argumentIndex].setValue(true);
                 } 
             } else if (process.argv[itr].match(shortInputArgv) != null || process.argv[itr].match(largeInputArgv) != null) {
+                /**
+                 * Extract the Argument Label
+                 */
                 var label = process.argv[itr].match("[\\w]+=")[0];
                 label = label.substring(0 , label.length - 1);    
                 
+                /**
+                * Extract the value from argument
+                */
                 var value = process.argv[itr].match("=[\\w -]+")[0];
-                argvValueProvided = value.substring(1 , value.length); 
+                argvValueProvided = value.substring(1 , value.length);
+
+                /**
+                 * Calls the setValue function which further calls Argument.setValue() 
+                 */
                 this.setValue(label, argvValueProvided);
             } else {
-                throw "Wrong argument" + process.argv[itr];
+                throw "Wrong argument " + label;
             }
         }
         this.setAllArgs();   
     }
-
+    
+    /**
+     * Returns populated argumentJson string
+     * Key -> label
+     * Value -> value
+     */
     setAllArgs() {
         for (var itr = 0; itr < this.arguments.length; itr++) {
             this.argumentJson[this.arguments[itr].getLargeLabel()] = this.arguments[itr].getValue();
         }
+        return argumentJson.toString();
     }
 }
 
