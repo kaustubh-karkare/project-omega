@@ -2,179 +2,121 @@ from re import search
 from sys import stderr
 
 
-class store_args_options:
+class StoreArgsOptions:
 
     def __init__(self):
-        self._all_args = {}
-        self._required_args = {}
-        self._non_required_args = {}
-        self._user_passed_args = {}
-        self._user_pass_req_args = {}
-        self._user_pass_nonreq_args = {}
+        self.user_passed_args = {}
 
-    def add_required_args(self, command, reqargs):
-        """ Adding new required args"""
-        self._required_args[command] = reqargs
+    def add_user_passed_arg(self, key, user_passed_args):
+        self.user_passed_args[key] = user_passed_args
 
-    def add_nonrequired_args(self, command, nonreqargs):
-        """ Adding new non required args"""
-        self._non_required_args[command] = nonreqargs
+    def get_user_passed_arg(self):
+        return self.user_passed_args
 
-    def get_required_args(self):
-        """ Return required args"""
-        return self._required_args
-
-    def get_non_required_args(self):
-        """ Return non-required args """
-        return self._non_required_args
-
-    def add_user_required_args(self, command, user_req_args):
-        """ Adding new user required args"""
-        self._user_pass_req_args[command] = user_req_args
-
-    def add_user_nonrequired_args(self, command, usernonreqargs):
-        """ Adding new user non-required args"""
-        self._user_pass_nonreq_args[command] = usernonreqargs
-
-    def get_user_require_args(self):
-        """ Return UserPassed Required Args"""
-        return self._user_pass_req_args
-
-    def get_user_nonrequired_args(self):
-        """ Return UserPassed non-required Args"""
-        return self._user_pass_nonreq_args
-
-    def add_all_args(self):
-        """ Get all the required and non-required args"""
-        for x in self._required_args:
-            self._all_args[x] = self._required_args[x]
-        for y in self._non_required_args:
-            self._all_args[y] = self._non_required_args[y]
-
-    def get_all_args(self):
-        """ Return all args"""
-        return self._all_args
+    def empty_user_passed_arg(self):
+        self.user_passed_args = {}
 
 
-class parser:
+class Parser:
 
     def __init__(self):
         # print("class created")
-        self.copyargs = {}
+        self._expected_args = {}
+        self._required_args = {}
         self.checking = "noerror"
-        self.userpassedargs = {}
         self.type = ""
-        self.local = []
-        self.record = store_args_options()
+        self.modes = []
+        self.record = StoreArgsOptions()
 
-    def add_options(self, **wargs):
-        """ Function for creating the command line options
+    def add_option(self, *args, **kwargs):
+        """ Function for adding expected arguments info
 
         Args:
-            **wargs : Keyword Arguments (List of Command line options passed)
-        Returns:
-            A dictionary of containing Command Line Options
-
+            **kwargs : Keyword Arguments with expected arguments information
         """
-        # Making copy of required and nonrequiredargs
 
-        self.copyargs = wargs
-        for commands in self.copyargs:
-            temp = self.copyargs[commands][1]
-            if temp == "r":
-                self.record.add_required_args(
-                    commands, self.copyargs[commands])
-            else:
-                self.record.add_nonrequired_args(
-                    commands, self.copyargs[commands])
-        # return wargs
-        self.record.add_all_args()
+        for arg in args:
+            self._expected_args[arg] = kwargs
 
-    def parsecommands(self, argslist):
-        """ Function for parsing the commands
+    def parse(self, argslist):
+        """ Function for parsing and validating the commands
 
         Args:
             argslist : List of commands given by user
 
         """
-        for commands in argslist:
-            commands = commands.split("--")
-            commands[1] = commands[1].split('=')
-            self.userpassedargs[commands[1][0]] = commands[1][1]
-        # User passed non required arguments and required argumengs
-        for commands in self.userpassedargs:
-            if commands in self.record.get_required_args():
-                self.record.add_user_required_args(
-                    commands, self.userpassedargs[commands])
-            else:
-                self.record.add_user_nonrequired_args(
-                    commands, self.userpassedargs)
+        # Storing required Args for Error Checking
+        for key, value in self._expected_args.items():
+            for i in value:
+                if i == 'required':
+                    self._required_args[key] = value
 
-        return self.validateargs()
+        for keys in argslist:
+            keys = keys.split("--")
+            keys[1] = keys[1].split('=')
+            self.record.add_user_passed_arg(keys[1][0], keys[1][1])
 
-    def validateargs(self):
-        """ Function for receiving the list of commands provided by the user and validate it accordingly
-
-        """
         # Checking error for mandatory and non-mandatory
 
-        for commands in self.record.get_required_args():
-            if commands not in self.record.get_user_require_args():
+        for commands in self._required_args:
+            if commands not in self.record.get_user_passed_arg():
+                print(self.record.get_user_passed_arg())
                 self.checking = "mandatoryerror"
                 self.errorlisting(self.checking, commands)
                 return self.checking
 
-        for commands in self.userpassedargs:
-            if commands not in self.record.get_all_args():
+        for commands in self.record.get_user_passed_arg():
+            if commands not in self._expected_args:
                 self.checking = "overflow"
                 self.errorlisting(self.checking, commands)
                 return self.checking
 
-        # Checking for type for the argument values
-        for commands in self.userpassedargs:
+        for commands in self.record.get_user_passed_arg():
             try:
-                self.userpassedargs[commands] = int(
-                    self.userpassedargs[commands])
+                self.record.get_user_passed_arg()[commands] = int(
+                    self.record.get_user_passed_arg()[commands])
             except ValueError:
                 try:
-                    self.userpassedargs[commands] = float(
-                        self.userpassedargs[commands])
+                    self.record.get_user_passed_arg()[commands] = float(
+                        self.record.get_user_passed_arg()[commands])
                 except ValueError:
                     try:
-                        if(self.isstring(self.userpassedargs[commands]) and isinstance(self.record.get_all_args()[commands][0], int) == False):
+                        if(self.isstring(self.record.get_user_passed_arg()[commands]) and isinstance(self._expected_args[commands]['type'], int) == False):
 
                             self.checking = "typeerrorstring"
+                            print(self._expected_args[commands]['type'])
                             self.errorlisting(self.checking, commands)
-
+                            return self.checking
                         else:
 
-                            self.userpassedargs[commands] = str(
-                                self.userpassedargs[commands])
+                            self.record.get_user_passed_arg()[commands] = str(
+                                self.record.get_user_passed_arg()[commands])
                     except ValueError:
                         return self.checking
 
         # Type Checking(datatype checking)
-        for commands in self.userpassedargs:
+        for commands in self.record.get_user_passed_arg():
 
-            typeuserpassed = type(self.userpassedargs[commands])
-            typeuserdefined = type(self.record.get_all_args()[commands][0])
+            typeuserpassed = type(self.record.get_user_passed_arg()[commands])
+            typeuserdefined = self._expected_args[commands]['type']
             if(typeuserdefined != typeuserpassed):
                 self.checking = "typeerror"
-                print(self.record.get_all_args()[commands])
                 self.type = typeuserdefined
                 self.errorlisting(self.checking, commands)
                 return self.checking
 
-        for commands in self.userpassedargs:
-            self.local.append(self.record.get_all_args()[commands][2])
+        for commands in self.record.get_user_passed_arg():
+            self.modes.append(self._expected_args[commands]['mode'])
 
-        if "local" in self.local and "remote" in self.local:
+        if "local" in self.modes and "remote" in self.modes:
             self.checking = "conflict"
             self.errorlisting(self.checking, "both")
             return self.checking
 
         if self.checking == "noerror":
-            return self.userpassedargs
+            user_passed_args = self.record.get_user_passed_arg()
+            self.record.empty_user_passed_arg()
+            return user_passed_args
         else:
             return self.checking
 
@@ -182,6 +124,7 @@ class parser:
         """ Function for generating the list of errors
 
         """
+
         print("Error: ")
         if errorcategory == "mandatoryerror":
             stderr.write(
@@ -190,10 +133,10 @@ class parser:
             stderr.write("There is no \"--%s\" argument named " % command)
         elif errorcategory == "typeerror":
             stderr.write("The value for the \"--%s\" argument must be a of type %s" %
-                         (command, self.type.__name__))
+                         (command, self._expected_args[command]['type']))
         elif errorcategory == "typeerrorstring":
-            stderr.write("The value for the \"--%s\" argument must be a of type string" %
-                         (command))
+            stderr.write("The value for the \"--%s\" argument must be a of type %s" %
+                         (command, self._expected_args[command]['type']))
         elif errorcategory == "conflict":
             stderr.write(
                 "Conflicting situation found 2 mutually exclusive arguments found")

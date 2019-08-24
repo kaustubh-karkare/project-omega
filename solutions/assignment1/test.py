@@ -3,33 +3,49 @@ import unittest
 import sys
 
 
-class simple_test(unittest.TestCase):
+class SimpleTest(unittest.TestCase):
     def setUp(self):
-        self.printer = library.parser()
-        self.printer.add_options(key=(1234, "r", "local"))
-        self.printer.add_options(name=("Shivam", "nr", "local"))
-        self.commands = ['--key=123', '--name=s']
-        self.test = self.printer.parsecommands(self.commands)
+        self.parser = library.Parser()
+        self.parser.add_option('key', required=True, type=int, mode="local")
+        self.parser.add_option('name',  type=str, mode="remote")
+        self.parser.add_option('key2', mode="local", type=float)
+        self.parser.add_option('name1', mode="local", type=str)
         pass
 
     def test_print(self):
-        self.assertEqual(self.test, {'key': 123, 'name': 's'})
+        self.commands = ['--key=123', '--key2=1234.6', '--name1=Shivam']
+        self.assertEqual(self.parser.parse(self.commands),
+                         {'key': 123,  'key2': 1234.6, 'name1': 'Shivam'})
 
     def test_required_args(self):
-        self.assertEqual(self.test, {'key': 123, 'name': 's'})
+        self.commands = ['--key=123']
+        self.assertEqual(self.parser.parse(self.commands), {'key': 123})
+        self.commands = ['--key2=123.6']
+        self.assertEqual(self.parser.parse(self.commands), 'mandatoryerror')
+
+    def test_overflow_args(self):
+        self.commands = ['--key=1234']
+        self.assertEqual(self.parser.parse(self.commands), {'key': 1234})
+        self.commands = ['--key3=123', '--key=123']
+        self.assertEqual(self.parser.parse(self.commands), 'overflow')
 
     def test_typeof_args(self):
-        self.commands = ['--key=123.7', '--name=s']
-        self.assertEqual(self.printer.parsecommands(
-            self.commands), {'key': 123, 'name': 's'})
+        self.commands = ['--key=123.6']
+        self.assertEqual(self.parser.parse(self.commands), 'typeerror')
+        self.commands = ['--key=1234s']
+        self.assertEqual(self.parser.parse(self.commands), 'typeerrorstring')
+        self.commands = ['--key=123', '--name1=Shiva12']
+        self.assertEqual(self.parser.parse(self.commands), 'typeerrorstring')
+        self.commands = ['--key=123', '--name1=Shivam', '--key2=123']
+        self.assertEqual(self.parser.parse(self.commands), 'typeerror')
+
+    def test_conflict(self):
+        self.commands = ['--key=123', '--key2=1234.6', '--name1=Shivam']
+        self.assertEqual(self.parser.parse(self.commands),
+                         {'key': 123,  'key2': 1234.6, 'name1': 'Shivam'})
+        self.commands = ['--key=123', '--name=Shiva']
+        self.assertEqual(self.parser.parse(self.commands), 'conflict')
 
 
 if __name__ == '__main__':
     unittest.main()
-    """
-    printer = library.parser()
-    printer.add_options(key=(1234, "r", "local"))
-    printer.add_options(name=("shivam", "nr", "local"))
-    commands = ['--key=123', '--name=s']
-    printer.parsecommands(commands)
-    """
