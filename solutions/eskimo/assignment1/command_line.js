@@ -117,6 +117,8 @@ class Parser
         }
 
         commandList.push(input_command);
+
+        //assing bot name and small to index of commandList
         commandName[input_command.command]=commandList.length-1;
 
         if(input_command.smallCommand!=null)
@@ -140,6 +142,7 @@ class Parser
             {
                 var command_available;
 
+                //For Name
                 if(val.startsWith("--"))
                 {
                     //Silces the "--" from argument
@@ -153,6 +156,7 @@ class Parser
                     command_available=commandList[commandName[(val.split("=")[0])]];
                 }
                 
+                //For smallName
                 else if(val.startsWith("-"))
                 {
                     val=val.slice(1);
