@@ -20,6 +20,9 @@
 
 ## Build Json String
 
-#### parser.listArgsProvided() returns the argument hashmap populated with the required and default variables
+#### parser.listArgsProvided() populates the hashmap with the required and default variables
 
-`var jsonStr = parser.listArgsProvided();`
+```
+parser.listArgsProvided();
+console.log(parser.argumentJson);
+```

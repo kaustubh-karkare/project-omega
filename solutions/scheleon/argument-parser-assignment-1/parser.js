@@ -258,7 +258,6 @@ class Parser {
             this.argumentJson[this.arguments[itr].getLargeLabel()] 
                 = this.arguments[itr].getValue();
         }
-        return argumentJson.toString();
     }
 }
 
