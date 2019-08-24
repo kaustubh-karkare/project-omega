@@ -75,24 +75,28 @@ class Argument{
                 this.value = String(value);
             } catch (err) {
                 var valueType = typeof value;
-                throw "Expected : " + this.valueType + ", but got " + capitalizeFirstLetter(valueType);
+                throw "Expected : " + this.valueType + ", found " 
+                    + capitalizeFirstLetter(valueType);
             }
         } else if (this.valueType == "Number") {
             try {
                 this.value = Number(value);
                 if (isNaN(this.value)) {
-                    throw "Expected : " + this.valueType + ", but got " + capitalizeFirstLetter(valueType);
+                    throw "Expected : " + this.valueType + ", found " 
+                        + capitalizeFirstLetter(valueType);
                 }
             } catch (err) {
                 var valueType = typeof value;
-                throw "Expected : " + this.valueType + ", but got " + capitalizeFirstLetter(valueType);
+                throw "Expected : " + this.valueType + ", found " 
+                    + capitalizeFirstLetter(valueType);
             }
         } else {
             try {
                 this.value = Boolean(value);
             } catch (err) {
                 var valueType = typeof value;
-                throw "Expected : " + this.valueType + ", but got " + capitalizeFirstLetter(valueType);
+                throw "Expected : " + this.valueType + ", found " 
+                    + capitalizeFirstLetter(valueType);
             }
         }
     }
@@ -117,23 +121,30 @@ class Parser {
     */
     addArgument(shortLabel, largeLabel, isValueRequired, valueType, defaultValue) {
         for (var i = 0; i < this.arguments.length; i++) {
-            if(shortLabel == this.arguments[i].getShortLabel() || largeLabel == this.arguments[i].getLargeLabel()) {
+            if(shortLabel == this.arguments[i].getShortLabel() 
+                || largeLabel == this.arguments[i].getLargeLabel()) {
                 throw "Argument with the same label already exists";
                 return;
             }
         }
         var index = this.arguments.length;
-        this.arguments[index] = new Argument(shortLabel, largeLabel, isValueRequired, valueType, defaultValue);
+        this.arguments[index] = new Argument(shortLabel, 
+                                             largeLabel, 
+                                             isValueRequired, 
+                                             valueType, 
+                                             defaultValue);
     }
 
     /**
-     * Set the argument value from the list if it matches with argument's shortLabel or largeLabel   
+     * Set the argument value from the list if it matches 
+     * any argument's shortLabel or largeLabel   
      * @param {String} label 
      * @param {String} value 
      */
     setValue(label, value) {
         for (var i = 0; i < this.arguments.length; i++) {
-            if(label == this.arguments[i].getShortLabel() || label == this.arguments[i].getLargeLabel()) {
+            if(label == this.arguments[i].getShortLabel() 
+                || label == this.arguments[i].getLargeLabel()) {
                 return this.arguments[i].setValue(String(value));
             }
         }
@@ -141,12 +152,14 @@ class Parser {
     } 
 
     /**
-     * Returns index of argument label from the list if it matches with argument's shortLabel or largeLabel   
+     * Returns index of argument label from the list if it matches 
+     * any argument's shortLabel or largeLabel   
      * @param {String} label 
      */
     findArgumentIndexByLabel(label) {
         for (var i = 0; i < this.arguments.length; i++) {
-            if(label == this.arguments[i].getShortLabel() || label == this.arguments[i].getLargeLabel()) {
+            if(label == this.arguments[i].getShortLabel() 
+                || label == this.arguments[i].getLargeLabel()) {
                 return i;
             }
         }
@@ -173,7 +186,8 @@ class Parser {
         var inputValue = "^[\\w -]+$";
 
         for(var itr=2; itr < process.argv.length; itr++) {    
-            if(process.argv[itr].match(shortArgv) != null || process.argv[itr].match(largeArgv) != null) {
+            if(process.argv[itr].match(shortArgv) != null 
+                || process.argv[itr].match(largeArgv) != null) {
 
                 var label = process.argv[itr].match("[\\w]+")[0];
                 var argumentIndex = this.findArgumentIndexByLabel(label);
@@ -204,7 +218,8 @@ class Parser {
                      */
                     this.arguments[argumentIndex].setValue(true);
                 } 
-            } else if (process.argv[itr].match(shortInputArgv) != null || process.argv[itr].match(largeInputArgv) != null) {
+            } else if (process.argv[itr].match(shortInputArgv) != null 
+                || process.argv[itr].match(largeInputArgv) != null) {
                 /**
                  * Extract the Argument Label
                  */
@@ -235,7 +250,8 @@ class Parser {
      */
     setAllArgs() {
         for (var itr = 0; itr < this.arguments.length; itr++) {
-            this.argumentJson[this.arguments[itr].getLargeLabel()] = this.arguments[itr].getValue();
+            this.argumentJson[this.arguments[itr].getLargeLabel()] 
+                = this.arguments[itr].getValue();
         }
         return argumentJson.toString();
     }
