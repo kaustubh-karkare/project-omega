@@ -7,13 +7,14 @@
 `const parser = require("./parser");`
 
 #### Call parser.addArgument() method with mentioned parameters
-`
+
+```Parameters
 * @param {String} shortLabel 
 * @param {String} largeLabel 
 * @param {Boolean} isValueRequired 
 * @param {*} valueType 
 * @param {*} defaultValue
-`
+```
 
 `parser.addArgument("S", "sampleLargeArgument", true, "String", "sampleValue");`
 
