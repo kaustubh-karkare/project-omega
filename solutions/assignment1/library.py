@@ -44,6 +44,8 @@ class Parser:
         Args:
             argslist : List of commands given by user
 
+        Returns:
+            The User passed values if everything goes well , otherwise returns the error
         """
         # Storing required Args for Error Checking
         for key, value in self._expected_args.items():
