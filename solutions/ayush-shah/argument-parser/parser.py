@@ -1,8 +1,8 @@
 import sys
 Integer, String, Others, Required = set(), set(), set(), set()
 errors, Json = dict(), dict()
-class Parser:    
-    """Class for adding the arguments, storing errors, storing result and displaying them"""
+class Parser:
+    """Class for adding the command line arguments, storing errors, storing results and displaying them"""
     def add_argument(self, argument, required, types):
         if types == 'integer':
             Integer.add(argument)
@@ -35,15 +35,15 @@ class Parser:
                 if error == "no-value" and key not in ("--local", "--remote"):
                     print("Error: The value for argument '"+key+"' is missing")
                 if error == "required":
-                    print("Error: The argument'"+key+"' is required, but missing from input")
+                    print("Error: The argument '"+key+"' is required, but missing from input")
                 if error == "local and remote":
-                    print("Error: The --local and --remote arguments cannot be used together")
+                    print("Error: The '--local' and '--remote' arguments cannot be used together")
                 if error == "not-int":
                     print("Error: The value for argument '"+key+"' must be integer")
                 if error == "not-string":
                     print("Error: The value for argument '"+key+"' must be string")
                 if error == "invalid-argument":
-                    print("Error: invalid argument "+key)
+                    print("Error: invalid argument '"+key+"'")
     def display_result(self):
         print('{')
         for key in Json:
