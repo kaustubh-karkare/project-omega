@@ -1,5 +1,5 @@
 # Examples
-
+```
 `$ python3 parser.py --key=1234 --name=ayush                             `
 `   {                                                                    `
 `     'key': '1234',                                                     `
@@ -24,4 +24,4 @@
 `                                                                        `
 `$ python3 parser.py --key                                               `
 `  Error: The value for argument '--key' is missing                      `
-
+```
