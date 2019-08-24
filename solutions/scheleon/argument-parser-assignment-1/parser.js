@@ -182,7 +182,7 @@ class Parser {
         */
         var shortInputArgv = "^-[\\w]+=[\\w ]+$"
         /**
-         * For Argument type : -key=value
+         * For Argument type : --key=value
          */
         var largeInputArgv = "^--[\\w]+=[\\w ]+$";
         /**
