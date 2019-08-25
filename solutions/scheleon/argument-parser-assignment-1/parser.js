@@ -143,7 +143,11 @@ class Parser {
             }
         } else {
             try { //
-                value = Boolean(value);
+                if (value == 'true') {
+                    value = true;
+                } else {
+                    value = false;
+                }
                 this.argumentJson[this.arguments[index].getLargeLabel()] = value;
             } catch (err) {
                 throw "Expected : " + valueTypeExpected + ", found " 
