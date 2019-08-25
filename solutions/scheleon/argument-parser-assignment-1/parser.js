@@ -168,7 +168,7 @@ class Parser {
         throw label + " : undefined argument";
     }
 
-    listArgsProvided() {
+    listArgsProvided(providedArgumentList) {
         /**
         * For Argument type : -key
         */
@@ -190,11 +190,11 @@ class Parser {
          */
         var inputValue = "^[\\w ]+$";
 
-        for(var ii = 2; ii < process.argv.length; ii++) {    
-            if(process.argv[ii].match(shortArgv) != null 
-                || process.argv[ii].match(largeArgv) != null) { //
+        for(var ii = 2; ii < providedArgumentList.length; ii++) {    
+            if(providedArgumentList[ii].match(shortArgv) != null 
+                || providedArgumentList[ii].match(largeArgv) != null) { //
 
-                var label = process.argv[ii].match("[\\w]+")[0];
+                var label = providedArgumentList[ii].match("[\\w]+")[0];
                 var argumentIndex = this.findArgumentIndexByLabel(label);
                 
                 /**
@@ -207,10 +207,10 @@ class Parser {
                     /**
                      * Check if the iterator reaches the end of the passed arguments array
                      */
-                    if(ii == process.argv.length) {
+                    if(ii == providedArgumentList.length) {
                         throw "Argument " + label + " cannot be empty";
                     }
-                    var argvValueProvided = process.argv[ii].match(inputValue);
+                    var argvValueProvided = providedArgumentList[ii].match(inputValue);
                     if(argvValueProvided != null) {
                         this.setValue(label, argvValueProvided);
                     } else {
@@ -223,18 +223,18 @@ class Parser {
                      */
                     this.setValue(label, true);
                 } 
-            } else if (process.argv[ii].match(shortInputArgv) != null 
-                || process.argv[ii].match(largeInputArgv) != null) {
+            } else if (providedArgumentList[ii].match(shortInputArgv) != null 
+                || providedArgumentList[ii].match(largeInputArgv) != null) {
                 /**
                  * Extract the Argument Label
                  */
-                var label = process.argv[ii].match("[\\w]+=")[0];
+                var label = providedArgumentList[ii].match("[\\w]+=")[0];
                 label = label.substring(0 , label.length - 1);    
                 
                 /**
                 * Extract the value from argument
                 */
-                var value = process.argv[ii].match("=[\\w -]+")[0];
+                var value = providedArgumentList[ii].match("=[\\w -]+")[0];
                 argvValueProvided = value.substring(1 , value.length);
 
                 /**
