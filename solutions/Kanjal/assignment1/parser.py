@@ -25,9 +25,9 @@ class Parser(object):
         option_being_added = Option(option_name, option_description, option_type, required)
         self.options.append(option_being_added)
 
-    def add_mutually_exclusive_options(self, option1, option2):
+    def add_mutually_exclusive_options(self, exclusive_options_list):
         """adds conflicting commands to a list as a tuple"""
-        self.mutually_exclusive_options.append((option1, option2))
+        self.mutually_exclusive_options.append(exclusive_options_list)
 
     def parse(self, args):
         arguments = {}
@@ -46,6 +46,7 @@ class Parser(object):
                 arguments[(str(command))] = 'True'
 
         self.check_required(arguments)
+        self.check_conflicting(arguments)
         return json.dumps(arguments)
 
     def check_required(self, arguments):
@@ -77,15 +78,14 @@ class Parser(object):
 
     def check_conflicting(self, arguments):
         #check for conflicting commands
-        for conflicting_commands_pair in self.mutually_exclusive_options:
-            for possible_conflicts in self.commands_conflicting:
-                if command == possible_conflicts[0]:
-                    raise ValidationError('The '+ possible_conflicts[1] + ' and ' +
-				                            possible_conflicts[0] + ' commands cannot be used together')
-            if command == conflicting_commands_pair[0]:
-                self.commands_conflicting.append((conflicting_commands_pair[1], command))
-            elif command == conflicting_commands_pair[1]:
-                self.commands_conflicting.append((conflicting_commands_pair[0], command))
+        for lists in self.mutually_exclusive_options:
+            commands_taken_from_list = []
+            for command in lists:
+                if command in arguments:
+                    commands_taken_from_list.append(command)
+            if len(commands_taken_from_list) > 1:
+                raise ValidationError('The commands ' + ' '.join(str(conflicting_command) 
+				for conflicting_command in commands_taken_from_list) + ' cannot be used together')
 
 class Option(object):
     """
@@ -115,6 +115,6 @@ OPTIONS.add_option('--key', '--key', 'positive Integer', True)
 OPTIONS.add_option('--local', 'for local', 'string', False)
 OPTIONS.add_option('--remote', 'for local', 'string', False)
 OPTIONS.add_option('--name', 'for local', 'string', False)
-OPTIONS.add_mutually_exclusive_options('--local', '--remote')
+OPTIONS.add_mutually_exclusive_options(['--local', '--remote'])
 JSON_RETURNED = OPTIONS.parse(sys.argv)
 print(JSON_RETURNED)
