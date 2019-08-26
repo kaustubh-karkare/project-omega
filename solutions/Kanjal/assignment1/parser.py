@@ -83,12 +83,12 @@ class Parser(object):
         
         for conflicting_commands_pair in self.mutually_exclusive_options:
             for possible_conflicts in self.commands_conflicting:
-                if(command == possible_conflicts):
-                    raise ValidationError('The '+ command + ' and ' + possible_conflicts+ ' commands cannot be used together')
+                if(command == possible_conflicts[0]):
+                    raise ValidationError('The '+ possible_conflicts[1] + ' and ' + possible_conflicts[0]+ ' commands cannot be used together')
             if(command == conflicting_commands_pair[0]):
-                self.commands_conflicting.append(conflicting_commands_pair[1])
+                self.commands_conflicting.append((conflicting_commands_pair[1], command))
             elif(command == conflicting_commands_pair[1]):
-                self.commands_conflicting.append(conflicting_commands_pair[0])
+                self.commands_conflicting.append((conflicting_commands_pair[0], command))
 
 
 class Option(object):
