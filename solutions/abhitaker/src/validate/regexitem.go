@@ -2,6 +2,7 @@ package validate
 
 import (
 	"regexp"
+	"strings"
 )
 
 // KeyProperty is a Container for storing Permissible Key's property
@@ -16,10 +17,15 @@ type JSONItem struct {
 }
 
 // FormatCheck performs format check on argument
-func FormatCheck(itemArg string) bool {
+func FormatCheck(itemArg string) (string, string, bool) {
 
 	matched, _ := regexp.MatchString("^--([a-zA-Z0-9]+)=([a-zA-Z0-9]+$)", itemArg)
-	return matched
+
+	if matched == true {
+		return strings.Split(itemArg, "=")[0], strings.Split(itemArg, "=")[1], matched
+	} else {
+		return "", "", matched
+	}
 }
 
 // ExistenceCheck check if given key is present in argument list

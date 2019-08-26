@@ -1,10 +1,8 @@
-package main
+package argparse
 
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"os"
 	"strings"
 	"validate"
 )
@@ -20,8 +18,14 @@ type Parser struct {
 }
 
 // AddKey adds new argument to supported arguments
-func (parser Parser) AddKey(key string, prop validate.KeyProperty) {
+func (parser Parser) AddKey(key, datatype, mandatory string) {
 
+	var prop validate.KeyProperty
+	if mandatory == "IS_MANDATORY" {
+		prop = AddKeyProperty(datatype, true, false)
+	} else {
+		prop = AddKeyProperty(datatype, false, false)
+	}
 	parser.keystore[key] = prop
 }
 
@@ -64,66 +68,59 @@ func ErrorPrint(errorItem, errorType string) error {
 }
 
 // ParseApp converts the input into JSON form
-func (parser Parser) ParseApp(args []string) (string, error) {
+func (parser Parser) ParseApp(args []string) (map[string]string, error) {
 
-	// jsonkey stores and maps the key, value pair having correct format
-	jsonkey := make(map[string]string)
+	// jsonMap stores and maps the key, value pair having correct format
+	jsonMap := make(map[string]string)
 
 	for id := 0; id < len(args); id++ {
 
-		argCheck := validate.FormatCheck(args[id])
-		if argCheck == false {
-			return "", ErrorPrint(args[id], "FormatError")
-		}
-
 		var item JSONItem
-		item.key, item.value = strings.Split(args[id], "=")[0], strings.Split(args[id], "=")[1]
+		var argCheck bool
+
+		// item variable stores the key,value if format of argument is correct
+		item.key, item.value, argCheck = validate.FormatCheck(args[id])
+		if argCheck == false {
+			return jsonMap, ErrorPrint(args[id], "FormatError")
+		}
 
 		keyCheck := validate.ExistenceCheck(item.key, parser.keystore)
 		if keyCheck == false {
-			return "", ErrorPrint(item.key, "ExistenceError")
+			return jsonMap, ErrorPrint(item.key, "ExistenceError")
 		}
 
 		valueCheck := validate.TypeCheck(item.value, parser.keystore[item.key].Datatype)
 		if valueCheck == false {
-			return "", ErrorPrint(item.key+"="+parser.keystore[item.key].Datatype, "TypeError")
+			return jsonMap, ErrorPrint(item.key+"="+parser.keystore[item.key].Datatype, "TypeError")
 		}
 
-		// Changing the Found property of key to True
-		prop := parser.keystore[item.key]
-		prop.Found = true
-		parser.keystore[item.key] = prop
-		jsonkey[strings.Split(item.key, "--")[1]] = item.value
+		// Storing key,value pair in map
+		jsonMap[strings.Split(item.key, "--")[1]] = item.value
 	}
 
 	// This Loop checks the presence of manadatroy keys
 	for key, val := range parser.keystore {
-		if val.Mandatory == true && val.Found == false {
-			return "", ErrorPrint(key, "MandatoryError")
+		_, found := jsonMap[key]
+		if val.Mandatory == true && found == false {
+			return jsonMap, ErrorPrint(key, "MandatoryError")
 		}
 	}
 
-	// Converting the map values to JSON
-	jsonOutput, _ := json.Marshal(jsonkey)
-	return string(jsonOutput), nil
+	return jsonMap, nil
 }
 
-func main() {
+// JSONConvert converts map into JSON
+func JSONConvert(jsonMap map[string]string) string {
 
-	args := os.Args[1:]
+	jsonOutput, _ := json.Marshal(jsonMap)
+	return (string(jsonOutput))
+}
 
-	parser := new(Parser)
+// InitParser creates new instance of parser structure
+func InitParser() *Parser {
+
 	// keystore stores and maps the permissible keys to it's value's property
+	parser := new(Parser)
 	parser.keystore = make(map[string]validate.KeyProperty)
-	parser.AddKey("--id", AddKeyProperty("Integer", true, false))
-	parser.AddKey("--name", AddKeyProperty("String", true, false))
-	parser.AddKey("--age", AddKeyProperty("Integer", false, false))
-	parser.AddKey("--roll", AddKeyProperty("AlphaNumeric", false, false))
-	jsonResult, err := parser.ParseApp(args)
-
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(jsonResult)
-	}
+	return parser
 }
