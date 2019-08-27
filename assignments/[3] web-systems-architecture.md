@@ -14,4 +14,4 @@
 - Create a basic website that allows you to manage a to-do list.
 - The user should be able to create an account. The username, password and other information should be stored in a MySQL database.
 - The user should be able to login, and logout. The current login status should be stored in a cookie. The server validates the cookie by checking it against information stored in Memcache.
-- While logged in, the user can items to the to-do list. These items are also stored in the database.
+- While logged in, the user can add items to the to-do list. These items are also stored in the database.
