@@ -1,100 +1,79 @@
 import sys
 import json
-
-COMMANDS = {}
-"""COMMANDS contains the list of all available commands"""
-
-KEY_COMMAND = {
-    'command_name': '--key',
-    'command_type': 'positive integer'
-}
-
-NAME_COMMAND = {
-    'command_name': '--name',
-    'command_type': 'albhapets only',
-    'required_command': KEY_COMMAND
-}
-
-LOCAL_COMMAND = {
-    'command_name': '--local',
-}
-
-REMOTE_COMMAND = {
-    'command_name': '--remote',
-    'conflicting_with': LOCAL_COMMAND
-}
-
-COMMANDS['--key'] = KEY_COMMAND
-COMMANDS['--name'] = NAME_COMMAND
-COMMANDS['--local'] = LOCAL_COMMAND
-COMMANDS['--remote'] = REMOTE_COMMAND
+import re
 
 
-def validate_key(key_value):  # to validate the argument provided to --key command
-    try:
-        key_value = int(key_value)
-    except Exception:
-        return -1
-    return 1
+class CommandLineParser:
+    COMMANDS ={}
+
+    def __init__(self, command_name, command_type, regular_expression, required_command, conflicting_command):
+        self.command_name = command_name
+        self.command_type = command_type
+        self.regular_expression = regular_expression
+        self.required_command = required_command
+        self.conflicting_command = conflicting_command
+        CommandLineParser.COMMANDS[self.command_name] = self
 
 
-def validate_name(name_value):  # to validate the argument provided to --name command
-    if name_value.isalpha():
-        return 1
-    return -1
+    def get_arguments(argv):
+        results = {}
+        commands_found = []
+        error_message = None
 
+        for arg in argv[1:]:
+            command = None
+            value = None
+            argument = arg.split('=')
 
-def main(argv):
-    results = {}
-    commands_found = []
-    error_message = None
-    for arg in argv[1:]:
-        argument = arg.split('=')
-        command = argument[0]
-        commands_found.append(command)
-        if command in ('--local', '--remote'):
-            if command == '--local':
-                results['--local'] = True
-            elif command == '--remote':
-                results['--remote'] = False
-            continue
-        if command not in COMMANDS:
-            error_message = command + ' is not a recognized command'
+            if len(argument) == 2:
+                command, value = argument
+            elif len(argument) == 1:
+                command = argument[0]
+            elif len(argument) > 2:
+                error_message = 'invalid number of arguments passed to ' + argument[0]
+
+            commands_found.append(command)
+
+            if command in ('--local', '--remote'): # commands with no arguments
+                results[command] = True
+                if command in ('--remote'):
+                    results[command] = False
+                continue
+            if command not in CommandLineParser.COMMANDS: # commands with at least one argument
+                error_message = command + ' is not a recognized command'
+            else:
+                regular_expression = CommandLineParser.COMMANDS[command].regular_expression
+                if re.fullmatch(regular_expression, value):
+                    results[command] = value
+                else:
+                    error_message = 'invalid argument to ' + command
+            
+            if error_message:
+                break
+
+        if error_message is not None:
+            """some error occurred already"""
+            pass
         else:
-            if len(argument) > 2:
-                error_message = 'invalid number of arguments passed to ' + command
-            elif len(argument) < 2:
-                error_message = 'too few arguments to ' + command
-            elif len(argument) == 2:
-                value = argument[1]
-                if command == '--key':
-                    check_key = validate_key(value)
-                    if check_key == -1:
-                        error_message = 'invalid argument to ' + command
-                    else:
-                        results['--key'] = value
-                elif command == '--name':
-                    check_name = validate_name(value)
-                    if check_name == -1:
-                        error_message = 'invalid argument to ' + command
-                    else:
-                        results['--name'] = value
-        if error_message:
-            break
+            for command in commands_found:
+                conflicting_command = CommandLineParser.COMMANDS[command].conflicting_command
+                if conflicting_command is not None and conflicting_command in commands_found:
+                    error_message = 'The ' + command + ' and ' + conflicting_command + ' arguments cannot be used together'
+                required_command = CommandLineParser.COMMANDS[command].required_command
+                if required_command is not None and required_command not in commands_found:
+                    error_message = 'The ' + required_command + ' argument is required, but missing from input'
 
-    if error_message is not None:
-        """some error occurred"""
-    elif '--local' in commands_found and '--remote' in commands_found:
-        error_message = 'The "--local" and "--remote" arguments cannot be used together'
-    elif '--key' not in commands_found and '--local' not in commands_found and '--remote' not in commands_found:
-        error_message = 'The \'--key\' argument is required, but missing from input'
+        final_response = error_message
+        if error_message is None:
+            final_response = json.dumps(results, sort_keys=True)
+        print(final_response)
+        return final_response
 
-    final_response = error_message
-    if error_message is None:
-        final_response = json.dumps(results, sort_keys=True)
-    print(final_response)
-    return final_response
 
+KEY_COMMAND = CommandLineParser('--key', 'positive integer', r'\d+', None, None)
+NAME_COMMAND = CommandLineParser('--name', 'albhapets only', r'[a-zA-Z]+', '--key', None)
+LOCAL_COMMAND = CommandLineParser('--local', None, r'/\A\z/', None, '--remote')
+REMOTE_COMMAND = CommandLineParser('--remote', None, r'/\A\z/', None, '--local')
 
 if __name__ == '__main__':
-    main(sys.argv)
+    CommandLineParser.get_arguments(sys.argv)
