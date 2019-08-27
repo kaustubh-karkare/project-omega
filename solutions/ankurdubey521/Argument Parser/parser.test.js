@@ -25,6 +25,12 @@ const options = [
     largeArg: '--remote',
     type: parser.type.BOOLEAN,
   },
+  {
+    smallArg: '-c',
+    largeArg: '--customdes',
+    type: parser.type.BOOLEAN,
+    dest: 'CUSTOMDEST1',
+  },
 ];
 
 options.forEach((option) => {
@@ -33,7 +39,7 @@ options.forEach((option) => {
 
 parser.setMutuallyExclusive(['--local', '--remote']);
 
-test('PassKeyAndNameParsesCorrectly', () => {
+test('Pass Key And Name Parses Correctly', () => {
   const argv = ['--key=12345', '--name=kaustubh'];
   expect(parser.parseOpts(argv)).toEqual(
       {
@@ -43,7 +49,7 @@ test('PassKeyAndNameParsesCorrectly', () => {
   );
 });
 
-test('PassKeyNameLocalParsesCorrectly', () => {
+test('Pass Key Name Local Parses Correctly', () => {
   const argv = ['--key=12345', '--name=kaustubh', '--local'];
   expect(parser.parseOpts(argv)).toEqual(
       {
@@ -54,25 +60,36 @@ test('PassKeyNameLocalParsesCorrectly', () => {
   );
 });
 
-test('PassInvalidArgumentResultsException', () => {
+test('Pass Invalid Argument Results Exception', () => {
   const argv = ['--key=12345', '--name=kaustubh', '--local', '--2ojdeij'];
   expect(() => parser.parseOpts(argv)).toThrow(Parser.InvalidArgumentException);
 });
 
-test('PassInvalidArgumentTypeResultsException', () => {
+test('Pass Invalid Argument Type Results Exception', () => {
   const argv = ['--key=fwfef', '--name=kaustubh'];
   expect(() => parser.parseOpts(argv))
       .toThrow(Parser.InvalidArgumentTypeException);
 });
 
-test('NotPassingRequiredArgumentResultsInException', () => {
+test('Not Passing Required Argument Results In Exception', () => {
   const argv = ['--name=kaustubh'];
   expect(() => parser.parseOpts(argv))
       .toThrow(Parser.MissingRequiredArgumentException);
 });
 
-test('PassingMutuallyExclusiveArgumentResultsInException', () => {
+test('Passing Mutually Exclusive Argument Results In Exception', () => {
   const argv = ['--name=kaustubh', '--local', '--remote'];
   expect(() => parser.parseOpts(argv))
       .toThrow(Parser.MutuallyExclusiveArgumentsPassedException);
+});
+
+test('Pass Arg With Custom Dest Generates Correct KeyName In JSON', () => {
+  const argv = ['--key=12345', '--name=kaustubh', '-c'];
+  expect(parser.parseOpts(argv)).toEqual(
+      {
+        key: '12345',
+        name: 'kaustubh',
+        CUSTOMDEST1: true,
+      }
+  );
 });

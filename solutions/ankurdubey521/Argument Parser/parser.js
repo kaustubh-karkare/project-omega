@@ -10,14 +10,19 @@ class Argument {
    * @param {string} description
    * @param {string} type
    * @param {boolean} isRequired
+   * @param {string} dest
+   * @param {number} nargs
    */
-  constructor(smallArg, largeArg, defaultValue, description, type, isRequired) {
+  constructor(smallArg, largeArg, defaultValue,
+      description, type, isRequired, dest, nargs) {
     this.smallArg = smallArg;
     this.largeArg = largeArg;
     this.defaultValue = defaultValue;
     this.description = description;
     this.type = type;
     this.isRequired = isRequired;
+    this.dest = dest;
+    this.nargs = nargs;
   }
 };
 
@@ -127,14 +132,17 @@ module.exports = class Parser {
    * @param {boolean} isRequired
    * @return {this}
    */
-  setOption({smallArg, largeArg, description = '',
-    defaultValue = undefined, type = 'string', isRequired = false}) {
+  setOption({smallArg, largeArg, description = '', defaultValue = undefined,
+    type = 'string', isRequired = false, nargs = 1, dest = undefined}) {
     smallArg = smallArg.replace('-', ''); // single character version of arg
     largeArg = largeArg.replace('--', ''); // multi-character version of arg
 
-    this.indexedArgs[this.indexOfNewArg] = new Argument(smallArg, largeArg,
-        defaultValue, description, type, isRequired);
+    if (dest == undefined) {
+      dest = largeArg;
+    }
 
+    this.indexedArgs[this.indexOfNewArg] = new Argument(smallArg, largeArg,
+        defaultValue, description, type, isRequired, dest, nargs);
 
     // Set the validator function, which checks if value is of correct type
     switch (type) {
@@ -196,7 +204,7 @@ module.exports = class Parser {
                 '" argument must be a ' + this.indexedArgs[index]['type'] +
                 '.');
           }
-          argValues[this.indexedArgs[index]['largeArg']] = value;
+          argValues[this.indexedArgs[index]['dest']] = value;
         });
       } else if (this.isLargeArg(arg)) {
         // Large version of arg passed
@@ -212,7 +220,7 @@ module.exports = class Parser {
               '" argument must be a ' + this.indexedArgs[index]['type'] +
               '.');
         }
-        argValues[this.indexedArgs[index]['largeArg']] = value;
+        argValues[this.indexedArgs[index]['dest']] = value;
       } else {
         // Malformed Argument
         throw new this.MalformedArgumentException(
@@ -248,7 +256,7 @@ module.exports = class Parser {
     // Check for required arguments
     Object.keys(this.indexedArgs).forEach((key, index) => {
       const arg = this.indexedArgs[key];
-      if (arg.isRequired && argsValue[arg['largeArg']] === undefined) {
+      if (arg.isRequired && argsValue[arg['dest']] === undefined) {
         // Check if required=True arg has been set
         throw new this.MissingRequiredArgumentException(
             'Error: The \'--' + arg.largeArg +
