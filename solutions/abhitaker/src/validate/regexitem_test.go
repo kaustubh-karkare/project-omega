@@ -18,12 +18,34 @@ func TestFormatCheck(t *testing.T) {
 
 	for _, testcase := range testcases {
 
-		result := FormatCheck(testcase.testInput)
+		_, _, result := FormatCheck(testcase.testInput)
 		if result != testcase.expect {
 			t.Errorf("Expected %t from %s for %s but got %t", testcase.expect, functionName, testcase.testInput, result)
 		}
 	}
+}
 
+func TestKeyValueSeperation(t *testing.T) {
+
+
+	functionName := "FormatCheck"
+
+	testcases := []struct {
+		testInput, key, value string
+	}{
+		{"--key=value", "key", "value"},
+		{"--k=v", "k", "v"},
+		{"--key=v", "key", "v"},
+		{"--k=value=", "k", "value"},
+	}
+
+	for _, testcase := range testcases {
+
+		key, value, _ := FormatCheck(testcase.testInput)
+		if key != testcase.key || value != testcase.value {
+			t.Errorf("Expected %s and %s from %s for %s but got %s and %s", testcase.key, testcase.value, functionName, testcase.testInput, key, value)
+		}
+	}
 }
 
 func TestExistenceCheck(t *testing.T) {

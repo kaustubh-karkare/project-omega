@@ -7,20 +7,15 @@ import (
 
 // KeyProperty is a Container for storing Permissible Key's property
 type KeyProperty struct {
-	Datatype         string
-	Mandatory, Found bool
-}
-
-// JSONItem is Container for storing JSON item
-type JSONItem struct {
-	key, value string
+	Datatype  string
+	Mandatory bool
 }
 
 // FormatCheck performs format check on argument
 func FormatCheck(itemArg string) (string, string, bool) {
 
 	matched, _ := regexp.MatchString("^--([a-zA-Z0-9]+)=([a-zA-Z0-9]+$)", itemArg)
-
+	
 	if matched == true {
 		return strings.Split(itemArg, "=")[0], strings.Split(itemArg, "=")[1], matched
 	} else {

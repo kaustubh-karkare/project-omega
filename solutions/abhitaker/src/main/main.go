@@ -14,7 +14,9 @@ func main() {
 	parser.AddKey("--name", "String", "IS_MANDATORY")
 	parser.AddKey("--age", "Integer", "NOT_MANDATORY")
 	parser.AddKey("--roll", "AlphaNumeric", "NOT_MANDATORY")
-
+	parser.AddExclusiveKeys("--roll", "--age")
+	parser.AddExclusiveKeys("--name", "--age")
+	
 	jsonMap, err := parser.ParseApp(testInput)
 
 	if err != nil {

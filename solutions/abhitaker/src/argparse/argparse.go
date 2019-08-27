@@ -12,30 +12,43 @@ type JSONItem struct {
 	key, value string
 }
 
+// Pair does this
+type Pair struct {
+	FirstKey, SecondKey string
+}
+
 // Parser is a struct to implement OOPS type operation
 type Parser struct {
-	keystore map[string]validate.KeyProperty
+	keystore  map[string]validate.KeyProperty
+	exclusive []Pair
 }
 
 // AddKey adds new argument to supported arguments
-func (parser Parser) AddKey(key, datatype, mandatory string) {
+func (parser *Parser) AddKey(key, datatype, mandatory string) {
 
 	var prop validate.KeyProperty
 	if mandatory == "IS_MANDATORY" {
-		prop = AddKeyProperty(datatype, true, false)
+		prop = AddKeyProperty(datatype, true)
 	} else {
-		prop = AddKeyProperty(datatype, false, false)
+		prop = AddKeyProperty(datatype, false)
 	}
 	parser.keystore[key] = prop
 }
 
+// AddExclusiveKeys stores the exclusive pair of keys
+func (parser *Parser) AddExclusiveKeys(FirstKey, SecondKey string) {
+
+	var pair Pair
+	pair.FirstKey, pair.SecondKey = FirstKey, SecondKey
+	parser.exclusive = append(parser.exclusive, pair)
+}
+
 // AddKeyProperty adds argument properties to KeyProperty container
-func AddKeyProperty(datatype string, mandatory, found bool) validate.KeyProperty {
+func AddKeyProperty(datatype string, mandatory bool) validate.KeyProperty {
 
 	var prop validate.KeyProperty
 	prop.Datatype = datatype
 	prop.Mandatory = mandatory
-	prop.Found = found
 	return prop
 }
 
@@ -60,6 +73,12 @@ func ErrorPrint(errorItem, errorType string) error {
 
 	case "MandatoryError":
 		err := "Error: required argument " + errorItem + " is missing from input"
+		return errors.New(err)
+
+	case "ExclusiveKeysError":
+		var pair Pair
+		pair.FirstKey, pair.SecondKey = strings.Split(errorItem, "=")[0], strings.Split(errorItem, "=")[1]
+		err := "Error: " + pair.FirstKey + " and " + pair.SecondKey + " cannot be used together"
 		return errors.New(err)
 
 	default:
@@ -98,11 +117,28 @@ func (parser Parser) ParseApp(args []string) (map[string]string, error) {
 		jsonMap[strings.Split(item.key, "--")[1]] = item.value
 	}
 
-	// This Loop checks the presence of manadatroy keys
+	// This loop throws error if exclusive pair of keys exist together
+	for id := 0; id < len(parser.exclusive); id++ {
+
+		var pair Pair
+		pair = parser.exclusive[id]
+		pair.FirstKey, pair.SecondKey = strings.Split(pair.FirstKey, "--")[1], strings.Split(pair.SecondKey, "--")[1]
+		_, FoundfirstKey := jsonMap[pair.FirstKey]
+		_, FoundsecondKey := jsonMap[pair.SecondKey]
+
+		if FoundfirstKey == true && FoundsecondKey == true {
+			keys := parser.exclusive[id].FirstKey + "=" + parser.exclusive[id].SecondKey
+			return jsonMap, ErrorPrint(keys, "ExclusiveKeysError")
+		}
+
+	}
+
+	// This loop checks the presence of manadatroy keys
 	for key, val := range parser.keystore {
+		key = strings.Split(key, "--")[1]
 		_, found := jsonMap[key]
 		if val.Mandatory == true && found == false {
-			return jsonMap, ErrorPrint(key, "MandatoryError")
+			return jsonMap, ErrorPrint("--"+key, "MandatoryError")
 		}
 	}
 
@@ -122,5 +158,7 @@ func InitParser() *Parser {
 	// keystore stores and maps the permissible keys to it's value's property
 	parser := new(Parser)
 	parser.keystore = make(map[string]validate.KeyProperty)
+	parser.exclusive = make([]Pair, 0, 10)
+
 	return parser
 }
