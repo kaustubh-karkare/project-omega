@@ -1,3 +1,5 @@
+const NE = require('node-exceptions');
+
 /**
  * Argument Definition Class
  */
@@ -28,42 +30,6 @@ class Argument {
 
 module.exports = class Parser {
   /**
-   * Exception Class
-   * @param {string} message
-   */
-  InvalidArgumentException(message) {
-    this.message = message;
-  }
-  /**
-   * Exception Class
-   * @param {string} message
-   */
-  InvalidArgumentTypeException(message) {
-    this.message = message;
-  }
-  /**
-   * Exception Class
-   * @param {string} message
-   */
-  MalformedArgumentException(message) {
-    this.message = message;
-  }
-  /**
-   * Exception Class
-   * @param {string} message
-   */
-  MissingRequiredArgumentException(message) {
-    this.message = message;
-  }
-  /**
-   * Exception Class
-   * @param {string} message
-   */
-  MutuallyExclusiveArgumentsPassedException(message) {
-    this.message = message;
-  }
-
-  /**
    * @constructor
    */
   constructor() {
@@ -88,6 +54,17 @@ module.exports = class Parser {
       POSITIVE_INTEGER: 'positive-integer',
       BOOLEAN: 'boolean',
     };
+
+    // Custom Exception Classes
+    this.InvalidArgumentException = class extends NE.LogicalException {};
+    this.InvalidArgumentTypeException = class extends NE.LogicalException {};
+    this.InvalidNumberOfArgumentException =
+      class extends NE.LogicalException {};
+    this.MalformedArgumentException = class extends NE.LogicalException {};
+    this.MissingRequiredArgumentException =
+      class extends NE.LogicalException {};
+    this.MutuallyExclusiveArgumentsPassedException =
+      class extends NE.LogicalException {};
   }
 
   /**
@@ -133,12 +110,18 @@ module.exports = class Parser {
    * @return {this}
    */
   setOption({smallArg, largeArg, description = '', defaultValue = undefined,
-    type = 'string', isRequired = false, nargs = 1, dest = undefined}) {
+    type = this.type.STRING, isRequired = false, nargs = 1, dest = undefined}) {
     smallArg = smallArg.replace('-', ''); // single character version of arg
     largeArg = largeArg.replace('--', ''); // multi-character version of arg
 
+    // Set default dest to be largeArg name
     if (dest == undefined) {
       dest = largeArg;
+    }
+
+    // Set/Override nargs = 0 for boolean arguments
+    if (type == this.type.BOOLEAN) {
+      nargs = 0;
     }
 
     this.indexedArgs[this.indexOfNewArg] = new Argument(smallArg, largeArg,
@@ -180,60 +163,100 @@ module.exports = class Parser {
   parse(argList) {
     const argValues = {};
 
-    argList.forEach((arg) => {
-      // Check if arg has a value explicitly defined
-      // if yes extract it else interpret as a boolean true
-      let value = '';
-      if (arg.indexOf('=') != -1) {
-        [arg, value] = arg.split('=');
+    // Scan arglist and break any strings having '='
+    // into string and value.
+    let temp = [];
+    for (let i = 0; i < argList.length; ++i) {
+      if (argList[i].indexOf('=') != -1) {
+        let arg = '';
+        let value = '';
+        [arg, value] = argList[i].split('=');
+        temp.push(arg);
+        temp.push(value);
       } else {
-        value = true;
+        temp.push(argList[i]);
       }
+    }
+    argList = temp;
 
-      if (this.isSmallArg(arg)) {
-        // Small version of Arg passed
-        arg.replace('-', '').split('').forEach((smallArg) => {
-          const index = this.argnameIndexMap[smallArg];
-          if (index === undefined) {
-            throw new this.InvalidArgumentException(
-                'Error: "' + arg + '" is not a valid argument');
-          }
-          if (!this.indexedArgs[index].validator(value)) {
-            throw new this.InvalidArgumentTypeException(
-                'Error: The value for the "-' + smallArg.toString() +
-                '" argument must be a ' + this.indexedArgs[index]['type'] +
-                '.');
-          }
-          argValues[this.indexedArgs[index]['dest']] = value;
+    // Scan arglist and break any string having multiple
+    // single character args into individual args.
+    temp = [];
+    for (let i = 0; i < argList.length; ++i) {
+      if (this.isSmallArg(argList[i])) {
+        argList[i].replace('-', '').split('').forEach((smallArg) => {
+          temp.push('-' + smallArg);
         });
-      } else if (this.isLargeArg(arg)) {
-        // Large version of arg passed
-        const largeArg = arg.replace('--', '');
-        const index = this.argnameIndexMap[largeArg];
+      } else {
+        temp.push(argList[i]);
+      }
+    }
+    argList = temp;
+
+    // Scan list from end. Push any values into a list.
+    // If an argument is found, assign all values to that argument.
+    // Check nargs and type of value
+    let values = [];
+    for (let i = argList.length - 1; i >= 0; --i) {
+      const item = argList[i];
+      if (this.isSmallArg(item) || this.isLargeArg(item)) {
+        // Arg passed
+        let arg = '';
+        if (this.isSmallArg(item)) {
+          arg = item.replace('-', '');
+        } else {
+          arg = item.replace('--', '');
+        }
+
+        const index = this.argnameIndexMap[arg];
+
+        // Check if argument is valid
         if (index === undefined) {
           throw new this.InvalidArgumentException(
               'Error: "' + arg + '" is not a valid argument');
         }
-        if (!this.indexedArgs[index].validator(value)) {
-          throw new this.InvalidArgumentTypeException(
-              'Error: The value for the "-' + largeArg.toString() +
-              '" argument must be a ' + this.indexedArgs[index]['type'] +
-              '.');
+
+        const config = this.indexedArgs[index];
+
+        // Check if nargs is satisfied
+        if (values.length != config.nargs) {
+          throw new this.InvalidNumberOfArgumentException(
+              'Error: Expected ' + config.nargs.toString() +
+              ' but found ' + values.length.toString() + ' arguments'
+          );
         }
-        argValues[this.indexedArgs[index]['dest']] = value;
+
+        // Check value type validity
+        values.forEach((value) => {
+          if (!config.validator(value)) {
+            throw new this.InvalidArgumentTypeException(
+                'Error: The value for the "-' + item.toString() +
+                '" argument must be a ' + config.type + '.');
+          }
+        });
+
+        // Set values and reset value array.
+        // In case boolean value is passed, set it to [true]
+        if (config.type === this.type.BOOLEAN) {
+          argValues[config.dest] = [true];
+        } else {
+          argValues[config.dest] = values;
+        }
+        values = [];
       } else {
-        // Malformed Argument
-        throw new this.MalformedArgumentException(
-            'Error: Malformed argument ' + arg);
+        // Value passed
+        values.push(item);
+      }
+    }
+
+    // Set default values if not already set
+    Object.keys(this.indexedArgs).forEach((key, index) => {
+      const arg = this.indexedArgs[key];
+      if (argValues[arg.dest] === undefined && arg.defaultValue != undefined) {
+        argValues[arg.dest] = [arg.defaultValue];
       }
     });
 
-    Object.keys(this.indexedArgs).forEach((key, index) => {
-      const arg = this.indexedArgs[key];
-      if (argValues[arg.largeArg] === undefined) {
-        argValues[arg.largeArg] = arg.defaultValue;
-      }
-    });
     return argValues;
   }
 
@@ -279,8 +302,7 @@ module.exports = class Parser {
         throw new
         this.MutuallyExclusiveArgumentsPassedException(
             'Error: The arguments "'
-            + setArgs.toString() + '" cannot be passed together.'
-        );
+           + setArgs.toString() + '" cannot be passed together.');
       }
     });
 

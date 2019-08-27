@@ -31,6 +31,12 @@ const options = [
     type: parser.type.BOOLEAN,
     dest: 'CUSTOMDEST1',
   },
+  {
+    smallArg: '-o',
+    largeArg: '--options',
+    type: parser.type.POSITIVE_INTEGER,
+    nargs: 3,
+  }
 ];
 
 options.forEach((option) => {
@@ -43,8 +49,8 @@ test('Pass Key And Name Parses Correctly', () => {
   const argv = ['--key=12345', '--name=kaustubh'];
   expect(parser.parseOpts(argv)).toEqual(
       {
-        key: '12345',
-        name: 'kaustubh',
+        key: ['12345'],
+        name: ['kaustubh'],
       }
   );
 });
@@ -53,9 +59,9 @@ test('Pass Key Name Local Parses Correctly', () => {
   const argv = ['--key=12345', '--name=kaustubh', '--local'];
   expect(parser.parseOpts(argv)).toEqual(
       {
-        key: '12345',
-        name: 'kaustubh',
-        local: true,
+        key: ['12345'],
+        name: ['kaustubh'],
+        local: [true],
       }
   );
 });
@@ -87,9 +93,37 @@ test('Pass Arg With Custom Dest Generates Correct KeyName In JSON', () => {
   const argv = ['--key=12345', '--name=kaustubh', '-c'];
   expect(parser.parseOpts(argv)).toEqual(
       {
-        key: '12345',
-        name: 'kaustubh',
-        CUSTOMDEST1: true,
+        key: ['12345'],
+        name: ['kaustubh'],
+        CUSTOMDEST1: [true],
       }
   );
+});
+
+test('Pass correct number of arguments = nargs Parses Correctly', () => {
+  const argv = ['--key=12345', '--name=kaustubh', '-o', '132', '123', '561'];
+  expect(parser.parseOpts(argv)).toEqual(
+      {
+        key: ['12345'],
+        name: ['kaustubh'],
+        options: ['561', '123', '132'],
+      }
+  );
+});
+
+test('Pass Arg With Spaces and "=" parses correctly', () => {
+  const argv = ['--key=12345', '--name=kaustubh', '-o', '132', '123', '561'];
+  expect(parser.parseOpts(argv)).toEqual(
+      {
+        key: ['12345'],
+        name: ['kaustubh'],
+        options: ['561', '123', '132'],
+      }
+  );
+});
+
+test('Not passing required number of Args results in Exception', () => {
+  const argv = ['--key=12345', '--name=kaustubh', '-o', '132', '123'];
+  expect(() => parser.parseOpts(argv))
+      .toThrow(Parser.InvalidNumberOfArgumentException);
 });
