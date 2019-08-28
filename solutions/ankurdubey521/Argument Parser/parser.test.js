@@ -40,7 +40,7 @@ const options = [
 ];
 
 options.forEach((option) => {
-  parser.setOption(option);
+  parser.addOption(option);
 });
 
 parser.setMutuallyExclusive(['--local', '--remote']);

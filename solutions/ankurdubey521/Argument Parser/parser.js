@@ -109,7 +109,7 @@ module.exports = class Parser {
    * @param {boolean} isRequired
    * @return {this}
    */
-  setOption({smallArg, largeArg, description = '', defaultValue = undefined,
+  addOption({smallArg, largeArg, description = '', defaultValue = undefined,
     type = this.type.STRING, isRequired = false, nargs = 1, dest = undefined}) {
     smallArg = smallArg.replace('-', ''); // single character version of arg
     largeArg = largeArg.replace('--', ''); // multi-character version of arg
