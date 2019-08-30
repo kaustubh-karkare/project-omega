@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
+
 """
 Created on Sun Aug 25 15:21:34 2019
-
 @author: Abhilasha
 """
 class MyParser:
     """
     command line parser
     """
+    @classmethod
+    def add_option(cls, option_name, option_type, reqirement):
+        """
+        adding the options
+        """
+        list_of_fields = []
+        list_of_fields.append(option_name)
     @classmethod
     def check_key(cls, size, value, data):
         """
@@ -85,4 +92,3 @@ class MyParser:
         elif ans == "successful":
             ans = json.dumps(data)
         return ans
-        
