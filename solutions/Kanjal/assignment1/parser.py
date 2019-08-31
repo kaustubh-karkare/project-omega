@@ -5,6 +5,7 @@ import sys
 class ValidationError(Exception):
     """Error class"""
     def __init__(self, message):
+        self.message = message
         super().__init__(message)
 
 class Parser(object):
@@ -74,7 +75,7 @@ class Parser(object):
 				                            str(type(value).__name__) + ' in command '+ command)
                 break
         if currently_valid is False:
-            raise ValidationError("Command Not Found")
+            raise ValidationError("Unknown Command " + command)
 
     def check_conflicting(self, arguments):
         #check for conflicting commands
@@ -110,11 +111,4 @@ class Option(object):
             return r'^[0-9]+$'
         return r'^\w+$'
 
-OPTIONS = Parser()
-OPTIONS.add_option('--key', '--key', 'positive Integer', True)
-OPTIONS.add_option('--local', 'for local', 'string', False)
-OPTIONS.add_option('--remote', 'for local', 'string', False)
-OPTIONS.add_option('--name', 'for local', 'string', False)
-OPTIONS.add_mutually_exclusive_options(['--local', '--remote'])
-JSON_RETURNED = OPTIONS.parse(sys.argv)
-print(JSON_RETURNED)
+
