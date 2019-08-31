@@ -1,6 +1,5 @@
 import re
 import json
-import sys
 
 class ValidationError(Exception):
     """Error class"""
@@ -31,8 +30,8 @@ class Parser(object):
         self.mutually_exclusive_options.append(exclusive_options_list)
 
     def parse(self, args):
-        arguments = {}
         """Parses the arguments and makes call to validate them"""
+        arguments = {}
         for arg in args[1:]:
             arg_pair = arg.split('=')
             command = arg_pair[0]
@@ -53,7 +52,7 @@ class Parser(object):
     def check_required(self, arguments):
         """To check if any required command is missing"""
         for option in self.options:
-            if option.isRequired is True:
+            if option.is_required is True:
                 currently_valid = False
                 for commands in arguments:
                     if commands == option.option_name:
@@ -85,7 +84,7 @@ class Parser(object):
                 if command in arguments:
                     commands_taken_from_list.append(command)
             if len(commands_taken_from_list) > 1:
-                raise ValidationError('The commands ' + ' '.join(str(conflicting_command) 
+                raise ValidationError('The commands ' + ' '.join(str(conflicting_command)
 				for conflicting_command in commands_taken_from_list) + ' cannot be used together')
 
 class Option(object):
@@ -96,12 +95,12 @@ class Option(object):
     option_type - contains the type of value (string, positiveInteger, etc)
     isRequired - bool value to check if option is required or not
     """
-    def __init__(self, option_name, option_description, option_type, isRequired):
+    def __init__(self, option_name, option_description, option_type, is_required):
         self.option_name = option_name
         self.option_description = option_description
         self.option_type = option_type
         self.regex = self.get_regex()
-        self.isRequired = isRequired
+        self.is_required = is_required
 
     def __str__(self):
         return self.option_name
@@ -110,5 +109,3 @@ class Option(object):
         if bool(re.match(self.option_type, 'positive integer', re.IGNORECASE)):
             return r'^[0-9]+$'
         return r'^\w+$'
-
-
