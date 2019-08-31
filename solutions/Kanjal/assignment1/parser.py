@@ -40,12 +40,11 @@ class Parser(object):
                 raise ValidationError("too many arguments")
             if len(arg_pair) == 2:
                 value = arg_pair[1]
-                self.validate_type_and_existence(command, value)
                 arguments[(str(command))] = str(value)
             if len(arg_pair) == 1:
-                self.validate_type_and_existence(command, 'True')
                 arguments[(str(command))] = 'True'
 
+        self.validate_type_and_existence(arguments)
         self.check_required(arguments)
         self.check_conflicting(arguments)
         return json.dumps(arguments)
@@ -57,21 +56,17 @@ class Parser(object):
                 if not option.name in arguments:
                     raise ValidationError("Missing Required Argument "+ option.name)
 
-    def validate_type_and_existence(self, command, value):
+    def validate_type_and_existence(self, arguments):
         """Ensures that command and value are valid"""
-        currently_valid = False
-        for option in self.options:
-            if option.name in command:
-                currently_valid = True
-                if bool(re.match(option.regex, value)):
-                    break
-                else:
-                    raise ValidationError('Expected type '+ option.option_type.value+' but got '+
-				                            str(type(value).__name__) + ' in command '+ command)
-                break
-        if currently_valid is False:
-            raise ValidationError("Unknown Command " + command)
-
+        options_dict = {x.name: x.option_type.value for x in self.options}
+        for command in arguments:
+            try:
+                if not bool(re.match(Option.get_regex(options_dict[command]), arguments[command])):
+                    raise ValidationError('Expected type '+options_dict[command] +' but got '+
+				                            str(type(arguments[command]).__name__) + ' in command '+ command)
+            except KeyError:
+                raise ValidationError("Unknown Command "+ command)
+ 
     def check_conflicting(self, arguments):
         """check for conflicting commands"""
         for lists in self.mutually_exclusive_options:
@@ -102,13 +97,13 @@ class Option(object):
         self.name = name
         self.description = description
         self.option_type = option_type
-        self.regex = self.get_regex()
+        self.regex = Option.get_regex(self.option_type.value)
         self.is_required = is_required
 
     def __str__(self):
         return self.option_name
 
-    def get_regex(self):
-        if bool(re.match(self.option_type.value, 'positive integer', re.IGNORECASE)):
+    def get_regex(string):
+        if bool(re.match(string, 'positive integer', re.IGNORECASE)):
             return r'^[0-9]+$'
         return r'^\w+$'
