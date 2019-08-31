@@ -1,5 +1,6 @@
 import re
 import json
+from enum import Enum
 
 class ValidationError(Exception):
     """Error class"""
@@ -53,31 +54,26 @@ class Parser(object):
         """To check if any required command is missing"""
         for option in self.options:
             if option.is_required is True:
-                currently_valid = False
-                for commands in arguments:
-                    if commands == option.option_name:
-                        currently_valid = True
-                        break
-                if currently_valid is False:
-                    raise ValidationError("Missing Required Argument "+ option.option_name)
+                if not option.name in arguments:
+                    raise ValidationError("Missing Required Argument "+ option.name)
 
     def validate_type_and_existence(self, command, value):
         """Ensures that command and value are valid"""
         currently_valid = False
         for option in self.options:
-            if option.option_name in command:
+            if option.name in command:
                 currently_valid = True
                 if bool(re.match(option.regex, value)):
                     break
                 else:
-                    raise ValidationError('Expected type '+ option.option_type+' but got '+
+                    raise ValidationError('Expected type '+ option.option_type.value+' but got '+
 				                            str(type(value).__name__) + ' in command '+ command)
                 break
         if currently_valid is False:
             raise ValidationError("Unknown Command " + command)
 
     def check_conflicting(self, arguments):
-        #check for conflicting commands
+        """check for conflicting commands"""
         for lists in self.mutually_exclusive_options:
             commands_taken_from_list = []
             for command in lists:
@@ -87,17 +83,24 @@ class Parser(object):
                 raise ValidationError('The commands ' + ' '.join(str(conflicting_command)
 				for conflicting_command in commands_taken_from_list) + ' cannot be used together')
 
+class OptionType(Enum):
+    STRING = "string"
+    POSITIVEINTEGER = "positive integer"
+
 class Option(object):
     """
     Option -
     option_name - contains the name of command
     option_description - contains its description
-    option_type - contains the type of value (string, positiveInteger, etc)
+    option_type - contains the type of value (string, positive integer, etc)
     isRequired - bool value to check if option is required or not
     """
-    def __init__(self, option_name, option_description, option_type, is_required):
-        self.option_name = option_name
-        self.option_description = option_description
+    def __init__(self, name, description, option_type, is_required):
+        if not isinstance(option_type, OptionType):
+            raise ValidationError('Option Type Should be an instance of OptionType Enum,currently '+
+                            ' '.join(str(type) for type in OptionType)+ ' are supported')
+        self.name = name
+        self.description = description
         self.option_type = option_type
         self.regex = self.get_regex()
         self.is_required = is_required
@@ -106,6 +109,6 @@ class Option(object):
         return self.option_name
 
     def get_regex(self):
-        if bool(re.match(self.option_type, 'positive integer', re.IGNORECASE)):
+        if bool(re.match(self.option_type.value, 'positive integer', re.IGNORECASE)):
             return r'^[0-9]+$'
         return r'^\w+$'
