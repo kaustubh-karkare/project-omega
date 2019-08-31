@@ -26,9 +26,9 @@ class Parser(object):
         option_being_added = Option(option_name, option_description, option_type, required)
         self.options.append(option_being_added)
 
-    def add_mutually_exclusive_options(self, exclusive_options_list):
+    def add_mutually_exclusive_options(self, exclusive_options_list, is_one_required):
         """adds conflicting commands to a list as a tuple"""
-        self.mutually_exclusive_options.append(exclusive_options_list)
+        self.mutually_exclusive_options.append((exclusive_options_list, is_one_required))
 
     def parse(self, args):
         """Parses the arguments and makes call to validate them"""
@@ -66,17 +66,21 @@ class Parser(object):
 				                            str(type(arguments[command]).__name__) + ' in command '+ command)
             except KeyError:
                 raise ValidationError("Unknown Command "+ command)
- 
+
     def check_conflicting(self, arguments):
         """check for conflicting commands"""
         for lists in self.mutually_exclusive_options:
             commands_taken_from_list = []
-            for command in lists:
+            for command in lists[0]:
                 if command in arguments:
                     commands_taken_from_list.append(command)
             if len(commands_taken_from_list) > 1:
                 raise ValidationError('The commands ' + ' '.join(str(conflicting_command)
 				for conflicting_command in commands_taken_from_list) + ' cannot be used together')
+            if lists[1] is True:
+                if len(commands_taken_from_list) < 1:
+                    raise ValidationError('Atleast one from the mutually exclusive options '+
+				    ' '.join(str(command) for command in lists[0])+ ' required')
 
 class OptionType(Enum):
     STRING = "string"
