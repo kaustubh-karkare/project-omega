@@ -13,6 +13,27 @@ function capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
+class InvalidArgument extends Error {
+    constructor(argumentLabel) {
+        super(argumentLabel);
+        this.name = "Invalid Argument";
+    }
+}
+
+class WrongArgumentTypeException extends Error {
+    constructor(property, expected, found) {
+        super(property + " type expected : " + expected + ", found : " + found);
+        this.name = this.constructor.name;
+    }
+}
+
+class EmptyArgumentValueException extends Error {
+    constructor(label) {
+        super("Argument " + label + " cannot be empty");
+        this.name = this.constructor.name;
+    }
+}
+
 class Argument{
     /**
      * @constructor
@@ -30,7 +51,7 @@ class Argument{
         
         var defaultValueType = typeof defaultValue;
         if (valueType != capitalizeFirstLetter(defaultValueType)) { //
-            throw "Default value not of type " + valueType;
+            throw new WrongArgumentTypeException("Default Value", this.valueType, typeof defaultValue);
         } else {
             this.defaultValue = defaultValue;
         }
@@ -91,7 +112,7 @@ class Parser {
     addArgument(shortLabel, largeLabel, isValueRequired, valueType, defaultValue) {
         
         if(shortLabel in this.argumentIndexByLabel || largeLabel in this.argumentIndexByLabel) {
-            throw "Argument with the same label already exists";
+            throw new InvalidArgument("Argument with the same label already exists");
         }
 
         var index = this.arguments.length;
@@ -113,7 +134,7 @@ class Parser {
     setValue(label, value) {
         
         if (!(label in this.argumentIndexByLabel)) {
-            throw "Argument not found!";
+            throw new InvalidArgument(label + " not defined");
         }
 
         var index = Number(this.argumentIndexByLabel[label]);
@@ -125,33 +146,38 @@ class Parser {
                 value = String(value);
                 this.argumentJson[this.arguments[index].getLargeLabel()] = value;
             } catch (err) {
-                throw "Expected : " + valueTypeExpected + ", found " 
-                    + capitalizeFirstLetter(foundValueType);
+                throw new WrongArgumentTypeException("Value", valueTypeExpected, 
+                    capitalizeFirstLetter(foundValueType));
             }
         } else if (valueTypeExpected == "Number") {
             
             try { //
                 value = Number(value);
                 if (isNaN(value)) {
-                    throw "Expected : " + valueTypeExpected + ", found " 
-                        + capitalizeFirstLetter(foundValueType);
+                    throw new WrongArgumentTypeException("Value", valueTypeExpected, 
+                        capitalizeFirstLetter(foundValueType));
                 }
                 this.argumentJson[this.arguments[index].getLargeLabel()] = value;
             } catch (err) {
-                throw "Expected : " + valueTypeExpected + ", found " 
-                    + capitalizeFirstLetter(foundValueType);
+                throw new WrongArgumentTypeException("Value", valueTypeExpected, 
+                    capitalizeFirstLetter(foundValueType));
             }
         } else {
             try { //
                 if (value == 'true') {
                     value = true;
-                } else {
+                } else if (value == 'false') {
                     value = false;
+                } else {
+                    throw new WrongArgumentTypeException(this.arguments[index].getLargeLabel(),
+                                                        this.arguments[index].getValueType(),
+                                                        capitalizeFirstLetter(foundValueType));
                 }
                 this.argumentJson[this.arguments[index].getLargeLabel()] = value;
             } catch (err) {
-                throw "Expected : " + valueTypeExpected + ", found " 
-                    + capitalizeFirstLetter(foundValueType);
+                throw new WrongArgumentTypeException(this.arguments[index].getLargeLabel(), 
+                                                    valueTypeExpected, 
+                                                    capitalizeFirstLetter(foundValueType));
             }
         }
     } 
@@ -165,7 +191,7 @@ class Parser {
         if(label in this.argumentIndexByLabel) {
             return this.argumentIndexByLabel[label];
         }
-        throw label + " : undefined argument";
+        throw new InvalidArgument(label);
     }
 
     listArgsProvided(providedArgumentList) {
@@ -208,13 +234,13 @@ class Parser {
                      * Check if the iterator reaches the end of the passed arguments array
                      */
                     if(ii == providedArgumentList.length) {
-                        throw "Argument " + label + " cannot be empty";
+                        throw new EmptyArgumentValueException(label);
                     }
                     var argvValueProvided = providedArgumentList[ii].match(inputValue);
                     if(argvValueProvided != null) {
                         this.setValue(label, argvValueProvided);
                     } else {
-                        throw "Argument " + label + " cannot be empty";
+                        throw new EmptyArgumentValueException(label);
                     }
                 } else {
 
@@ -225,6 +251,7 @@ class Parser {
                 } 
             } else if (providedArgumentList[ii].match(shortInputArgv) != null 
                 || providedArgumentList[ii].match(largeInputArgv) != null) {
+                
                 /**
                  * Extract the Argument Label
                  */
@@ -242,7 +269,7 @@ class Parser {
                  */
                 this.setValue(label, argvValueProvided);
             } else {
-                throw "Wrong argument " + label;
+                throw new InvalidArgument(providedArgumentList[ii]);
             }
         }
     }
