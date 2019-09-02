@@ -1,36 +1,28 @@
-/*Declaration of variables */
+//Declaration of variables
+
 var commands = process.argv.slice(2);
-var validArguments = ["key", "name", "local", "remote"];
 var argumentNameArray = [];
 var argumentValueArray = [];
 var errorStatement = "";
 var errorPresent = false;
 
 
+class Parser {
 
-/*
-* Defining a class for an 
-* argument's properties
- */
-class Arguments {
-    constructor(isReq, type, cantBeUsedWith) {
-        this.isReq = isReq;
-        this.type = type;
-        this.cantBeUsedWith = cantBeUsedWith;
+    addOption(name, isReq, type, cantBeUsedWith) {
+        this.options.push({ name: name, isReq: isReq, type: type, cantBeUsedWith: cantBeUsedWith });
     }
 }
+Parser.prototype.options = [];
 
 
 
-/*
-* Defining valid arguments as objects 
-* with properties like isReq,
-* type and cantBeUsedWith
-*/
-var key = new Arguments(true, "number");
-var name = new Arguments(false, "string");
-var local = new Arguments(false, "boolean", "remote");
-var remote = new Arguments(false, "boolean", "local");
+var parser = new Parser();
+
+parser.addOption("key", true, "number");
+parser.addOption("name", false, "string");
+parser.addOption("local", false, 'boolean', "remote");
+parser.addOption("remote", false, "boolean", "local");
 
 
 
@@ -39,15 +31,15 @@ var remote = new Arguments(false, "boolean", "local");
 * argument's name from 
 * the commands array
 */
-function extractArgumentName(argumentName) {
-    var key = "";
-    for (var i = 2; i < argumentName.length; i++) {
-        if (argumentName[i] === '=') {
-            return key;
+function extractArgumentName(argument) {
+    var argumentName = "";
+    for (var i = 2; i < argument.length; i++) {
+        if (argument[i] === '=') {
+            return argumentName;
         }
-        key += argumentName[i];
+        argumentName += argument[i];
     }
-    return key;
+    return argumentName;
 }
 
 
@@ -57,16 +49,31 @@ function extractArgumentName(argumentName) {
 * argument's value from 
 * the commands array
 */
-function extractArgumentValue(argumentName) {
-    if (!argumentName.includes("=")) {
+function extractArgumentValue(argument) {
+    if (!argument.includes("=")) {
         return true;
     }
     var argumentValue = "";
-    var index = argumentName.indexOf('=');
-    for (var i = index + 1; i < argumentName.length; i++) {
-        argumentValue += argumentName[i];
+    var index = argument.indexOf('=');
+    for (var i = index + 1; i < argument.length; i++) {
+        argumentValue += argument[i];
     }
     return argumentValue;
+}
+
+
+
+/*
+* Function to check if arguments
+* given by the user are defined
+*/
+function checkIfArgumentDefined(argumentName) {
+    for (var i = 0; i < parser.options.length; i++) {
+        if (argumentName === parser.options[i].name) {
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -76,15 +83,23 @@ function extractArgumentValue(argumentName) {
 * type of argument's value
 */
 function typeCheck(argumentNameToBeChecked, argumentValueToBeChecked) {
-    if (eval(argumentNameToBeChecked).type === "number") {
+
+    var i;
+
+    for (i = 0; i < parser.options.length; i++) {
+        if (argumentNameToBeChecked === parser.options[i].name) {
+            argumentNameToBeChecked = parser.options[i].name;
+            break;
+        }
+    }
+
+    if (parser.options[i].type === "number") {
         return !isNaN(argumentValueToBeChecked);
     }
-
-    if (eval(argumentNameToBeChecked).type === "string") {
+    if (parser.options[i].type === "string") {
         return /^[a-zA-Z]+$/.test(argumentValueToBeChecked);
     }
-
-    if (eval(argumentNameToBeChecked).type === "boolean") {
+    if (parser.options[i].type === "boolean") {
         return true;
     }
 }
@@ -92,97 +107,130 @@ function typeCheck(argumentNameToBeChecked, argumentValueToBeChecked) {
 
 
 /*
-* Iterating the commands array
-* to extract argument's
-* name and value
+* Function to check if
+* the mandatory arguments are
+* present in the commands
+* given by the user
 */
-for (var i = 0; i < commands.length; i++) {
-
-    var argumentName = extractArgumentName(commands[i]);
-    var argumentValue = extractArgumentValue(commands[i]);
-
-    //Checking if the argument provided is valid
-    if (!validArguments.includes(argumentName)) {
-        errorPresent = true;
-        errorStatement += `Error : ${argumentName} is undefined`;
-        //break;
-    }
-
-    argumentNameArray.push(argumentName);
-    argumentValueArray.push(argumentValue);
-}
-
-
-
-/*
-* Iterating the validArguments array
-* to check if the mandatory
-* arguments are present in the
-* commands given by the user
-*/
-for (var i = 0; i < validArguments.length; i++) {
-    if (eval(validArguments[i]).isReq == true) {
-        if (!argumentNameArray.includes(validArguments[i])) {
-            errorStatement += `Error : --${validArguments[i]} argument is required\n`;
-            errorPresent = true;
-            break;
+function areRequiredArgumentsPresent(argumentNameArray) {
+    for (var i = 0; i < parser.options.length; i++) {
+        if (parser.options[i].isReq === true) {
+            if (!argumentNameArray.includes(parser.options[i].name)) {
+                errorStatement += `Error :The argument "--${parser.options[i].name}" is required\n`;
+                return false;
+            }
         }
     }
+    return true;
 }
 
 
 
 /*
-* Iterating the argumentNameArray
-* to validate the type of values
-* provided by the user
+* Function to check if arguments 
+* given by the user can be used together
 */
-for (i = 0; i < argumentNameArray.length; i++) {
-    if (!typeCheck(argumentNameArray[i], argumentValueArray[i])) {
-        errorStatement += `Error : Type of ${argumentNameArray[i]} is invalid\n`;
-        errorPresent = true;
-    }
-}
-
-
-
-/*
-* Iterating the argumentNameArray 
-* to check if the arguments provided
-* by the user can be used together
-*/
-for (var i = 0; i < argumentNameArray.length; i++) {
-    if (argumentNameArray.includes(eval(argumentNameArray[i]).cantBeUsedWith)) {
-        errorStatement += `Error : the --${eval(argumentNameArray[i]).cantBeUsedWith} ` +
-            `argument cannot be used with the` +
-            `--${argumentNameArray[i]} argument`;
-        errorPresent = true;
-        break;
-    }
-}
-
-
-
-/*
-* Printing out the JSON output
-* if no error is found
-*/
-if (!errorPresent) {
-    var finalResult = {};
+function ifArgumentsCanBeUsedTogether(argumentNameArray) {
     for (var i = 0; i < argumentNameArray.length; i++) {
-        finalResult[argumentNameArray[i]] = argumentValueArray[i];
+        if (argumentNameArray.includes(parser.options[i].cantBeUsedWith)) {
+            errorStatement += `Error : The argument "--${parser.options[i].name}" can't be used with` +
+                ` the argument "--${parser.options[i].cantBeUsedWith}"\n`
+            return false;
+        }
+    }
+    return true;
+}
+
+
+
+//MAIN FUNCTION
+function parseArgumentsIntoJSON(commands) {
+
+    for (var i = 0; i < commands.length; i++) {
+
+        var argumentName = extractArgumentName(commands[i]);
+        var argumentValue = extractArgumentValue(commands[i]);
+
+        //Checking if the argument provided is defined
+        if (!checkIfArgumentDefined(argumentName)) {
+            errorPresent = true;
+            errorStatement += `Error : The argument "--${argumentName}" is undefined`;
+
+        }
+
+        if (!typeCheck(argumentName, argumentValue)) {
+            errorStatement += `Error : Type of the argument "--${argumentName}" is invalid\n`;
+            errorPresent = true;
+        }
+
+
+
+        argumentNameArray.push(argumentName);
+        argumentValueArray.push(argumentValue);
     }
 
-    console.log(JSON.stringify(finalResult));
+
+
+    /*
+    * Checking if the mandatory arguments 
+    * are present 
+    */
+    if (!areRequiredArgumentsPresent(argumentNameArray)) {
+        errorPresent = true;
+    }
+
+
+    /*
+    * Checking if the arguments 
+    * can be used together
+    */
+    if (!ifArgumentsCanBeUsedTogether(argumentNameArray)) {
+        errorPresent = true;
+    }
+
+
+
+    /*
+    * Printing out the JSON output
+    * if no error is found
+    */
+    if (!errorPresent) {
+        var finalResult = {};
+        for (var i = 0; i < argumentNameArray.length; i++) {
+            finalResult[argumentNameArray[i]] = argumentValueArray[i];
+        }
+
+        console.log(JSON.stringify(finalResult));
+    }
+
+    /*
+    * Printing out the error statement 
+    * if error is found
+    */
+    else {
+        console.log(errorStatement);
+    }
+
+
 }
+
+
+
 /*
-* Printing out the error statement 
-* if error is found
+* Calling the main function and 
+* passing the command given by the user
 */
-else {
-    console.log(errorStatement)
-}
+parseArgumentsIntoJSON(commands);
 
 
-module.exports = { extractArgumentName, extractArgumentValue, typeCheck };
 
+//Exporting functions to test
+module.exports = {
+    extractArgumentName,
+    extractArgumentValue,
+    typeCheck,
+    checkIfArgumentDefined,
+    areRequiredArgumentsPresent,
+    ifArgumentsCanBeUsedTogether,
+    parseArgumentsIntoJSON
+};
