@@ -3,19 +3,25 @@ import json
 import re
 
 
-class CommandLineParser:
-    COMMANDS ={}
+class AddCommand:
+    COMMANDS = {}
 
-    def __init__(self, command_name, command_type, regular_expression, required_command, conflicting_command):
+    def __init__(self, command_name, command_type, regular_expression, required_command, conflicting_command, is_local):
         self.command_name = command_name
         self.command_type = command_type
         self.regular_expression = regular_expression
         self.required_command = required_command
         self.conflicting_command = conflicting_command
-        CommandLineParser.COMMANDS[self.command_name] = self
+        self.is_local = is_local
+        self.COMMANDS[self.command_name] = self
 
 
-    def get_arguments(argv):
+class CommandLineParser(AddCommand):
+
+    def __init__(self):
+        self.COMMANDS = super().COMMANDS
+
+    def get_arguments(self, argv):
         results = {}
         commands_found = []
         error_message = None
@@ -34,15 +40,13 @@ class CommandLineParser:
 
             commands_found.append(command)
 
-            if command in ('--local', '--remote'): # commands with no arguments
-                results[command] = True
-                if command in ('--remote'):
-                    results[command] = False
-                continue
-            if command not in CommandLineParser.COMMANDS: # commands with at least one argument
+            if command not in self.COMMANDS: # commands with at least one argument
                 error_message = command + ' is not a recognized command'
             else:
-                regular_expression = CommandLineParser.COMMANDS[command].regular_expression
+                if self.COMMANDS[command].is_local is True:
+                    results[command] = True
+                    continue
+                regular_expression = self.COMMANDS[command].regular_expression
                 if re.fullmatch(regular_expression, value):
                     results[command] = value
                 else:
@@ -56,10 +60,10 @@ class CommandLineParser:
             pass
         else:
             for command in commands_found:
-                conflicting_command = CommandLineParser.COMMANDS[command].conflicting_command
+                conflicting_command = self.COMMANDS[command].conflicting_command
                 if conflicting_command is not None and conflicting_command in commands_found:
                     error_message = 'The ' + command + ' and ' + conflicting_command + ' arguments cannot be used together'
-                required_command = CommandLineParser.COMMANDS[command].required_command
+                required_command = self.COMMANDS[command].required_command
                 if required_command is not None and required_command not in commands_found:
                     error_message = 'The ' + required_command + ' argument is required, but missing from input'
 
@@ -70,10 +74,11 @@ class CommandLineParser:
         return final_response
 
 
-KEY_COMMAND = CommandLineParser('--key', 'positive integer', r'\d+', None, None)
-NAME_COMMAND = CommandLineParser('--name', 'albhapets only', r'[a-zA-Z]+', '--key', None)
-LOCAL_COMMAND = CommandLineParser('--local', None, r'/\A\z/', None, '--remote')
-REMOTE_COMMAND = CommandLineParser('--remote', None, r'/\A\z/', None, '--local')
+KEY_COMMAND = AddCommand('--key', 'positive integer', r'\d+', None, None, False)
+NAME_COMMAND = AddCommand('--name', 'albhapets only', r'[a-zA-Z]+', '--key', None, False)
+LOCAL_COMMAND = AddCommand('--local', None, r'/\A\z/', None, '--remote', True)
+REMOTE_COMMAND = AddCommand('--remote', None, r'/\A\z/', None, '--local', True)
+
 
 if __name__ == '__main__':
-    CommandLineParser.get_arguments(sys.argv)
+    CommandLineParser().get_arguments(sys.argv)
