@@ -2,84 +2,73 @@
 @author: Abhilasha
 """
 import unittest
-from my_parser import MyParser
+from my_parser import MyParser, MyParserError
 class Tests(unittest.TestCase):
     """
     some test cases
     """
     
     def setUp(self):
-        self.Parser=MyParser()
+        self.parser = MyParser()
       
         
-    def test_only_key_defined(self):
-        self.Parser.add_option('--key', dtype='int', nargs=2)
-        ans = self.Parser.check_argument(['./test', '--key=123'])
+    def test_one_option_defined(self):
+        self.parser.add_option('--key', dtype='int', is_required='True')
+        ans = self.parser.check_options(['./test', '--key=123'])
         self.assertEqual({'--key': '123'}, ans)
              
         
-    def test_key_and_name_defined(self):
-        self.Parser.add_option('--key', dtype='int', nargs = 2)
-        self.Parser.add_option('--name', dtype='str', nargs = 2)
-        ans = self.Parser.check_argument(['./test', '--key=12345', '--name=kaustubh'])
+    def test_two_options_defined(self):
+        self.parser.add_option('--key', dtype='int', is_required='True')
+        self.parser.add_option('--name', dtype='str', is_required='True')
+        ans = self.parser.check_options(['./test', '--key=12345', '--name=kaustubh'])
         self.assertEqual({'--key': '12345', '--name': 'kaustubh'}, ans)
         
         
-    def test_invalid_key(self):
-        self.Parser.add_option('--key', dtype='int', nargs = 2)
-        with self.assertRaises(Exception) as context:
-            self.Parser.check_argument(['./test', '--key=cat'])
+    def test_three_options_defined(self):
+        self.parser.add_option('--key', dtype='int', is_required='True')
+        self.parser.add_option('--local', dtype='str', is_required='False')
+        self.parser.add_option('--remote', dtype='str', is_required='False')
+        ans = self.parser.check_options(['./test', '--key=19', '--local', '--remote'])
+        self.assertEqual({'--key': '19', '--local': 'True', '--remote': 'True'}, ans)
+        
+        
+    def test_option_with_invalid_datatype(self):
+        self.parser.add_option('--key', dtype='int', is_required='True')
+        with self.assertRaises(MyParserError) as context:
+            self.parser.check_options(['./test', '--key=cat'])
         self.assertEqual('The field has invalid value.', str(context.exception))
         
         
-    def test_local_remote(self):
-        self.Parser.add_option('--local', dtype='str', nargs = 1)
-        with self.assertRaises(Exception) as context:
-            self.Parser.check_argument(['./test', '--local', '--remote'])
+    def test_unexpexted_option(self):
+        self.parser.add_option('--local', dtype='str', is_required='False')
+        with self.assertRaises(MyParserError) as context:
+            self.parser.check_options(['./test', '--local', '--remote'])
         self.assertEqual("Invalid field given.", str(context.exception))
         
-        
-    def test_local_and_name(self):
-        self.Parser.add_option('--name', dtype='str', nargs = 2)
-        self.Parser.add_option('--local', dtype='str', nargs = 1)
-        ans = self.Parser.check_argument(['./test', '--local', '--name=abcd'])
-        self.assertEqual({'--local': 'True', '--name': 'abcd'}, ans)
-        
-        
-    def test_undefined_field(self):
-        self.Parser.add_option('--key', dtype='int', nargs = 2) 
-        with self.assertRaises(Exception) as context:
-            self.Parser.check_argument(['./test', '--age=19'])
-        self.assertEqual('Invalid field given.', str(context.exception))
+                
+    def test_too_less_arguments_given(self):
+        self.parser.add_option('--age', dtype='int', is_required='True') 
+        with self.assertRaises(MyParserError) as context:
+            self.parser.check_options(['./test', '--age'])
+        self.assertEqual('Too less arguments.', str(context.exception))
 
         
-    def test_extra_field_given(self):
-        self.Parser.add_option('--key', dtype='int', nargs = 2)
-        self.Parser.add_option('--local', dtype='str', nargs = 1)
-        with self.assertRaises(Exception) as context:
-            self.Parser.check_argument(['./test', '--key=19', '--local', '--remote'])
-        self.assertEqual('Invalid field given.', str(context.exception))
+    def test_too_many_arguments_given(self):
+        self.parser.add_option('--key', dtype='int', is_required='True')
+        self.parser.add_option('--local', dtype='str', is_required='False')
+        with self.assertRaises(MyParserError) as context:
+            self.parser.check_options(['./test', '--key=19', '--local=abc'])
+        self.assertEqual('Too many arguments.', str(context.exception))
         
         
-    def test_key_and_local_defined(self):
-        self.Parser.add_option('--key', dtype='int', nargs = 2)
-        self.Parser.add_option('--local', dtype='str', nargs = 1)
-        ans = self.Parser.check_argument(['./test', '--key=19', '--local'])
-        self.assertEqual({'--key': '19', '--local': 'True'}, ans)
+    def test_no_options_defined(self):
+        self.parser.add_option('--key', dtype='int', is_required='True')
+        with self.assertRaises(MyParserError) as context:
+            self.parser.check_options(['./test'])
+        self.assertEqual('No options given.', str(context.exception))
       
-        
-    def test_no_arguments(self):
-        self.Parser.add_option('--key', dtype='int', nargs = 2)
-        with self.assertRaises(Exception) as context:
-            self.Parser.check_argument(['./test'])
-        self.assertEqual('No arguments.', str(context.exception))
-      
-        
-    def test_age(self):
-        self.Parser.add_option('--age', dtype='int', nargs=2)
-        ans = self.Parser.check_argument(['./test', '--age=19'])
-        self.assertEqual({'--age': '19'}, ans)
-        
+               
 if __name__ == '__main__':
     unittest.main()
     
