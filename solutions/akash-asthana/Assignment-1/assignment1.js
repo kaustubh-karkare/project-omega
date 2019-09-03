@@ -19,10 +19,10 @@ Parser.prototype.options = [];
 
 var parser = new Parser();
 
-parser.addOption("key", true, "number");
-parser.addOption("name", false, "string");
-parser.addOption("local", false, 'boolean', "remote");
-parser.addOption("remote", false, "boolean", "local");
+parser.addOption(name = "key", isReq = true, type = "number");
+parser.addOption(name = "name", isReq = false, type = "string");
+parser.addOption(name = "local", isReq = false, type = 'boolean', cantBeUsedWith = "remote");
+parser.addOption(name = "remote", isReq = false, type = "boolean", cantBeUsedWith = "local");
 
 
 
