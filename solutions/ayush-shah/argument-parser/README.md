@@ -13,8 +13,7 @@ $ python3 parser.py
   Error: The argument '--key' is required, but missing from input       
                                                                         
 $ python3 parser.py --local --remote                                    
-  Error: The '--local' and '--remote' arguments cannot be used together 
-  Error: The argument '--key' is required, but missing from input       
+  Error: The '--local' and '--remote' arguments cannot be used together       
                                                                         
 $ python3 parser.py --key=1234 --roll=10014                             
   Error: invalid argument '--roll'                                      
