@@ -41,9 +41,9 @@ class Option(object):
         elif self.nargs == '?':
             usage += f' [{self.metavar}]'
         elif self.nargs == '+':
-            usage += f' [{self.metavar} [{self.metavar}...]]'
-        elif self.nargs == '*':
             usage += f' {self.metavar} [{self.metavar}...]'
+        elif self.nargs == '*':
+            usage += f' [{self.metavar} [{self.metavar}...]]'
         self.usage = usage
 
     def validate_repeat(self) -> None:

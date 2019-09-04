@@ -130,11 +130,14 @@ class TestArgparser(unittest.TestCase):
     def test_help(self):
         parser = argparser.ArgumentParser('Testing newly added features')
         parser.add_argument(name='--sum', action=sum, nargs='+', type=int, help="Finding sum", metavar='N')
+
         output = parser.print_help()
         self.assertEqual(output,
                          '{"description": "Testing newly added features", "usage": "[--help] [--sum [N [N...]]]", "optional arguments": ["--help show help message ", "--sum [N [N...]] Finding sum"]}')
+
         parser.add_argument(name='--max', action=max, nargs='+', type=int, help="Finding max", metavar='X')
         parser.add_argument(name='--foo', nargs=3, type=int, help="Testing default metavar")
+
         output = parser.arg_parse(['--help'])
         self.assertEqual(output,
                          '{"description": "Testing newly added features", "usage": "[--help] [--sum [N [N...]]] [--max [X [X...]]] [--foo FOO FOO FOO]", "optional arguments": ["--help show help message ", "--sum [N [N...]] Finding sum", "--max [X [X...]] Finding max", "--foo FOO FOO FOO Testing default metavar"]}')
@@ -142,15 +145,3 @@ class TestArgparser(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-# import argparser
-# parser = argparser.ArgumentParser()
-# parser.add_mutually_exclusive_group(['--local', '--remote'])
-# parser.add_argument(name='--local', nargs=1)
-# parser.add_argument(name='--remote')
-# parser.add_argument(name='--x')
-# parser.add_argument(name='--y')
-# parser.add_argument(name='--z')
-# parser.add_mutually_exclusive_group(['--x', '--y'])
-# output = parser.arg_parse(['--local', '192.168.112.65', '--x', 'XXX', '--z', 'YYY'])
-# print(output)
