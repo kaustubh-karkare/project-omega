@@ -1,4 +1,4 @@
-"""A main function to trigger build automation"""
+"""Triggers build automation commands in the directory where this file exists"""
 import sys
 sys.path.append('../')
 from build import Build
