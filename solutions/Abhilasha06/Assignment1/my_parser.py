@@ -86,13 +86,13 @@ class MyParser:
                     if size > 2:
                         raise MyParserError("Too many arguments.")
                         
-                    elif size == 1 and opt.is_required == "False":
+                    elif not opt.is_required and size == 1:
                         self.data[opt.name] = "True"
                          
                     else:
-                        if opt.is_required == "False" and size == 2:
+                        if not opt.is_required and size == 2:
                             raise MyParserError("Too many arguments.")
-                        elif opt.is_required == "True" and size == 1:
+                        elif opt.is_required and size == 1:
                             raise MyParserError("Too less arguments.")
                         else:
                             self.check_dtype(splitted_word[0], opt.dtype, splitted_word[1])
