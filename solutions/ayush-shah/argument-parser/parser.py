@@ -1,27 +1,33 @@
 import sys
-Integer, String, Others, Required = set(), set(), set(), set()
-errors, Json = dict(), dict()
+import json
+
 class Parser:
-    """Class for adding the command line arguments, storing errors, storing results and displaying them"""
+    """
+    Class for adding the command line arguments
+    storing errors, storing results and displaying them
+    """
+    Integer, String, Others, Required = set(), set(), set(), set()
+    Json = dict()
+
     def add_argument(self, argument, required, types):
         if types == 'integer':
-            Integer.add(argument)
+            self.Integer.add(argument)
             if required == 'yes':
-                Required.add(argument)
+                self.Required.add(argument)
         elif types == 'string':
-            String.add(argument)
+            self.String.add(argument)
             if required == 'yes':
-                Required.add(argument)
+                self.Required.add(argument)
         else:
-            Others.add(argument)
+            self.Others.add(argument)
             if required == 'yes':
-                Required.add(argument)
-    def store_error(self, key, error):
-        errors.setdefault(key, []).append(error)
+                self.Required.add(argument)
+
     def store_result(self, key, value):
-        Json[key] = value
+        self.Json[key] = value
+
     def check_required(self, keys):
-        for check in Required:
+        for check in self.Required:
             flag = False
             for key in keys:
                 if key == check:
@@ -29,71 +35,60 @@ class Parser:
             if not flag:
                 return False, check
         return True, "ok"
-    def display_error(self):
-        for key in errors:
-            for error in errors[key]:
-                if error == "invalid-argument":
-                    print("Error: invalid argument '"+key+"'")
-                if error == "no-value" and key not in ("--local", "--remote"):
-                    print("Error: The value for argument '"+key+"' is missing")
-                if error == "required":
-                    print("Error: The argument '"+key+"' is required, but missing from input")
-                if error == "local and remote":
-                    print("Error: The '--local' and '--remote' arguments cannot be used together")
-                if error == "not-int":
-                    print("Error: The value for argument '"+key+"' must be integer")
-                if error == "not-string":
-                    print("Error: The value for argument '"+key+"' must be string")
-    def display_result(self):
-        print('{')
-        for key in Json:
-            print("'"+key+"' : '"+Json[key]+"',")
-        print('}')
 
-def main(argument):
-    parse = Parser()
-    parse.add_argument('--key', 'yes', 'integer')
-    parse.add_argument('--name', 'no', 'string')
-    parse.add_argument('--local', 'no', 'others')
-    parse.add_argument('--remote', 'no', 'others')
-    length_of_arguments = len(argument)
-    if length_of_arguments == 1:
-        print("Error: no arguments given in input")
-        return 0
-    check = False
-    keys = list()
-    for arguments in range(1, length_of_arguments):
-        args = argument[arguments]
-        key = args.partition('=')[0]
-        value = args.partition('=')[2]
-        keys.append(key)
-        if key not in ("--remote", "--local"):
-            parse.store_result(key, value)
-            if (key not in Integer) and (key not in String) and(key not in Others):
-                parse.store_error(key, "invalid-argument")
+    def check_local_and_remote(self, argument):
+        length_of_arguments = len(argument)
+        check = False
+        for arguments in range(1, length_of_arguments):
+            args = argument[arguments]
+            key = args.partition('=')[0]
             if key == '--local' and not check:
                 check = True
             elif key == '--remote' and not check:
                 check = True
             elif check and key in ('--local', '--remote'):
-                parse.store_error(key, "local and remote")
-            if '=' not in args:
-                parse.store_error(key, "no-value")
-            if key in Integer:
-                if not value.isdigit():
-                    parse.store_error(key, "not-int")
-            if key in String:
-                if not value.isalpha():
-                    parse.store_error(key, "not-string")
+                return True
+        return False
 
-    response, key = parse.check_required(keys)
-    if not response:
-        parse.store_error(key, "required")
-    if bool(errors):
-        parse.display_error()
-    else:
-        parse.display_result()
+    def display_result(self):
+        to_json = json.dumps(self.Json)
+        return to_json
+
+    def main(self, argument):
+        self.add_argument('--key', 'yes', 'integer')
+        self.add_argument('--name', 'no', 'string')
+        self.add_argument('--local', 'no', 'others')
+        self.add_argument('--remote', 'no', 'others')
+        length_of_arguments = len(argument)
+        if length_of_arguments == 1:
+            return "Error: no arguments given in input"
+        if self.check_local_and_remote(argument):
+            return "Error: The '--local' and '--remote' arguments cannot be used together"
+        keys = list()
+        for arguments in range(1, length_of_arguments):
+            args = argument[arguments]
+            key = args.partition('=')[0]
+            value = args.partition('=')[2]
+            keys.append(key)
+            if key not in ("--remote", "--local"):
+                self.store_result(key, value)
+            if (key not in self.Integer) and (key not in self.String) and(key not in self.Others):
+                return "Error: invalid argument '" + key + "'"
+            if '=' not in args:
+                return "Error: The value for argument '" + key + "' is missing"
+            if key in self.Integer:
+                if not value.isdigit():
+                    return "Error: The value for argument '" + key + "' must be integer"
+            if key in self.String:
+                if not value.isalpha():
+                    return "Error: The value for argument '" + key + "' must be string"
+
+        response, key = self.check_required(keys)
+        if not response:
+            return "Error : argument '" + key + "' is required but missing"
+        return self.display_result()
 
 if __name__ == '__main__':
-    main(sys.argv)
+    Parse = Parser()
+    Parse.main(sys.argv)
     
