@@ -6,6 +6,8 @@ class TestCommandLParser(unittest.TestCase):
     def test_basic_usage(self):
         command_line_param = ['./test', '--key=123', '--name=pranjal']
         result = CommandLineParser().get_arguments(command_line_param)
+        print(result)
+        print(type(result))
         self.assertEqual(result, '{"--key": "123", "--name": "pranjal"}')
 
     def test_invalid_key(self):
@@ -43,6 +45,11 @@ class TestCommandLParser(unittest.TestCase):
         result = CommandLineParser().get_arguments(command_line_param)
         self.assertEqual(result, '--version is not a recognized command')
 
-
-if __name__ == '__main__':
-    unittest.main()
+    def call_functions(self):
+        self.test_basic_usage()
+        self.test_missing_key()
+        self.test_invalid_name()
+        self.test_local()
+        self.test_remote()
+        self.test_remote_with_local()
+        self.test_unrecognized_command()

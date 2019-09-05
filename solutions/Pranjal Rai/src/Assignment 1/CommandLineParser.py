@@ -16,6 +16,7 @@ class AddCommand:
         self.COMMANDS[self.command_name] = self
 
 
+
 class CommandLineParser(AddCommand):
 
     def __init__(self):
@@ -73,12 +74,3 @@ class CommandLineParser(AddCommand):
         print(final_response)
         return final_response
 
-
-KEY_COMMAND = AddCommand('--key', 'positive integer', r'\d+', None, None, False)
-NAME_COMMAND = AddCommand('--name', 'albhapets only', r'[a-zA-Z]+', '--key', None, False)
-LOCAL_COMMAND = AddCommand('--local', None, r'/\A\z/', None, '--remote', True)
-REMOTE_COMMAND = AddCommand('--remote', None, r'/\A\z/', None, '--local', True)
-
-
-if __name__ == '__main__':
-    CommandLineParser().get_arguments(sys.argv)
