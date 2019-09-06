@@ -1,4 +1,3 @@
-import sys
 import json
 
 class Parser:
@@ -55,10 +54,6 @@ class Parser:
         return to_json
 
     def main(self, argument):
-        self.add_argument('--key', 'yes', 'integer')
-        self.add_argument('--name', 'no', 'string')
-        self.add_argument('--local', 'no', 'others')
-        self.add_argument('--remote', 'no', 'others')
         length_of_arguments = len(argument)
         if length_of_arguments == 1:
             return "Error: no arguments given in input"
@@ -88,7 +83,3 @@ class Parser:
             return "Error : argument '" + key + "' is required but missing"
         return self.display_result()
 
-if __name__ == '__main__':
-    Parse = Parser()
-    Parse.main(sys.argv)
-    
