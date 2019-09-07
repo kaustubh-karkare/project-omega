@@ -101,7 +101,7 @@ class MyParser:
                 
                             
             if not found_option:
-                raise MyParserError("Invalid field given.")
+                raise MyParserError("Unexpected field given.")
           
         return data
      

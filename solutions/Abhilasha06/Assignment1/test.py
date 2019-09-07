@@ -33,7 +33,7 @@ class Tests(unittest.TestCase):
         self.assertEqual({'--key': '19', '--local': 'True', '--remote': 'True'}, ans)
         
         
-    def test_option_with_unexpected_datatype(self):
+    def test_option_with_invalid_datatype(self):
         self.parser.add_option('--key', dtype='int', is_flag=True)
         with self.assertRaises(MyParserError) as context:
             self.parser.check_options(['./test', '--key=cat'])
@@ -44,7 +44,7 @@ class Tests(unittest.TestCase):
         self.parser.add_option('--local', dtype='str', is_flag=False)
         with self.assertRaises(MyParserError) as context:
             self.parser.check_options(['./test', '--local', '--remote'])
-        self.assertEqual("Invalid field given.", str(context.exception))
+        self.assertEqual("Unexpected field given.", str(context.exception))
         
                 
     def test_too_less_arguments_given(self):
