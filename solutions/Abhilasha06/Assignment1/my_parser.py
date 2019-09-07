@@ -20,10 +20,10 @@ class Option(object):
     options
     """
 
-    def __init__(self, name, dtype, is_required):
+    def __init__(self, name, dtype, is_flag):
         self.name = name
         self.dtype = dtype
-        self.is_required = is_required
+        self.is_flag = is_flag
 
        
 class MyParser:
@@ -32,74 +32,76 @@ class MyParser:
     """
     def __init__(self):
         self.options = []
-        self.data = {}
-        
 
-    def add_option(self, name, dtype, is_required):
-        option_being_added = Option(name, dtype, is_required)
+
+    def add_option(self, name, dtype, is_flag):
+        option_being_added = Option(name, dtype, is_flag)
         self.options.append(option_being_added)
         
     
-    def check_dtype(self, field_name, given_type, given_value):
+    def check_dtype(self, field_name, given_type, given_value, data):
         """
         to check if the datatype of the given arguments are valid
         """
         if given_type == "str":
             
-            self.data[field_name] = given_value  
+            data[field_name] = given_value  
          
             
         elif given_type == "int":
             
             if given_value.isdigit():
-                self.data[field_name] = given_value
+                data[field_name] = given_value
             else:
                 raise MyParserError("The field has invalid value.")
                 
         elif given_type == "bool":
             
             if given_value == "True" or given_value == "False":
-                self.data[field_name] = given_value
+                data[field_name] = given_value
             else:
                 raise MyParserError("The field has invalid value.")
             
         
-    def check_options(self, argument):
+    def check_options(self, arguments):
         """
         to parse the given input and give error if it is invalid
         """
-        no_of_args = len(argument)
+        no_of_args = len(arguments)
+        data = {}
         
         if no_of_args == 1:
             raise MyParserError("No options given.")
             
-        for args in argument[1:]:
+        for args in arguments[1:]:
             splitted_word = args.split('=')
             size = len(splitted_word)
-            flag = 0
+            found_option = False
             
             for opt in self.options:
                 if splitted_word[0] == opt.name:
               
-                    flag = 1
+                    found_option = True
 
                     if size > 2:
                         raise MyParserError("Too many arguments.")
                         
-                    elif not opt.is_required and size == 1:
-                        self.data[opt.name] = "True"
-                         
-                    else:
-                        if not opt.is_required and size == 2:
-                            raise MyParserError("Too many arguments.")
-                        elif opt.is_required and size == 1:
+                    elif size == 1:
+                        if not opt.is_flag:
+                            data[opt.name] = "True"
+                        elif opt.is_flag:
                             raise MyParserError("Too less arguments.")
-                        else:
-                            self.check_dtype(splitted_word[0], opt.dtype, splitted_word[1])
+                            
+                         
+                    elif size == 2:
+                        if not opt.is_flag:
+                            raise MyParserError("Too many arguments.")
+                        elif opt.is_flag:
+                            self.check_dtype(splitted_word[0], opt.dtype, splitted_word[1], data)
                 
                             
-            if flag == 0:
+            if not found_option:
                 raise MyParserError("Invalid field given.")
           
-        return self.data
+        return data
      
