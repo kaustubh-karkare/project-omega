@@ -92,27 +92,6 @@ class Parser:
                     return str(error)
         return user_passed_args
 
-    def errorlisting(self, errorcategory, command):
-        """ Function for generating the list of errors
-
-        """
-
-        print("Error: ")
-        if errorcategory == "mandatoryerror":
-            stderr.write(
-                "The \"--%s\" argument is required, but missing from input." % command)
-        elif errorcategory == "overflow":
-            stderr.write("There is no \"--%s\" argument named " % command)
-        elif errorcategory == "typeerror":
-            stderr.write("The value for the \"--%s\" argument must be a of type %s" %
-                         (command, self._expected_args[command]['type']))
-        elif errorcategory == "typeerrorstring":
-            stderr.write("The value for the \"--%s\" argument must be a of type %s" %
-                         (command, self._expected_args[command]['type']))
-        elif errorcategory == "conflict":
-            stderr.write(
-                "Conflicting situation found 2 mutually exclusive arguments found")
-
     def isstring(self, string):
         """ Function for checking whether a string contains number or not 
 
