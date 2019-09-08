@@ -8,8 +8,6 @@ class Parser:
         # print("class created")
         self._expected_args = {}
         self._required_args = {}
-        self.checking = "noerror"
-        self.type = ""
 
     def add_option(self, *args, **kwargs):
         """ Function for adding expected arguments info
