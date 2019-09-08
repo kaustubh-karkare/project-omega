@@ -6,8 +6,9 @@ import sys
 class SimpleTest(unittest.TestCase):
     def setUp(self):
         self.parser = library.Parser()
-        self.parser.add_option('key', required=True, type=int, mode="local")
-        self.parser.add_option('name',  type=str, mode="remote")
+        self.parser.add_option('key', required=True,
+                               type=int, unique_key="local")
+        self.parser.add_option('name',  type=str, unique_key="remote")
         self.parser.add_option('key2', mode="local", type=float)
         self.parser.add_option('name1', mode="local", type=str)
         pass
@@ -27,7 +28,7 @@ class SimpleTest(unittest.TestCase):
         self.commands = ['--key=1234']
         self.assertEqual(self.parser.parse(self.commands), {'key': 1234})
         self.commands = ['--key3=123', '--key=123']
-        self.assertEqual(self.parser.parse(self.commands), 'overflow')
+        self.assertEqual(self.parser.parse(self.commands), 'unexpected')
 
     def test_typeof_args(self):
         self.commands = ['--key=123.6']

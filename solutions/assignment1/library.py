@@ -2,21 +2,6 @@ from re import search
 from sys import stderr
 
 
-class StoreArgsOptions:
-
-    def __init__(self):
-        self.user_passed_args = {}
-
-    def add_user_passed_arg(self, key, user_passed_args):
-        self.user_passed_args[key] = user_passed_args
-
-    def get_user_passed_arg(self):
-        return self.user_passed_args
-
-    def empty_user_passed_arg(self):
-        self.user_passed_args = {}
-
-
 class Parser:
 
     def __init__(self):
@@ -25,8 +10,6 @@ class Parser:
         self._required_args = {}
         self.checking = "noerror"
         self.type = ""
-        self.modes = []
-        self.record = StoreArgsOptions()
 
     def add_option(self, *args, **kwargs):
         """ Function for adding expected arguments info
@@ -48,79 +31,68 @@ class Parser:
             The User passed values if everything goes well , otherwise returns the error
         """
         # Storing required Args for Error Checking
-        for key, value in self._expected_args.items():
+        for keys, value in self._expected_args.items():
             for i in value:
                 if i == 'required':
-                    self._required_args[key] = value
+                    self._required_args[keys] = value
+
+        unique_key_nums = 0
+        present_unique_key = ""
+        previous_unique_key = ""
+        user_passed_args = {}
 
         for keys in argslist:
-            keys = keys.split("--")
-            keys[1] = keys[1].split('=')
-            self.record.add_user_passed_arg(keys[1][0], keys[1][1])
-
-        # Checking error for mandatory and non-mandatory
-
-        for commands in self._required_args:
-            if commands not in self.record.get_user_passed_arg():
-                print(self.record.get_user_passed_arg())
-                self.checking = "mandatoryerror"
-                self.errorlisting(self.checking, commands)
-                return self.checking
-
-        for commands in self.record.get_user_passed_arg():
-            if commands not in self._expected_args:
-                self.checking = "overflow"
-                self.errorlisting(self.checking, commands)
-                return self.checking
-
-        for commands in self.record.get_user_passed_arg():
-            try:
-                self.record.get_user_passed_arg()[commands] = int(
-                    self.record.get_user_passed_arg()[commands])
-            except ValueError:
+            if keys.startswith('--'):
+                x = keys[2:].partition('=')
+                name = x[0]
+                value = x[2]
+                if name not in self._expected_args:
+                    try:
+                        raise ValueError("unexpected")
+                    except Exception as error:
+                        return str(error)
                 try:
-                    self.record.get_user_passed_arg()[commands] = float(
-                        self.record.get_user_passed_arg()[commands])
+                    value = int(value)
                 except ValueError:
                     try:
-                        if(self.isstring(self.record.get_user_passed_arg()[commands]) and isinstance(self._expected_args[commands]['type'], int) == False):
-
-                            self.checking = "typeerrorstring"
-                            print(self._expected_args[commands]['type'])
-                            self.errorlisting(self.checking, commands)
-                            return self.checking
-                        else:
-
-                            self.record.get_user_passed_arg()[commands] = str(
-                                self.record.get_user_passed_arg()[commands])
+                        value = float(value)
                     except ValueError:
-                        return self.checking
+                        try:
+                            if(self.isstring(value) and isinstance(self._expected_args[name]['type'], int) == False):
+                                try:
+                                    raise ValueError("typeerrorstring")
+                                except Exception as error:
+                                    return str(error)
+                            else:
+                                value = str(value)
+                        except ValueError:
+                            return self.checking
+                user_passed_args[name] = value
+                typeuserpassed = type(value)
+                typeuserdefined = self._expected_args[name]['type']
+                if(typeuserdefined != typeuserpassed):
+                    self.checking = "typeerror"
+                    try:
+                        raise TypeError("typeerror")
+                    except Exception as error:
+                        return str(error)
 
-        # Type Checking(datatype checking)
-        for commands in self.record.get_user_passed_arg():
+                if 'unique_key' in self._expected_args[name].keys():
+                    previous_unique_key = present_unique_key
+                    present_unique_key = self._expected_args[name]['unique_key']
+                if previous_unique_key != "" and previous_unique_key != present_unique_key:
+                    try:
+                        raise ValueError("conflict")
+                    except Exception as error:
+                        return str(error)
 
-            typeuserpassed = type(self.record.get_user_passed_arg()[commands])
-            typeuserdefined = self._expected_args[commands]['type']
-            if(typeuserdefined != typeuserpassed):
-                self.checking = "typeerror"
-                self.type = typeuserdefined
-                self.errorlisting(self.checking, commands)
-                return self.checking
-
-        for commands in self.record.get_user_passed_arg():
-            self.modes.append(self._expected_args[commands]['mode'])
-
-        if "local" in self.modes and "remote" in self.modes:
-            self.checking = "conflict"
-            self.errorlisting(self.checking, "both")
-            return self.checking
-
-        if self.checking == "noerror":
-            user_passed_args = self.record.get_user_passed_arg()
-            self.record.empty_user_passed_arg()
-            return user_passed_args
-        else:
-            return self.checking
+        for commands in self._required_args:
+            if commands not in user_passed_args:
+                try:
+                    raise ValueError("mandatoryerror")
+                except Exception as error:
+                    return str(error)
+        return user_passed_args
 
     def errorlisting(self, errorcategory, command):
         """ Function for generating the list of errors
