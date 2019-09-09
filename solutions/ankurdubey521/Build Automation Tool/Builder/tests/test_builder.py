@@ -5,8 +5,8 @@ from Builder.main import execute
 
 class TestBuilder(unittest.TestCase):
     def test_compilation(self):
-        path = ('/home/ankurdubey/Code/Github/project-omega/solutions',
-                '/ankurdubey521/Build Automation Tool/Builder/tests/filetree')
+        path = '/home/ankurdubey/Code/Github/project-omega/solutions' \
+                '/ankurdubey521/Build Automation Tool/Builder/tests/filetree'
         execute('run', path)
         exec_path = '"' + path + '/test.out' + '"'
         result = subprocess.run(exec_path, shell=True, capture_output=True, text=True)
