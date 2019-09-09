@@ -1,0 +1,12 @@
+[
+  {
+    "name": "clean",
+    "deps": ["algorithms/clean"],
+    "command": "rm -f test.o && rm -f test.exe"
+  },
+  {
+    "name": "test",
+    "files": ["test.cpp"],
+    "command": "g++ -std=c++11 -c test.cpp"
+  }
+]
