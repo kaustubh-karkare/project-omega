@@ -1,9 +1,17 @@
 import unittest
+import subprocess
+from Builder.main import execute
 
 
-class MyTestCase(unittest.TestCase):
-    def test_something(self):
-        self.assertEqual(True, False)
+class TestBuilder(unittest.TestCase):
+    def test_compilation(self):
+        path = ('/home/ankurdubey/Code/Github/project-omega/solutions',
+                '/ankurdubey521/Build Automation Tool/Builder/tests/filetree')
+        execute('run', path)
+        exec_path = '"' + path + '/test.out' + '"'
+        result = subprocess.run(exec_path, shell=True, capture_output=True, text=True)
+        self.assertEqual(result.stdout, '1 2 3 4 5 \n1 2 3 4 5 \n1 2 3 4 5 \n')
+        execute('clean', path)
 
 
 if __name__ == '__main__':
