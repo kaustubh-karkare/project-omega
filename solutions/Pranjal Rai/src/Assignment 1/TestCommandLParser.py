@@ -12,17 +12,17 @@ class TestCommandLParser(unittest.TestCase):
         parser.add_command('--remote', conflicting_command = '--local', is_flag = True)
 
         command_line_param = ['./test', '--key=123', '--name=pranjal'] #key and name
-        result = parser.get_arguments(command_line_param)
+        result = parser.get_arguments(command_line_param)['final_response']
         self.assertEqual(result, '{"--key": "123", "--name": "pranjal"}')
 
 
         command_line_param = ['./test', '--local'] #test local
-        result = parser.get_arguments(command_line_param)
+        result = parser.get_arguments(command_line_param)['final_response']
         self.assertEqual(result, '{"--local": true}')
 
 
         command_line_param = ['./test', '--remote'] #test remote
-        result = parser.get_arguments(command_line_param)
+        result = parser.get_arguments(command_line_param)['final_response']
         self.assertEqual(result, '{"--remote": true}')
 
 
@@ -72,7 +72,6 @@ class TestCommandLParser(unittest.TestCase):
             self.assertEqual(str(result), '--version is not a recognized command')
         except Exception as exception:
             print(exception)
-
 
 
 if __name__ == '__main__':
