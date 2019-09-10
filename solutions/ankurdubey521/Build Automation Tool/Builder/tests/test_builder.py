@@ -4,6 +4,7 @@ from Builder.main import execute
 
 
 class TestBuilder(unittest.TestCase):
+    
     def test_compilation(self):
         path = 'filetree'
         execute('run', path)
