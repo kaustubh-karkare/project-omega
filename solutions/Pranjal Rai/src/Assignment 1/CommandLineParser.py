@@ -32,7 +32,7 @@ class CommandLineParser():
             commands_found.add(command)
 
             if command not in self.commands: # commands with at least one argument
-                    raise Exception(command + ' is not a recognized command')
+                raise Exception(command + ' is not a recognized command')
             else:
                 if self.commands[command]['is_flag'] is True:
                     results[command] = True
