@@ -8,11 +8,11 @@ def execute(command, containing_folder_path):
     """Parses JSON, Resolves Dependencies and Executes Command"""
 
     # Parse build.json in current directory
-    config = BuildConfig(containing_folder_path + "/build.json")
+    config = BuildConfig(containing_folder_path)
 
     # Parse Dependencies First
     try:
-        deps = config.deps(command)
+        deps = config.get_deps(command)
         dep_count = len(deps)
         print("Executing {} dependencies for {} in {}...".format(dep_count, command, containing_folder_path))
         for dep in deps:
@@ -30,7 +30,7 @@ def execute(command, containing_folder_path):
 
     # Execute Command after processing dependencies
     print("Executing {} in {}".format(command, containing_folder_path))
-    return_value = run(config.command(command), containing_folder_path, print_command=True)
+    return_value = run(config.get_command(command), containing_folder_path, print_command=True)
 
     # Stop Execution if Command Fails
     if return_value != 0:
