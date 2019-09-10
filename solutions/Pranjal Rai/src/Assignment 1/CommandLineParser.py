@@ -54,5 +54,4 @@ class CommandLineParser():
             if flag is False and instruction['is_required'] == True and command not in commands_found:
                 raise Exception('The ' + command + ' argument is required, but missing from input')
         
-        final_response = json.dumps(results, sort_keys=True)
-        return {'final_response': final_response}
+        return results
