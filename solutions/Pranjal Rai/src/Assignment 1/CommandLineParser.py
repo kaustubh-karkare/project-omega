@@ -3,22 +3,20 @@ import json
 import re
 
 
-class AddCommand:
-
-    def __init__(self, command_name, command_type, regular_expression, required_command, conflicting_command, is_flag, commands):
-        self.command_name = command_name
-        self.command_type = command_type
-        self.regular_expression = regular_expression
-        self.required_command = required_command
-        self.conflicting_command = conflicting_command
-        self.is_flag = is_flag
-        commands[self.command_name] = self
-
-
 class CommandLineParser():
 
-    def __init__(self, commands):
-        self.commands = commands
+    def __init__(self):
+        self.commands = []
+
+    def add_command(self, command_name, format = None, required_command = None, conflicting_command = None, is_flag = False):
+        command = {'command_name': command_name, 'format': format, 'required_command': required_command, 'conflicting_command': conflicting_command, 'is_flag': is_flag}
+        self.commands.append(command)
+
+    def search_command(self, name_of_command):
+        for command in self.commands:
+            if command['command_name'] == name_of_command:
+                    return command
+        return None
 
     def get_arguments(self, argv):
         results = {}
@@ -39,44 +37,41 @@ class CommandLineParser():
 
             commands_found.append(command)
 
-            if command not in self.commands: # commands with at least one argument
-                error_message = command + ' is not a recognized command'
+            instruction = self.search_command(command)
+
+            if instruction is None: # commands with at least one argument
+                try:
+                    raise Exception(command + ' is not a recognized command')
+                except Exception as exception:
+                    return exception
             else:
-                if self.commands[command].is_flag is True:
+                if instruction['is_flag'] is True:
                     results[command] = True
                     continue
-                regular_expression = self.commands[command].regular_expression
-                if re.fullmatch(regular_expression, value):
+                format = instruction['format']
+                if re.fullmatch(format, value):
                     results[command] = value
                 else:
-                    error_message = 'invalid argument to ' + command
-            
-            if error_message:
-                break
+                    try:
+                        raise Exception('invalid argument to ' + command)
+                    except Exception as exception:
+                        return exception
 
-        if error_message is not None:
-            """some error occurred already"""
-            pass
-        else:
-            for command in commands_found:
-                conflicting_command = self.commands[command].conflicting_command
-                if conflicting_command is not None and conflicting_command in commands_found:
-                    error_message = 'The ' + command + ' and ' + conflicting_command + ' arguments cannot be used together'
-                required_command = self.commands[command].required_command
-                if required_command is not None and required_command not in commands_found:
-                    error_message = 'The ' + required_command + ' argument is required, but missing from input'
+        for command in commands_found:
+            instruction = self.search_command(command)
+            conflicting_command = instruction['conflicting_command']
+            if conflicting_command is not None and conflicting_command in commands_found:
+                try:
+                    raise Exception('The ' + command + ' and ' + conflicting_command + ' arguments cannot be used together')
+                except Exception as exception:
+                    return exception
 
-        final_response = error_message
+            required_command = instruction['required_command']
+            if required_command is not None and required_command not in commands_found:
+                try:
+                    raise Exception('The ' + required_command + ' argument is required, but missing from input')
+                except Exception as exception:
+                    return exception
         
-        if error_message is None: # return json object if everything goes fine
-            final_response = json.dumps(results, sort_keys=True)
-            print(final_response)
-            return final_response
-        else: # raise an exception if some error occurred
-            try:
-                raise Exception(final_response)
-            except Exception as exception:
-                print(exception)
-                return exception
-            finally:
-                pass
+        final_response = json.dumps(results, sort_keys=True)
+        return final_response

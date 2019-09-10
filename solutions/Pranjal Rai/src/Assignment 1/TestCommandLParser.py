@@ -1,17 +1,15 @@
 import unittest
-from CommandLineParser import CommandLineParser, AddCommand
+import CommandLineParser as CLP
 
 
 class TestCommandLParser(unittest.TestCase):
 
-    def test_basic_usage(self):
-        commands = {}
-        new_command = AddCommand
-        new_command('--key', 'positive integer', r'\d+', None, None, False, commands)
-        new_command('--name', 'albhapets only', r'[a-zA-Z]+', '--key', None, False, commands)
-        new_command('--local', None, r'/\A\z/', None, '--remote', True, commands)
-        new_command('--remote', None, r'/\A\z/', None, '--local', True, commands)
-        parser = CommandLineParser(commands)
+    def test_basic_usage(self): #all valid instructions here
+        parser = CLP.CommandLineParser()
+        parser.add_command('--key', format = r'\d+')
+        parser.add_command('--name', format = r'[a-zA-Z]+', required_command = '--key')
+        parser.add_command('--local', conflicting_command = '--remote', is_flag = True)
+        parser.add_command('--remote', conflicting_command = '--local', is_flag = True)
 
         command_line_param = ['./test', '--key=123', '--name=pranjal'] #key and name
         result = parser.get_arguments(command_line_param)
@@ -29,15 +27,14 @@ class TestCommandLParser(unittest.TestCase):
 
 
 
-    def test_invalid_usage(self):
+    def test_invalid_usage(self): #all invalid instructions here
+        parser = CLP.CommandLineParser()
+        parser.add_command('--key', format = r'\d+')
+        parser.add_command('--name', format = r'[a-zA-Z]+', required_command = '--key')
+        parser.add_command('--local', conflicting_command = '--remote', is_flag = True)
+        parser.add_command('--remote', conflicting_command = '--local', is_flag = True)
+
         command_line_param = ['./test', '--key=1a3', '--name=pranjal'] #invalid key
-        commands = {}
-        new_command = AddCommand
-        new_command('--key', 'positive integer', r'\d+', None, None, False, commands)
-        new_command('--name', 'albhapets only', r'[a-zA-Z]+', '--key', None, False, commands)
-        new_command('--local', None, r'/\A\z/', None, '--remote', True, commands)
-        new_command('--remote', None, r'/\A\z/', None, '--local', True, commands)
-        parser = CommandLineParser(commands)
         try:
             result = parser.get_arguments(command_line_param)
             self.assertEqual(str(result), 'invalid argument to --key')
@@ -64,7 +61,7 @@ class TestCommandLParser(unittest.TestCase):
         command_line_param = ['./test', '--remote', '--local'] #local and remote together
         try:
             result = parser.get_arguments(command_line_param)
-            self.assertEqual(str(result), 'The --local and --remote arguments cannot be used together')
+            self.assertEqual(str(result), 'The --remote and --local arguments cannot be used together')
         except Exception as exception:
             print(exception)
 
