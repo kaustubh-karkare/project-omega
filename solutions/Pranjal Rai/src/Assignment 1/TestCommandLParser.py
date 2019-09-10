@@ -35,28 +35,27 @@ class TestCommandLParser(unittest.TestCase):
         parser.add_command('--remote', conflicting_command = '--local', is_flag = True)
 
         command_line_param = ['./test', '--key=1a3', '--name=pranjal'] #invalid key
-        result = parser.get_arguments(command_line_param)
-        self.assertRaises(result, 'invalid argument to --key')
-
+        with self.assertRaisesRegexp(Exception, 'invalid argument to --key'):
+            parser.get_arguments(command_line_param)
 
         command_line_param = ['./test', '--key=123', '--name=pranjal123'] #invalid name
-        result = parser.get_arguments(command_line_param)
-        self.assertRaises(result, 'invalid argument to --name')
+        with self.assertRaisesRegexp(Exception, 'invalid argument to --name'):
+            parser.get_arguments(command_line_param)
 
 
         command_line_param = ['./test', '--name=pranjal'] #missing key
-        result = parser.get_arguments(command_line_param)
-        self.assertRaises(result, 'The --key argument is required, but missing from input')
-        
+        with self.assertRaisesRegexp(Exception, 'The --key argument is required, but missing from input'):
+            parser.get_arguments(command_line_param)
+
 
         command_line_param = ['./test', '--remote', '--local'] #local and remote together
-        result = parser.get_arguments(command_line_param)
-        self.assertRaises(result, 'The --remote and --local arguments cannot be used together')
+        with self.assertRaisesRegexp(Exception, 'The --remote and --local arguments cannot be used together'):
+            parser.get_arguments(command_line_param)
 
 
         command_line_param = ['./test', '--version'] #unrecognized command
-        result = parser.get_arguments(command_line_param)
-        self.assertEqual(result, '--version is not a recognized command')
+        with self.assertRaisesRegexp(Exception, '--version is not a recognized command'):
+            parser.get_arguments(command_line_param)
 
 
 if __name__ == '__main__':
