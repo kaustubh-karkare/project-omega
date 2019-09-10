@@ -39,7 +39,7 @@ class MyParser:
         self.options.append(option_being_added)
         
     
-    def check_dtype(self, field_name, given_type, given_value, data):
+    def check_dtype_and_assign_value(self, field_name, given_type, given_value, data):
         """
         to check if the datatype of the given arguments are valid
         """
@@ -97,7 +97,7 @@ class MyParser:
                         if not opt.is_flag:
                             raise MyParserError("Too many arguments.")
                         elif opt.is_flag:
-                            self.check_dtype(splitted_word[0], opt.dtype, splitted_word[1], data)
+                            self.check_dtype_and_assign_value(splitted_word[0], opt.dtype, splitted_word[1], data)
                 
                             
             if not found_option:
