@@ -97,7 +97,7 @@ function typeCheck(argumentNameToBeChecked, argumentValueToBeChecked) {
         return !isNaN(argumentValueToBeChecked);
     }
     if (parser.options[ii].type === "string") {
-        return /^[a-zA-Z]+$/.test(argumentValueToBeChecked);
+        return typeof (argumentValueToBeChecked) == "string";
     }
     if (parser.options[ii].type === "boolean") {
         return true;
