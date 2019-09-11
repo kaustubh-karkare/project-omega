@@ -1,0 +1,7 @@
+[
+  {
+    "name": "A",
+    "command": "echo \"A\"",
+    "deps": ["//A"]
+  }
+] 

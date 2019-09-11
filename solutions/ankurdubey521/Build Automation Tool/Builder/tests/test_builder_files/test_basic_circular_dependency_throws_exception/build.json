@@ -1,0 +1,12 @@
+[
+  {
+    "name": "A",
+    "command": "echo \"A\"",
+    "deps": ["B"]
+  },
+  {
+    "name": "B",
+    "command": "echo \"B\"",
+    "deps": ["A"]
+  }
+] 

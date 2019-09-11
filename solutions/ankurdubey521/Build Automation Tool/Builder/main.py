@@ -1,7 +1,15 @@
 from Builder.lib.commandrunner import run
 from Builder.lib.buildconfig import BuildConfig, Command
+
 import sys
 import os
+
+
+unresolved_commands = set()
+
+
+class CircularDependencyException(Exception):
+    pass
 
 
 def execute(command_name, command_dir_abs, root_dir_abs, dry_run=False):
@@ -12,6 +20,9 @@ def execute(command_name, command_dir_abs, root_dir_abs, dry_run=False):
         command_dir_abs = command_dir_abs[:-1]
     if root_dir_abs.endswith('/'):
         root_dir_abs = root_dir_abs[:-1]
+
+    # Mark the command's dependencies as unresolved
+    unresolved_commands.add((command_name, command_dir_abs))
 
     # Parse build.json in current directory
     config = BuildConfig(command_dir_abs)
@@ -36,9 +47,20 @@ def execute(command_name, command_dir_abs, root_dir_abs, dry_run=False):
                 # Command in same directory
                 dep_name = dep
                 dep_dir_abs = command_dir_abs
+
+            # Check for circular dependencies
+            if (dep_name, dep_dir_abs) in unresolved_commands:
+                raise CircularDependencyException(
+                    "Detected a Circular Dependency between {}:{} and {}:{}"
+                    .format(dep_dir_abs, dep_name, command_dir_abs, command_name))
+
             execute(dep_name, dep_dir_abs, root_dir_abs, dry_run)
+
     except Command.NoDependenciesException:
         print("No dependencies found for {} in {}...".format(command_name, command_dir_abs))
+
+    # Mark the command's dependencies as resolved
+    unresolved_commands.remove((command_name, command_dir_abs))
 
     print("Executing {} in {}".format(command_name, command_dir_abs))
     if not dry_run:
