@@ -33,11 +33,11 @@ parser.addOption(name = "remote", isReq = false, type = "boolean", cantBeUsedWit
 */
 function extractArgumentName(argument) {
     var argumentName = "";
-    for (var i = 2; i < argument.length; i++) {
-        if (argument[i] === '=') {
+    for (var ii = 2; ii < argument.length; ii++) {
+        if (argument[ii] === '=') {
             return argumentName;
         }
-        argumentName += argument[i];
+        argumentName += argument[ii];
     }
     return argumentName;
 }
@@ -55,8 +55,8 @@ function extractArgumentValue(argument) {
     }
     var argumentValue = "";
     var index = argument.indexOf('=');
-    for (var i = index + 1; i < argument.length; i++) {
-        argumentValue += argument[i];
+    for (var ii = index + 1; ii < argument.length; ii++) {
+        argumentValue += argument[ii];
     }
     return argumentValue;
 }
@@ -68,8 +68,8 @@ function extractArgumentValue(argument) {
 * given by the user are defined
 */
 function checkIfArgumentDefined(argumentName) {
-    for (var i = 0; i < parser.options.length; i++) {
-        if (argumentName === parser.options[i].name) {
+    for (var ii = 0; ii < parser.options.length; ii++) {
+        if (argumentName === parser.options[ii].name) {
             return true;
         }
     }
@@ -84,22 +84,22 @@ function checkIfArgumentDefined(argumentName) {
 */
 function typeCheck(argumentNameToBeChecked, argumentValueToBeChecked) {
 
-    var i;
+    var ii;
 
-    for (i = 0; i < parser.options.length; i++) {
-        if (argumentNameToBeChecked === parser.options[i].name) {
-            argumentNameToBeChecked = parser.options[i].name;
+    for (ii = 0; ii < parser.options.length; ii++) {
+        if (argumentNameToBeChecked === parser.options[ii].name) {
+            argumentNameToBeChecked = parser.options[ii].name;
             break;
         }
     }
 
-    if (parser.options[i].type === "number") {
+    if (parser.options[ii].type === "number") {
         return !isNaN(argumentValueToBeChecked);
     }
-    if (parser.options[i].type === "string") {
+    if (parser.options[ii].type === "string") {
         return /^[a-zA-Z]+$/.test(argumentValueToBeChecked);
     }
-    if (parser.options[i].type === "boolean") {
+    if (parser.options[ii].type === "boolean") {
         return true;
     }
 }
@@ -113,10 +113,10 @@ function typeCheck(argumentNameToBeChecked, argumentValueToBeChecked) {
 * given by the user
 */
 function areRequiredArgumentsPresent(argumentNameArray) {
-    for (var i = 0; i < parser.options.length; i++) {
-        if (parser.options[i].isReq === true) {
-            if (!argumentNameArray.includes(parser.options[i].name)) {
-                errorStatement += `Error :The argument "--${parser.options[i].name}" is required\n`;
+    for (var ii = 0; ii < parser.options.length; ii++) {
+        if (parser.options[ii].isReq === true) {
+            if (!argumentNameArray.includes(parser.options[ii].name)) {
+                errorStatement += `Error :The argument "--${parser.options[ii].name}" is required\n`;
                 return false;
             }
         }
@@ -131,10 +131,10 @@ function areRequiredArgumentsPresent(argumentNameArray) {
 * given by the user can be used together
 */
 function ifArgumentsCanBeUsedTogether(argumentNameArray) {
-    for (var i = 0; i < argumentNameArray.length; i++) {
-        if (argumentNameArray.includes(parser.options[i].cantBeUsedWith)) {
-            errorStatement += `Error : The argument "--${parser.options[i].name}" can't be used with` +
-                ` the argument "--${parser.options[i].cantBeUsedWith}"\n`
+    for (var ii = 0; ii < argumentNameArray.length; ii++) {
+        if (argumentNameArray.includes(parser.options[ii].cantBeUsedWith)) {
+            errorStatement += `Error : The argument "--${parser.options[ii].name}" can't be used with` +
+                ` the argument "--${parser.options[ii].cantBeUsedWith}"\n`
             return false;
         }
     }
@@ -146,10 +146,10 @@ function ifArgumentsCanBeUsedTogether(argumentNameArray) {
 //MAIN FUNCTION
 function parseArgumentsIntoJSON(commands) {
 
-    for (var i = 0; i < commands.length; i++) {
+    for (var ii = 0; ii < commands.length; ii++) {
 
-        var argumentName = extractArgumentName(commands[i]);
-        var argumentValue = extractArgumentValue(commands[i]);
+        var argumentName = extractArgumentName(commands[ii]);
+        var argumentValue = extractArgumentValue(commands[ii]);
 
         //Checking if the argument provided is defined
         if (!checkIfArgumentDefined(argumentName)) {
@@ -196,8 +196,8 @@ function parseArgumentsIntoJSON(commands) {
     */
     if (!errorPresent) {
         var finalResult = {};
-        for (var i = 0; i < argumentNameArray.length; i++) {
-            finalResult[argumentNameArray[i]] = argumentValueArray[i];
+        for (var ii = 0; ii < argumentNameArray.length; ii++) {
+            finalResult[argumentNameArray[ii]] = argumentValueArray[ii];
         }
 
         console.log(JSON.stringify(finalResult));
