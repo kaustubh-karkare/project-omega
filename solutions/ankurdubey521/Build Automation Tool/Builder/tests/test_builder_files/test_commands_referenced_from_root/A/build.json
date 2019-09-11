@@ -1,0 +1,10 @@
+[
+  {
+    "name": "clean",
+    "command": "echo \"clean A\""
+  },
+  {
+    "name": "run",
+    "command": "echo \"run A\" >> ../output"
+  }
+] 

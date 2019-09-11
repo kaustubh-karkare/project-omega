@@ -1,0 +1,11 @@
+[
+  {
+    "name": "clean",
+    "command": "rm output"
+  },
+  {
+    "name": "run",
+    "deps": ["B/run"],
+    "command": "echo \"run root\" >> output"
+  }
+] 

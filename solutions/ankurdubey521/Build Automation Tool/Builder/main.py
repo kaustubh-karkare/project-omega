@@ -4,37 +4,50 @@ import sys
 import os
 
 
-def execute(command_name, containing_folder_path):
+def execute(command_name, command_dir_abs, root_dir_abs, dry_run=False):
     """Parses JSON, Resolves Dependencies and Executes Command"""
 
+    # Remove Trailing '/' from paths if present
+    if command_dir_abs.endswith('/'):
+        command_dir_abs = command_dir_abs[:-1]
+    if root_dir_abs.endswith('/'):
+        root_dir_abs = root_dir_abs[:-1]
+
     # Parse build.json in current directory
-    config = BuildConfig(containing_folder_path)
+    config = BuildConfig(command_dir_abs)
     command = config.get_command(command_name)
 
-    # Parse Dependencies First
+    # Process Dependencies
     try:
         deps = command.get_dependencies()
-        dep_count = len(deps)
-        print("Executing {} dependencies for {} in {}...".format(dep_count, command_name, containing_folder_path))
+        print("Executing {} dependencies for {} in {}...".format(len(deps), command_name, command_dir_abs))
         for dep in deps:
-            if '/' in dep:
-                # Command in Child Folder
-                dep_containing_folder_path, dep_command = dep.rsplit('/', 1)
-                dep_containing_folder_path = containing_folder_path + "/" + dep_containing_folder_path
-                execute(dep_command, dep_containing_folder_path)
+            dep_dir_abs = ''
+            dep_name = ''
+            if dep.startswith('//'):
+                # Command path referenced from root directory
+                dep_dir_abs = root_dir_abs + '/' + dep[2:]
+                dep_dir_abs, dep_name = dep_dir_abs.rsplit('/', 1)
+            elif '/' in dep:
+                # Command in child directory
+                dep_dir_abs, dep_name = dep.rsplit('/', 1)
+                dep_dir_abs = command_dir_abs + "/" + dep_dir_abs
             else:
-                # Command in Same Folder
-                execute(dep, containing_folder_path)
+                # Command in same directory
+                dep_name = dep
+                dep_dir_abs = command_dir_abs
+            execute(dep_name, dep_dir_abs, root_dir_abs, dry_run)
     except Command.NoDependenciesException:
-        print("No dependencies found for {} in {}...".format(command_name, containing_folder_path))
+        print("No dependencies found for {} in {}...".format(command_name, command_dir_abs))
 
-    # Execute Command after processing dependencies
-    print("Executing {} in {}".format(command_name, containing_folder_path))
-    return_value = run(command.get_command_string(), containing_folder_path, print_command=True)
+    print("Executing {} in {}".format(command_name, command_dir_abs))
+    if not dry_run:
+        # Execute Command after processing dependencies
+        return_value = run(command.get_command_string(), command_dir_abs, print_command=True)
 
-    # Stop Execution if Command Fails
-    if return_value != 0:
-        exit(-1)
+        # Stop Execution if Command Fails
+        if return_value != 0:
+            exit(-1)
 
 
 if __name__ == '__main__':
@@ -44,4 +57,4 @@ if __name__ == '__main__':
         # Handle relative paths
         relative_path, command = command.rsplit('/', 1)
     path = os.getcwd() + "/" + relative_path
-    execute(command, path)
+    execute(command, path, os.getcwd())

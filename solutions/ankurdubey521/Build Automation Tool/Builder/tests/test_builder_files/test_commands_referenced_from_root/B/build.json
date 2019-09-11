@@ -1,0 +1,11 @@
+[
+  {
+    "name": "clean",
+    "command": "echo \"clean B\""
+  },
+  {
+    "name": "run",
+    "deps": ["//A/run"],
+    "command": "echo \"run B\" >> ../output"
+  }
+] 
