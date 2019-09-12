@@ -29,7 +29,7 @@ func TestGetBuildFileLocation(t *testing.T) {
 
 		}
 
-		output := GetBuildFileLocation()
+		output := GetBuildFileLocation("", "build.json")
 
 		if len(testcase.expect) != len(output) {
 			t.Errorf("yo Expected Output not matches the actual Output")
