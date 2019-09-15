@@ -1,7 +1,7 @@
-import v2
+import CLIparser
 import json
 
-parser = v2.Parser()
+parser = CLIparser.Parser()
 parser.add_argument('key', int, required=True)
 parser.add_argument('name', str)
 parser.add_argument('local', None, cant_be_used_with=['remote'])
