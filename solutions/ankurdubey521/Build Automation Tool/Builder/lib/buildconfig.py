@@ -6,22 +6,14 @@ class Command:
     def __init__(self, *, name, command_string, deps=None, files=None):
         self._name = name
         self._command_string = command_string
-        if files is None:
-            self._hasFiles = False
-        else:
-            self._hasFiles = True
-            self._files = files
-        if deps is None:
-            self._hasDependencies = False
-        else:
-            self._hasDependencies = True
-            self._dependencies = deps
+        self._files = files
+        self._dependencies = deps
 
     def get_name(self):
         return self._name
 
     def get_files(self):
-        if self._hasFiles:
+        if self._files is not None:
             return self._files
         raise Command.NoFilesException("No Files for {}".format(self._name))
 
@@ -29,7 +21,7 @@ class Command:
         return self._command_string
 
     def get_dependencies(self):
-        if self._hasDependencies:
+        if self._dependencies is not None:
             return self._dependencies
         raise Command.NoDependenciesException("No Dependencies for {}".format(self._name))
 
