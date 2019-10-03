@@ -4,10 +4,8 @@ from Builder.lib.buildconfig import Command, BuildConfig
 
 class TestJsonParser(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        json_path = 'json'
-        cls.config = BuildConfig(json_path)
+    def setUp(self):
+        self.config = BuildConfig('json')
 
     def test_build_clean_parses_correctly(self):
         command_clean = self.config.get_command('clean')
