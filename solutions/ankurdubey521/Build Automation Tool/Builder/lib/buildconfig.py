@@ -1,26 +1,27 @@
 import json
+from typing import List
 
 
 class Command:
     """Stores Command Information"""
-    def __init__(self, *, name, command_string, deps=None, files=None):
+    def __init__(self, *, name: str, command_string: str, deps: List[str] = None, files: List[str] = None) -> None:
         self._name = name
         self._command_string = command_string
         self._files = files
         self._dependencies = deps
 
-    def get_name(self):
+    def get_name(self) -> str:
         return self._name
 
-    def get_files(self):
+    def get_files(self) -> List[str]:
         if self._files is not None:
             return self._files
         raise Command.NoFilesException("No Files for {}".format(self._name))
 
-    def get_command_string(self):
+    def get_command_string(self) -> str:
         return self._command_string
 
-    def get_dependencies(self):
+    def get_dependencies(self) -> List[str]:
         if self._dependencies is not None:
             return self._dependencies
         raise Command.NoDependenciesException("No Dependencies for {}".format(self._name))
@@ -34,7 +35,7 @@ class Command:
 
 class BuildConfig:
     """Parses and Stores build.config"""
-    def __init__(self, json_containing_folder):
+    def __init__(self, json_containing_folder: str) -> None:
         # Parse JSON
         json_path = json_containing_folder + "/build.json"
         with open(json_path) as file_handle:
@@ -53,7 +54,7 @@ class BuildConfig:
             self._name_to_command_object[name] =\
                 Command(name=name, command_string=command_string, deps=deps, files=files)
 
-    def get_command(self, command_name):
+    def get_command(self, command_name: str) -> Command:
         if command_name in self._name_to_command_object:
             return self._name_to_command_object[command_name]
         else:

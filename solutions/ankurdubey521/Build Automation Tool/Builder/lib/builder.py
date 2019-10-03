@@ -7,7 +7,7 @@ class Builder:
         self._root_dir_abs = ""
         self.unresolved_commands = set()
 
-    def _build_rule_handler(self, command_name, command_dir_abs, dry_run=False):
+    def _build_rule_handler(self, command_name: str, command_dir_abs: str, dry_run: bool = False) -> None:
         """Parses JSON, Resolves Dependencies and Executes Command/Do a dry run"""
 
         # Remove Trailing '/' from paths if present
@@ -67,7 +67,7 @@ class Builder:
             if return_value != 0:
                 exit(-1)
 
-    def execute_build_rule(self, command_name, command_dir_abs, root_dir_abs):
+    def execute_build_rule(self, command_name: str, command_dir_abs: str, root_dir_abs: str) -> None:
         # Save root_dir_abs
         self._root_dir_abs = root_dir_abs
 
@@ -82,7 +82,7 @@ class Builder:
     class CircularDependencyException(Exception):
         pass
 
-    def run_shell(self, command_string, cwd='/', print_command=False):
+    def run_shell(self, command_string: str, cwd: str = '/', print_command: bool = False) -> int:
         """Run Command and Return Exit Code. Optionally Print the command itself"""
         if print_command:
             print(command_string)
