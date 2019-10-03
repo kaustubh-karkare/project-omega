@@ -2,6 +2,7 @@
   {
     "name": "clean",
     "deps": ["algorithms/clean"],
+    "files": ["test.cpp"],
     "command": "rm -f test.o && rm -f test.out"
   },
   {
