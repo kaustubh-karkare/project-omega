@@ -4,6 +4,7 @@ import os
 from time import sleep
 from multiprocessing import Process
 
+
 def copy_file(input_file_path: str, output_file_path: str) -> None:
     contents = ''
     with open(input_file_path, 'r') as file:
@@ -33,7 +34,6 @@ class MyTestCase(unittest.TestCase):
         file_watcher = FileWatcher()
         process = Process(target=file_watcher.watch_and_execute, args=([input_file], copy_file, input_file, output_file))
         process.start()
-        # file_watcher.watch_and_execute([input_file], copy_file, input_file, output_file)
         with open(input_file, 'w') as file:
             file.write("Hello World 2.0")
         sleep(2)

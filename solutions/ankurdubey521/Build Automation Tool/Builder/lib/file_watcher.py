@@ -21,11 +21,10 @@ class FileWatcher:
         function(*args)
         while True:
             sleep(FileWatcher.FILE_WATCH_INTERVAL_SECONDS)
-            for file in file_list:
-                new_file_edit_times = self._get_file_edit_times(file_list)
-                if new_file_edit_times != file_edit_times:
-                    file_edit_times = new_file_edit_times
-                    print("Detected change of file. Executing command...")
-                    function(*args)
+            new_file_edit_times = self._get_file_edit_times(file_list)
+            if new_file_edit_times != file_edit_times:
+                file_edit_times = new_file_edit_times
+                print("Detected change of file. Executing command...")
+                function(*args)
 
 
