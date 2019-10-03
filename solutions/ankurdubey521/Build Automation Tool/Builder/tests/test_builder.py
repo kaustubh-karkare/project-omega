@@ -6,6 +6,16 @@ from Builder.main import Builder
 
 class TestBuilder(unittest.TestCase):
 
+    def test_basic_shell_command(self):
+        command = "echo 'Hello World!'"
+        exit_code = Builder().run_shell(command, cwd='/')
+        self.assertEqual(0, exit_code)
+
+    def test_nonzero_exit_code_for_shell_command(self):
+        command = "exit 1"
+        exit_code = Builder().run_shell(command, cwd='/')
+        self.assertEqual(1, exit_code)
+
     def test_compilation_basic(self):
         builder = Builder()
         path = os.getcwd() + '/test_builder_files/test_compilation_basic'

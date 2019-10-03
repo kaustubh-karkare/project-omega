@@ -1,5 +1,5 @@
-from Builder.lib.commandrunner import run
 from Builder.lib.buildconfig import BuildConfig, Command
+import subprocess
 
 
 class Builder:
@@ -61,7 +61,7 @@ class Builder:
         print("Executing {} in {}".format(command_name, command_dir_abs))
 
         if not dry_run:
-            return_value = run(command.get_command_string(), command_dir_abs, print_command=True)
+            return_value = self.run_shell(command.get_command_string(), command_dir_abs, print_command=True)
 
             # Stop Execution if Command Fails
             if return_value != 0:
@@ -81,3 +81,9 @@ class Builder:
 
     class CircularDependencyException(Exception):
         pass
+
+    def run_shell(self, command_string, cwd='/', print_command=False):
+        """Run Command and Return Exit Code. Optionally Print the command itself"""
+        if print_command:
+            print(command_string)
+        return subprocess.run(command_string, shell=True, cwd=cwd).returncode
