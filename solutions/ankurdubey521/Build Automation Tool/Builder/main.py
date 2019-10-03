@@ -59,10 +59,10 @@ class Builder:
 
         # Mark the command's dependencies as resolved
         self.unresolved_commands.remove((command_name, command_dir_abs))
+        # Execute Command after processing dependencies
+        print("Executing {} in {}".format(command_name, command_dir_abs))
 
         if not dry_run:
-            # Execute Command after processing dependencies
-            print("Executing {} in {}".format(command_name, command_dir_abs))
             return_value = run(command.get_command_string(), command_dir_abs, print_command=True)
 
             # Stop Execution if Command Fails
@@ -71,9 +71,11 @@ class Builder:
 
     def execute_build_rule(self, command_name, command_dir_abs, root_dir_abs):
         # Do a dry run and check for syntax, do validation and check for circular dependencies
+        print("Performing a dry run....")
         self._build_rule_handler(command_name, command_dir_abs, root_dir_abs, dry_run=True)
 
         # If everything is fine do an actual run
+        print("\nDry run Succeeded. Performing actual run...")
         self._build_rule_handler(command_name, command_dir_abs, root_dir_abs)
 
     class CircularDependencyException(Exception):
