@@ -5,6 +5,13 @@ from Builder.main import Builder
 
 
 class TestBuilder(unittest.TestCase):
+    # TODO: Implement running tests from /tmp/
+
+    # The tests should work for any path inside the project
+    def setUp(self):
+        while os.path.basename(os.getcwd()) != 'Build Automation Tool':
+            os.chdir('..')
+        os.chdir('Builder/tests')
 
     def test_basic_shell_command(self):
         command = "echo 'Hello World!'"
@@ -24,6 +31,7 @@ class TestBuilder(unittest.TestCase):
         result = subprocess.run(exec_path, shell=True, capture_output=True, text=True)
         self.assertEqual('1 2 3 4 5 \n1 2 3 4 5 \n1 2 3 4 5 \n', result.stdout)
         builder.execute_build_rule('clean', path, os.getcwd())
+        self.assertFalse(os.path.isfile(path + "/test.out"))
 
     def test_commands_referenced_from_root(self):
         builder = Builder()
@@ -43,7 +51,7 @@ class TestBuilder(unittest.TestCase):
         builder._root_dir_abs = path
         builder._build_rule_handler('run', path, dry_run=True)
         output_file_path = path + '/output'
-        self.assertEqual(False, os.path.isfile(output_file_path))
+        self.assertFalse(os.path.isfile(output_file_path))
 
     def test_basic_circular_dependency_throws_exception(self):
         builder = Builder()
