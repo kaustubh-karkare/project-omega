@@ -29,7 +29,9 @@ class TestBuilder(unittest.TestCase):
     def test_dry_run_does_not_write_files(self):
         builder = Builder()
         path = os.getcwd() + '/test_builder_files/test_commands_referenced_from_root'
-        builder._build_rule_handler('run', path, path, dry_run=True)
+        # Perhaps there is a better method of doing this ?
+        builder._root_dir_abs = path
+        builder._build_rule_handler('run', path, dry_run=True)
         output_file_path = path + '/output'
         self.assertEqual(False, os.path.isfile(output_file_path))
 
