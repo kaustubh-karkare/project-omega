@@ -48,22 +48,22 @@ class BuildConfig:
         with open(json_path) as file_handle:
             self._raw_json = json.load(file_handle)
 
-        self._name_to_command = {}
-        for command in self._raw_json:
-            self._name_to_command[command['name']] = command
+        self._name_to_command_object = {}
+        for command_entry in self._raw_json:
+            name = command_entry['name']
+            command_string = command_entry['command']
+            deps = None
+            if 'deps' in command_entry:
+                deps = command_entry['deps']
+            files = None
+            if 'files' in command_entry:
+                files = command_entry['files']
+            self._name_to_command_object[name] =\
+                Command(name=name, command_string=command_string, deps=deps, files=files)
 
     def get_command(self, command_name):
-        if command_name in self._name_to_command:
-            entry = self._name_to_command[command_name]
-            name = entry['name']
-            command_string = entry['command']
-            deps = None
-            if 'deps' in entry:
-                deps = entry['deps']
-            files = None
-            if 'files' in entry:
-                files = entry['files']
-            return Command(name=name, command_string=command_string, deps=deps, files=files)
+        if command_name in self._name_to_command_object:
+            return self._name_to_command_object[command_name]
         else:
             raise BuildConfig.UnknownCommandException('No such command "{}" found.'.format(command_name))
 
