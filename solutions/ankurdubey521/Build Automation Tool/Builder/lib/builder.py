@@ -1,4 +1,4 @@
-from Builder.lib.buildconfig import BuildConfig, Command
+from Builder.lib.buildconfig import BuildConfig, BuildRule
 import subprocess
 
 
@@ -52,7 +52,7 @@ class Builder:
 
                 self._build_rule_handler(dep_name, dep_dir_abs, dry_run)
 
-        except Command.NoDependenciesException:
+        except BuildRule.NoDependenciesException:
             print("No dependencies found for {} in {}...".format(command_name, command_dir_abs))
 
         # Mark the command's dependencies as resolved

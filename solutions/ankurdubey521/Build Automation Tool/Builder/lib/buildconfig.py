@@ -2,7 +2,7 @@ import json
 from typing import List
 
 
-class Command:
+class BuildRule:
     """Stores Command Information"""
     def __init__(self, *, name: str, command_string: str, deps: List[str] = None, files: List[str] = None) -> None:
         self._name = name
@@ -16,7 +16,7 @@ class Command:
     def get_files(self) -> List[str]:
         if self._files is not None:
             return self._files
-        raise Command.NoFilesException("No Files for {}".format(self._name))
+        raise BuildRule.NoFilesException("No Files for {}".format(self._name))
 
     def get_command_string(self) -> str:
         return self._command_string
@@ -24,7 +24,7 @@ class Command:
     def get_dependencies(self) -> List[str]:
         if self._dependencies is not None:
             return self._dependencies
-        raise Command.NoDependenciesException("No Dependencies for {}".format(self._name))
+        raise BuildRule.NoDependenciesException("No Dependencies for {}".format(self._name))
 
     class NoDependenciesException(Exception):
         pass
@@ -52,9 +52,9 @@ class BuildConfig:
             if 'files' in command_entry:
                 files = command_entry['files']
             self._name_to_command_object[name] =\
-                Command(name=name, command_string=command_string, deps=deps, files=files)
+                BuildRule(name=name, command_string=command_string, deps=deps, files=files)
 
-    def get_command(self, command_name: str) -> Command:
+    def get_command(self, command_name: str) -> BuildRule:
         if command_name in self._name_to_command_object:
             return self._name_to_command_object[command_name]
         else:

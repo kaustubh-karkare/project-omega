@@ -1,5 +1,5 @@
 import unittest
-from Builder.lib.buildconfig import Command, BuildConfig
+from Builder.lib.buildconfig import BuildRule, BuildConfig
 
 
 class TestJsonParser(unittest.TestCase):
@@ -21,11 +21,11 @@ class TestJsonParser(unittest.TestCase):
 
     def test_no_deps_throws_correct_exception(self):
         command_test = self.config.get_command('test')
-        self.assertRaises(Command.NoDependenciesException, command_test.get_dependencies)
+        self.assertRaises(BuildRule.NoDependenciesException, command_test.get_dependencies)
 
     def test_no_files_throws_correct_exception(self):
         command_clean = self.config.get_command('clean')
-        self.assertRaises(Command.NoFilesException, command_clean.get_files)
+        self.assertRaises(BuildRule.NoFilesException, command_clean.get_files)
 
     def test_unknown_command_name_raises_correct_exception(self):
         self.assertRaises(BuildConfig.UnknownCommandException, self.config.get_command, 'YOLO')
