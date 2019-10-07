@@ -40,8 +40,6 @@ class ParallelBuilder:
         try:
             deps = command.get_dependencies()
             for dep in deps:
-                dep_dir_abs = ''
-                dep_name = ''
                 if dep.startswith('//'):
                     # Command path referenced from root directory
                     dep_dir_abs = self._root_dir_abs + '/' + dep[2:]
@@ -99,7 +97,9 @@ class ParallelBuilder:
 
     def execute_build_rule_and_dependencies(self, command_name: str, command_dir_abs: str) -> None:
         # Create Dependency Graph
+        print("\nExploring Dependencies...")
         self._explore_and_build_dependency_graph(command_name, command_dir_abs)
+        print("\nDone exploring dependencies")
 
         # Generate Topological Sort
         self._dependency_topological_sort = TopologicalSort.sort(self._dependency_graph)
@@ -111,6 +111,7 @@ class ParallelBuilder:
         rule_to_futures = {}
 
         # Execute the Build Rules. starting from the deepest dependency
+        print("\nExecuting Build Rules...")
         with ThreadPoolExecutor(max_workers=self._max_threads) as executor:
             for build_rule_tuple in self._dependency_topological_sort:
                 (rule_name, rule_dir_abs) = build_rule_tuple
@@ -123,6 +124,7 @@ class ParallelBuilder:
                     ParallelBuilder._execute_rule_thread, rule_name, rule_command_string,
                     rule_dir_abs, dependency_futures)
                 rule_to_futures[build_rule_tuple] = thread
+        print("\nFinished Building")
 
 
 

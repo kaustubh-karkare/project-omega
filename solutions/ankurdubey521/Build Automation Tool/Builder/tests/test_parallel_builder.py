@@ -80,7 +80,6 @@ class TestParallelBuilder(unittest.TestCase):
         parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
         parallel_builder.execute_build_rule_and_dependencies('run', path)
         output_file_path = path + '/output'
-        result = ''
         with open(output_file_path) as file_handle:
             result = file_handle.readable()
         self.assertEqual(True, result)
