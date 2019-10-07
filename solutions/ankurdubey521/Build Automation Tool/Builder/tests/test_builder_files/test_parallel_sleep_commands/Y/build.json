@@ -1,0 +1,7 @@
+[
+  {
+    "name": "Y",
+    "command": "sleep 5",
+    "deps": ["YX/YX", "YY/YY"]
+  }
+] 

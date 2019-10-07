@@ -1,0 +1,7 @@
+[
+  {
+    "name": "Z",
+    "command": "echo \"Z\"",
+    "deps": ["X/X", "Y/Y"]
+  }
+] 
