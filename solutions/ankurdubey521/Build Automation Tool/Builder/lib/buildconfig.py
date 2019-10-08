@@ -1,3 +1,24 @@
+"""" Sample build.json
+[
+  {
+    "name": "clean",
+    "deps": ["algorithms/clean"],
+    "files": ["test.cpp"],
+    "command": "rm -f test.o && rm -f test.out"
+  },
+  {
+    "name": "test",
+    "files": ["test.cpp"],
+    "command": "g++ -std=c++11 -c test.cpp"
+  },
+  {
+    "name": "run",
+    "deps": ["test", "algorithms/sort_bubble", "algorithms/sort_merge", "algorithms/sort_quick"],
+    "command": "g++ algorithms/sort_bubble.o algorithms/sort_merge.o ..."
+  }
+]
+"""
+
 import json
 from typing import List
 
@@ -34,7 +55,7 @@ class BuildRule:
 
 
 class BuildConfig:
-    """Parses and Stores build.config"""
+    """Parses and Stores build.config in the form of BuildRule objects"""
     def __init__(self, json_containing_folder: str) -> None:
         # Parse JSON
         json_path = json_containing_folder + "/build.json"
@@ -62,7 +83,3 @@ class BuildConfig:
 
     class UnknownCommandException(Exception):
         pass
-
-
-if __name__ == '__main__':
-    pass
