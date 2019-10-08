@@ -42,7 +42,7 @@ class TestParallelBuilder(unittest.TestCase):
     def test_topological_sort_creation(self):
         path = os.getcwd() + '/test_builder_files/test_dependency_graph_creation'
         parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
-        parallel_builder.execute_build_rule_and_dependencies('Z', path)
+        parallel_builder.execute('Z', path)
         toposort = [item[0] for item in parallel_builder._dependency_topological_sort]
         print(toposort)
         self.assertEqual(['XX', 'XY', 'YX', 'YY', 'X', 'Y', 'Z'], toposort)
@@ -51,50 +51,58 @@ class TestParallelBuilder(unittest.TestCase):
         path = os.getcwd() + '/test_builder_files/test_basic_circular_dependency_throws_exception'
         parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
         self.assertRaises(
-            parallel_builder.CircularDependencyException, parallel_builder.execute_build_rule_and_dependencies, 'A',
+            parallel_builder.CircularDependencyException, parallel_builder.execute, 'A',
             path)
 
     def test_basic_circular_dependency2_throws_exception(self):
         path = os.getcwd() + '/test_builder_files/test_basic_circular_dependency2_throws_exception'
         parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
         self.assertRaises(
-            parallel_builder.CircularDependencyException, parallel_builder.execute_build_rule_and_dependencies, 'A',
+            parallel_builder.CircularDependencyException, parallel_builder.execute, 'A',
             path)
 
     def test_compilation_basic(self):
         path = os.getcwd() + '/test_builder_files/test_compilation_basic'
         # RUN
         parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
-        parallel_builder.execute_build_rule_and_dependencies('run', path)
+        parallel_builder.execute('run', path)
         exec_path = '"' + path + '/test.out' + '"'
         result = subprocess.run(exec_path, shell=True, capture_output=True, text=True)
         self.assertEqual('1 2 3 4 5 \n1 2 3 4 5 \n1 2 3 4 5 \n', result.stdout)
         # CLEANUP
         parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
-        parallel_builder.execute_build_rule_and_dependencies('clean', path)
+        parallel_builder.execute('clean', path)
         self.assertFalse(os.path.isfile(path + "/test.out"))
 
     def test_commands_referenced_from_root(self):
         path = os.getcwd() + '/test_builder_files/test_commands_referenced_from_root'
         # RUN
         parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
-        parallel_builder.execute_build_rule_and_dependencies('run', path)
+        parallel_builder.execute('run', path)
         output_file_path = path + '/output'
         with open(output_file_path) as file_handle:
             result = file_handle.readable()
         self.assertEqual(True, result)
         # CLEANUP
         parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
-        parallel_builder.execute_build_rule_and_dependencies('clean', path)
+        parallel_builder.execute('clean', path)
         self.assertFalse(os.path.isfile(path + "/output"))
 
     def test_parallel_sleep_commands(self):
         path = os.getcwd() + '/test_builder_files/test_parallel_sleep_commands'
         parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
-        process = Process(target=parallel_builder.execute_build_rule_and_dependencies,
+        process = Process(target=parallel_builder.execute,
                           args=('Z', path))
         sleep(16)
         self.assertEqual(False, process.is_alive())
+
+    def test_files_list_generation_adds_files_of_dependencies(self):
+        path = os.getcwd() + '/test_builder_files/test_files_list_generation_adds_files_of_dependencies'
+        parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+        parallel_builder._explore_and_build_dependency_graph('Z', path)
+        file_list = parallel_builder._build_file_list_from_dependency_list('Z', path).sort()
+        correct_file_list = [path + rel_path for rel_path in ['/z_file', '/X/x_file', '/Y/y_file']].sort()
+        self.assertEqual(correct_file_list, file_list)
 
 
 if __name__ == '__main__':

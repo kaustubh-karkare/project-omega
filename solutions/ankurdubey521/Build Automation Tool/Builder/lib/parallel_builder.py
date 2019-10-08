@@ -1,5 +1,7 @@
 from Builder.lib.buildconfig import BuildRule, BuildConfig
 from Builder.lib.algorithms import TopologicalSort
+from Builder.lib.file_watcher import FileWatcher
+from queue import Queue
 from concurrent.futures import ThreadPoolExecutor, Future
 from datetime import datetime
 from typing import List
@@ -77,6 +79,30 @@ class ParallelBuilder:
         except BuildRule.NoDependenciesException:
             pass
 
+    def _build_file_list_from_dependency_list(self, command_name: str, command_dir_abs: str) -> List[str]:
+        file_list = []
+        visited = set()
+        queue = Queue()
+        queue.put((command_name, command_dir_abs))
+        visited.add((command_name, command_dir_abs))
+        while not queue.empty():
+            rule_name, rule_dir_abs = queue.get()
+            try:
+                rule_files_rel_path = BuildConfig(rule_dir_abs).get_command(rule_name).get_files()
+            except BuildRule.NoFilesException:
+                rule_files_rel_path = []
+            rules_files_abs_path = [rule_dir_abs + "/" + path for path in rule_files_rel_path]
+            file_list.extend(rules_files_abs_path)
+
+            if (rule_name, rule_dir_abs) in self._dependency_list:
+                for dep in self._dependency_list[(rule_name, rule_dir_abs)]:
+                    if dep not in visited:
+                        visited.add(dep)
+                        queue.put(dep)
+                    else:
+                        raise ParallelBuilder.CircularDependencyException()
+        return file_list
+
     @staticmethod
     def _run_shell(command_string: str, cwd: str = '/', print_command: bool = False) -> subprocess.Popen:
         """Run Command and Return Exit Code. Optionally Print the command itself"""
@@ -95,9 +121,10 @@ class ParallelBuilder:
         print("{}: [{}] in {}".format(str(datetime.now().time())[:8], command_name, command_dir_abs))
         return ParallelBuilder._run_shell(command_string, command_dir_abs, print_command=True).wait()
 
-    def execute_build_rule_and_dependencies(self, command_name: str, command_dir_abs: str) -> None:
+    def _execute_build_rule_and_dependencies(self, command_name: str, command_dir_abs: str) -> None:
         # Create Dependency Graph
         print("\nExploring Dependencies...")
+        self._unresolved_commands = set()
         self._explore_and_build_dependency_graph(command_name, command_dir_abs)
         print("\nDone exploring dependencies")
 
@@ -126,6 +153,23 @@ class ParallelBuilder:
                 rule_to_futures[build_rule_tuple] = thread
         print("\nFinished Building")
 
+    def execute(self, command_name: str, command_dir_abs: str, watch_for_file_changes=False) -> None:
+        # Create Dependency Graph
+        print("\nExploring Dependencies...")
+        self._explore_and_build_dependency_graph(command_name, command_dir_abs)
+        print("\nDone exploring dependencies")
 
+        # Generate Topological Sort
+        self._dependency_topological_sort = TopologicalSort.sort(self._dependency_graph)
+        # Handle case when no dependency exist (empty dependency graph => empty toposort)
+        if len(self._dependency_topological_sort) == 0:
+            self._dependency_topological_sort.append((command_name, command_dir_abs))
+
+        if not watch_for_file_changes:
+            self._execute_build_rule_and_dependencies(command_name, command_dir_abs)
+        else:
+            file_list_abs = self._build_file_list_from_dependency_list(command_name, command_dir_abs)
+            FileWatcher.watch_and_execute(
+                file_list_abs, self._execute_build_rule_and_dependencies, command_name, command_dir_abs)
 
 

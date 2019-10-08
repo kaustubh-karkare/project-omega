@@ -1,0 +1,7 @@
+[
+  {
+    "name": "Y",
+    "command": "sleep 5",
+    "files": ["y_file"]
+  }
+] 

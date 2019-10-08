@@ -1,5 +1,3 @@
-from Builder.lib.buildconfig import BuildConfig
-from Builder.lib.file_watcher import FileWatcher
 from Builder.lib.parallel_builder import ParallelBuilder
 import argparse
 import sys
@@ -31,15 +29,7 @@ if __name__ == '__main__':
     path = root_dir + "/" + relative_path
 
     try:
-        if not args.watch:
-            builder.execute_build_rule_and_dependencies(command, path)
-        else:
-            # Watch files and run build rule on changes
-            file_list = BuildConfig(path).get_command(command).get_files()
-            # Convert file paths to absolute
-            file_list = [(path + file) for file in file_list]
-            FileWatcher.watch_and_execute(file_list, builder.execute_build_rule_and_dependencies, command, path)
-
+        builder.execute(command, path, args.watch)
     except Exception as e:
         print(e)
 
