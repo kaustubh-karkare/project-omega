@@ -21,6 +21,7 @@
 
 import json
 from typing import List
+from Builder.global_constants import GlobalConstants
 
 
 class BuildRule:
@@ -58,7 +59,7 @@ class BuildConfig:
     """Parses and Stores build.config in the form of BuildRule objects"""
     def __init__(self, json_containing_folder: str) -> None:
         # Parse JSON
-        json_path = json_containing_folder + "/build.json"
+        json_path = json_containing_folder + "/" + GlobalConstants.CONFIG_FILE_NAME
         with open(json_path) as file_handle:
             self._raw_json = json.load(file_handle)
 

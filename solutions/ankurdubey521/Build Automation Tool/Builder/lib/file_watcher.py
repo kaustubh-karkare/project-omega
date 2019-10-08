@@ -1,10 +1,11 @@
 from os import stat
 from typing import List, Callable, Dict
+from Builder.global_constants import GlobalConstants
 from time import sleep
 
 
 class FileWatcher:
-    FILE_WATCH_INTERVAL_SECONDS = 1
+    FILE_WATCH_INTERVAL_SECONDS = GlobalConstants.FILE_WATCH_INTERVAL_SECONDS
 
     @staticmethod
     def _get_file_edit_times(file_list: List[str]) -> Dict[str, int]:
