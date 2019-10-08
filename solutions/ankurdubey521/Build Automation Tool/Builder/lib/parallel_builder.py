@@ -7,7 +7,7 @@ and threads are assigned to watch for their completion.
 """
 
 
-from Builder.lib.buildconfig import BuildRule, BuildConfig
+from Builder.lib.buildconfig import BuildConfig
 from Builder.lib.algorithms import TopologicalSort
 from Builder.lib.file_watcher import FileWatcher
 from queue import Queue
@@ -57,45 +57,41 @@ class ParallelBuilder:
         self._unresolved_commands.add((command_name, command_dir_abs))
 
         # Process Dependencies
-        try:
-            deps = command.get_dependencies()
-            for dep in deps:
-                if dep.startswith('//'):
-                    # Command path referenced from root directory
-                    dep_dir_abs = self._root_dir_abs + '/' + dep[2:]
-                    dep_dir_abs, dep_name = dep_dir_abs.rsplit('/', 1)
-                elif '/' in dep:
-                    # Command in child directory
-                    dep_dir_abs, dep_name = dep.rsplit('/', 1)
-                    dep_dir_abs = command_dir_abs + "/" + dep_dir_abs
-                else:
-                    # Command in same directory
-                    dep_name = dep
-                    dep_dir_abs = command_dir_abs
+        deps = command.get_dependencies()
+        for dep in deps:
+            if dep.startswith('//'):
+                # Command path referenced from root directory
+                dep_dir_abs = self._root_dir_abs + '/' + dep[2:]
+                dep_dir_abs, dep_name = dep_dir_abs.rsplit('/', 1)
+            elif '/' in dep:
+                # Command in child directory
+                dep_dir_abs, dep_name = dep.rsplit('/', 1)
+                dep_dir_abs = command_dir_abs + "/" + dep_dir_abs
+            else:
+                # Command in same directory
+                dep_name = dep
+                dep_dir_abs = command_dir_abs
 
-                dependency_tuple = (dep_name, dep_dir_abs)
-                dependent_tuple = (command_name, command_dir_abs)
+            dependency_tuple = (dep_name, dep_dir_abs)
+            dependent_tuple = (command_name, command_dir_abs)
 
-                # Update _dependency_graph
-                if dependency_tuple not in self._dependency_graph:
-                    self._dependency_graph[dependency_tuple] = []
-                self._dependency_graph[dependency_tuple].append(dependent_tuple)
+            # Update _dependency_graph
+            if dependency_tuple not in self._dependency_graph:
+                self._dependency_graph[dependency_tuple] = []
+            self._dependency_graph[dependency_tuple].append(dependent_tuple)
 
-                # Update _dependency_list
-                if dependent_tuple not in self._dependency_list:
-                    self._dependency_list[dependent_tuple] = []
-                self._dependency_list[dependent_tuple].append(dependency_tuple)
+            # Update _dependency_list
+            if dependent_tuple not in self._dependency_list:
+                self._dependency_list[dependent_tuple] = []
+            self._dependency_list[dependent_tuple].append(dependency_tuple)
 
-                # Check for circular dependencies
-                if dependency_tuple in self._unresolved_commands:
-                    raise self.CircularDependencyException(
-                        "Detected a Circular Dependency between {}:{} and {}:{}"
-                        .format(dep_dir_abs, dep_name, command_dir_abs, command_name))
+            # Check for circular dependencies
+            if dependency_tuple in self._unresolved_commands:
+                raise self.CircularDependencyException(
+                    "Detected a Circular Dependency between {}:{} and {}:{}"
+                    .format(dep_dir_abs, dep_name, command_dir_abs, command_name))
 
-                self._explore_and_build_dependency_graph(dep_name, dep_dir_abs)
-
-        except BuildRule.NoDependenciesException:
-            pass
+            self._explore_and_build_dependency_graph(dep_name, dep_dir_abs)
 
     def _build_file_list_from_dependency_list(self, command_name: str, command_dir_abs: str) -> List[str]:
         """" Uses self._dependency_list to generate a list of files which command_name or it's dependencies reference
@@ -113,10 +109,7 @@ class ParallelBuilder:
         # BFS
         while not queue.empty():
             rule_name, rule_dir_abs = queue.get()
-            try:
-                rule_files_rel_path = BuildConfig(rule_dir_abs).get_command(rule_name).get_files()
-            except BuildRule.NoFilesException:
-                rule_files_rel_path = []
+            rule_files_rel_path = BuildConfig(rule_dir_abs).get_command(rule_name).get_files()
             # Get absolute paths of files and add to file_list
             rules_files_abs_path = [rule_dir_abs + "/" + path for path in rule_files_rel_path]
             file_list.extend(rules_files_abs_path)

@@ -26,7 +26,7 @@ from Builder.global_constants import GlobalConstants
 
 class BuildRule:
     """Stores Command Information"""
-    def __init__(self, *, name: str, command_string: str, deps: List[str] = None, files: List[str] = None) -> None:
+    def __init__(self, *, name: str, command_string: str, deps: List[str] = [], files: List[str] = []) -> None:
         self._name = name
         self._command_string = command_string
         self._files = files
@@ -36,17 +36,13 @@ class BuildRule:
         return self._name
 
     def get_files(self) -> List[str]:
-        if self._files is not None:
-            return self._files
-        raise BuildRule.NoFilesException("No Files for {}".format(self._name))
+        return self._files
 
     def get_command_string(self) -> str:
         return self._command_string
 
     def get_dependencies(self) -> List[str]:
-        if self._dependencies is not None:
-            return self._dependencies
-        raise BuildRule.NoDependenciesException("No Dependencies for {}".format(self._name))
+        return self._dependencies
 
     class NoDependenciesException(Exception):
         pass
@@ -67,12 +63,14 @@ class BuildConfig:
         for command_entry in self._raw_json:
             name = command_entry['name']
             command_string = command_entry['command']
-            deps = None
             if 'deps' in command_entry:
                 deps = command_entry['deps']
-            files = None
+            else:
+                deps = []
             if 'files' in command_entry:
                 files = command_entry['files']
+            else:
+                files = []
             self._name_to_command_object[name] =\
                 BuildRule(name=name, command_string=command_string, deps=deps, files=files)
 
