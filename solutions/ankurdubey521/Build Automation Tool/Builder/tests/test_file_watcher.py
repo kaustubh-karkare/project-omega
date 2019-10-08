@@ -14,12 +14,6 @@ def copy_file(input_file_path: str, output_file_path: str) -> None:
 
 
 class TestFileWatcher(unittest.TestCase):
-    # The tests should work for any path inside the project
-    def setUp(self):
-        while os.path.basename(os.getcwd()) != 'Build Automation Tool':
-            os.chdir('..')
-        os.chdir('Builder/tests')
-
     def test_copy_file_on_file_change(self):
         with tempfile.TemporaryDirectory() as file_path:
             input_file = file_path + "/input.txt"
