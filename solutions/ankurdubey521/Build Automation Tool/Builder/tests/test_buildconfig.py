@@ -1,11 +1,18 @@
 import unittest
+import tempfile
 from Builder.lib.buildconfig import BuildConfig
+from Builder.global_constants import GlobalConstants
 
 
 class TestJsonParser(unittest.TestCase):
-
     def setUp(self):
-        self.config = BuildConfig('json')
+        json_string = '[{"name":"clean","deps":["algorithms/clean"],"command":"rm -f test.o && rm -f test.exe"}' + \
+                     ',{"name":"test","files":["test.cpp"],"command":"g++ -std=c++11 -c test.cpp"}]'
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_file_path = tmpdir + "/" + GlobalConstants.CONFIG_FILE_NAME
+            with open(json_file_path, 'w') as json_handle:
+                json_handle.write(json_string)
+            self.config = BuildConfig(tmpdir)
 
     def test_build_clean_parses_correctly(self):
         command_clean = self.config.get_command('clean')
