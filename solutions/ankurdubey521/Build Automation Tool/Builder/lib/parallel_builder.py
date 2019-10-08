@@ -1,3 +1,12 @@
+""" Parallel Builder: Handles execution of build rules and associated dependencies in parallel (whenever possible)
+The execute() method is exposed as the interface for executing build rules.
+The directory structure is explored to create a dependency graph, and a topological sort is
+constructed on it. Starting from the deepest dependency, processes are spawned using Popen calls
+and threads are assigned to watch for their completion.
+
+"""
+
+
 from Builder.lib.buildconfig import BuildRule, BuildConfig
 from Builder.lib.algorithms import TopologicalSort
 from Builder.lib.file_watcher import FileWatcher
@@ -10,7 +19,12 @@ import subprocess
 
 class ParallelBuilder:
     def __init__(self, root_dir_abs: str, max_threads: int):
+        """ Constructor
+        :param root_dir_abs: Absolute path of directory which is to b considered as root (or '//')
+        :param max_threads: Max no. of threads to spawn while processing dependencies
+        """
         # Directed graph, (u, v) => v depends on u. u, v are pairs of (rule_name, rule_dir_abs)
+        # Used for generating Topological Sort
         self._dependency_graph = {}
         self._dependency_topological_sort = []
 
@@ -25,6 +39,10 @@ class ParallelBuilder:
         pass
 
     def _explore_and_build_dependency_graph(self, command_name: str, command_dir_abs: str) -> None:
+        """ Populates self._dependency_graph and self._dependency_list and checks for CircularDependencies
+        :param command_name: .
+        :param command_dir_abs: Directory which contains build.config
+        """
         # Remove Trailing '/' from paths if present
         if command_dir_abs.endswith('/'):
             command_dir_abs = command_dir_abs[:-1]
@@ -80,17 +98,26 @@ class ParallelBuilder:
             pass
 
     def _build_file_list_from_dependency_list(self, command_name: str, command_dir_abs: str) -> List[str]:
+        """" Uses self._dependency_list to generate a list of files which command_name or it's dependencies reference
+             self._explore_and_build_dependency_graph must be run before to populate self._dependency_list
+        :param command_name: .
+        :param command_dir_abs: Directory which contains build.config
+        :return: List of absolute paths of files
+        """
         file_list = []
         visited = set()
         queue = Queue()
         queue.put((command_name, command_dir_abs))
         visited.add((command_name, command_dir_abs))
+
+        # BFS
         while not queue.empty():
             rule_name, rule_dir_abs = queue.get()
             try:
                 rule_files_rel_path = BuildConfig(rule_dir_abs).get_command(rule_name).get_files()
             except BuildRule.NoFilesException:
                 rule_files_rel_path = []
+            # Get absolute paths of files and add to file_list
             rules_files_abs_path = [rule_dir_abs + "/" + path for path in rule_files_rel_path]
             file_list.extend(rules_files_abs_path)
 
@@ -105,7 +132,12 @@ class ParallelBuilder:
 
     @staticmethod
     def _run_shell(command_string: str, cwd: str = '/', print_command: bool = False) -> subprocess.Popen:
-        """Run Command and Return Exit Code. Optionally Print the command itself"""
+        """ Spawns a process to run the command
+        :param command_string: full shell command to be run
+        :param cwd: working directory
+        :param print_command: specify True if command_string is to be printed with output
+        :return: Popen object of spawned process
+        """
         if print_command:
             print(command_string)
         return subprocess.Popen(command_string, shell=True, cwd=cwd)
@@ -113,6 +145,15 @@ class ParallelBuilder:
     @staticmethod
     def _execute_rule_thread(command_name: str, command_string: str, command_dir_abs: str,
                              dependency_futures: List[Future]) -> int:
+        """ Waits for dependencies to finish executing, spawns a process for executing command_name.
+            This function is meant to be spawned as a separate thread for parallel execution
+        :param command_name: .
+        :param command_string: full shell command to be run
+        :param command_dir_abs:  Directory which contains build.config
+        :param dependency_futures: List of Future objects of spawned threads for running dependencies. Used to wait
+                                    until deps have finished executing
+        :return: return value of process
+        """
         for dependency_future in dependency_futures:
             return_value = dependency_future.result()
             # Stop Execution if Command Fails
@@ -122,6 +163,10 @@ class ParallelBuilder:
         return ParallelBuilder._run_shell(command_string, command_dir_abs, print_command=True).wait()
 
     def _execute_build_rule_and_dependencies(self, command_name: str, command_dir_abs: str) -> None:
+        """ Main execution logic
+        :param command_name: .
+        :param command_dir_abs: Directory which contains build.config
+        """
         # Create Dependency Graph
         print("\nExploring Dependencies...")
         self._unresolved_commands = set()
@@ -154,6 +199,13 @@ class ParallelBuilder:
         print("\nFinished Building")
 
     def execute(self, command_name: str, command_dir_abs: str, watch_for_file_changes=False) -> None:
+        """ Interface for ParallelBuilder.
+        :param command_name: .
+        :param command_dir_abs: Directory which contains build.config
+        :param watch_for_file_changes: if set True it spawns a daemon listening for any changes in files referenced
+                                        by the command or it's dependencies. File changes result in the build rule
+                                        being re-run
+        """
         # Create Dependency Graph
         print("\nExploring Dependencies...")
         self._explore_and_build_dependency_graph(command_name, command_dir_abs)
