@@ -5,11 +5,19 @@ T = TypeVar('T')
 
 
 class TopologicalSort:
+    """Topological Sort
+    Provides methods for generating Topological Sort of a DAG.
+    """
     class GraphContainsCycleException(Exception):
         pass
 
     @staticmethod
     def sort(graph_adj_list: Dict[T, List[T]]) -> List[T]:
+        """
+        Generates topological sort and raises exception if cycle in found
+        :param graph_adj_list: .
+        :return: topologically sort of graph
+        """
         toposort = []
         visited = {}
         queue = Queue()
