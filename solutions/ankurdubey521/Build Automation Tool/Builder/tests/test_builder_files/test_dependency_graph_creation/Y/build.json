@@ -1,7 +1,0 @@
-[
-  {
-    "name": "Y",
-    "command": "echo \"Y\"",
-    "deps": ["YX/YX", "YY/YY"]
-  }
-] 

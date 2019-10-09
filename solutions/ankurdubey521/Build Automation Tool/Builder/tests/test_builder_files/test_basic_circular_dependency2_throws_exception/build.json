@@ -1,7 +1,0 @@
-[
-  {
-    "name": "A",
-    "command": "echo \"A\"",
-    "deps": ["X/A"]
-  }
-] 

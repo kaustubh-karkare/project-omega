@@ -1,7 +1,0 @@
-[
-  {
-    "name": "Z",
-    "command": "sleep 5",
-    "deps": ["X/X", "Y/Y"]
-  }
-] 
