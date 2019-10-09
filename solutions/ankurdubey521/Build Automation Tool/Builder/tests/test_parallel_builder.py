@@ -568,7 +568,7 @@ class TestParallelBuilder(unittest.TestCase):
 
     def test_dependency_graph_creation(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = tmpdir + "/test"
+            path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder._explore_and_build_dependency_graph('Z', path)
@@ -582,7 +582,7 @@ class TestParallelBuilder(unittest.TestCase):
 
     def test_topological_sort_creation(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = tmpdir + "/test"
+            path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('Z', path)
@@ -592,7 +592,7 @@ class TestParallelBuilder(unittest.TestCase):
 
     def test_basic_circular_dependency_throws_exception(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = tmpdir + "/test"
+            path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             self.assertRaises(
@@ -602,7 +602,7 @@ class TestParallelBuilder(unittest.TestCase):
 
     def test_basic_circular_dependency2_throws_exception(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = tmpdir + "/test"
+            path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             self.assertRaises(
@@ -613,7 +613,7 @@ class TestParallelBuilder(unittest.TestCase):
     def test_compilation_basic(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             # RUN
-            path = tmpdir + "/test"
+            path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('run', path)
@@ -629,7 +629,7 @@ class TestParallelBuilder(unittest.TestCase):
     def test_commands_referenced_from_root(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             # RUN
-            path = tmpdir + "/test"
+            path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('run', path)
@@ -645,7 +645,7 @@ class TestParallelBuilder(unittest.TestCase):
 
     def test_parallel_sleep_commands(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = tmpdir + "/test"
+            path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             start_time = time.time()
@@ -656,7 +656,7 @@ class TestParallelBuilder(unittest.TestCase):
 
     def test_files_list_generation_adds_files_of_dependencies(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = tmpdir + "/test"
+            path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder._explore_and_build_dependency_graph('Z', path)
@@ -666,7 +666,7 @@ class TestParallelBuilder(unittest.TestCase):
 
     def test_failed_dependency(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = tmpdir + "/test"
+            path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('rule', path)

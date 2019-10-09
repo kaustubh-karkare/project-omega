@@ -39,7 +39,7 @@ if __name__ == '__main__':
     if '/' in command:
         # Handle relative paths
         relative_path, command = command.rsplit('/', 1)
-    path = root_dir + "/" + relative_path
+    path = os.path.join(root_dir, relative_path)
 
     try:
         builder.execute(command, path, args.watch)

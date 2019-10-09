@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, Future
 from typing import List, Dict
 import subprocess
 import logging
+import os
 
 # Logging Configuration
 logger = logging.getLogger(__name__)
@@ -74,12 +75,12 @@ class ParallelBuilder:
         for dep in deps:
             if dep.startswith('//'):
                 # Command path referenced from root directory
-                dep_dir_abs = self._root_dir_abs + '/' + dep[2:]
+                dep_dir_abs = os.path.join(self._root_dir_abs, dep[2:])
                 dep_dir_abs, dep_name = dep_dir_abs.rsplit('/', 1)
             elif '/' in dep:
                 # Command in child directory
                 dep_dir_abs, dep_name = dep.rsplit('/', 1)
-                dep_dir_abs = command_dir_abs + "/" + dep_dir_abs
+                dep_dir_abs = os.path.join(command_dir_abs, dep_dir_abs)
             else:
                 # Command in same directory
                 dep_name = dep
@@ -126,7 +127,7 @@ class ParallelBuilder:
             rule_files_rel_path = \
                 BuildConfig.load_from_build_directory(rule_dir_abs).get_build_rule(rule_name).get_files()
             # Get absolute paths of files and add to file_list
-            rules_files_abs_path = [rule_dir_abs + "/" + path for path in rule_files_rel_path]
+            rules_files_abs_path = [os.path.join(rule_dir_abs, path) for path in rule_files_rel_path]
             file_list.extend(rules_files_abs_path)
 
             if (rule_name, rule_dir_abs) in self._dependency_list:

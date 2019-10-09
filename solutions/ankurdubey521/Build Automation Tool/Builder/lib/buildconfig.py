@@ -20,6 +20,7 @@
 """
 
 import json
+import os
 from typing import List
 from Builder.global_constants import GlobalConstants
 
@@ -56,7 +57,7 @@ class BuildConfig:
     @classmethod
     def load_from_build_directory(cls, json_containing_directory: str):
         # Parse JSON
-        json_path = json_containing_directory + "/" + GlobalConstants.CONFIG_FILE_NAME
+        json_path = os.path.join(json_containing_directory, GlobalConstants.CONFIG_FILE_NAME)
         with open(json_path) as file_handle:
             raw_json_str = file_handle.read()
         return cls(raw_json_str)
