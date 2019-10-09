@@ -12,9 +12,13 @@ from Builder.lib.algorithms import TopologicalSort
 from Builder.lib.file_watcher import FileWatcher
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor, Future
-from datetime import datetime
 from typing import List
 import subprocess
+import logging
+
+# Logging Configuration
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class ParallelBuilder:
@@ -136,7 +140,7 @@ class ParallelBuilder:
         :return: Popen object of spawned process
         """
         if print_command:
-            print(command_string)
+            logger.info(command_string)
         return subprocess.Popen(command_string, shell=True, cwd=cwd)
 
     @staticmethod
@@ -156,7 +160,7 @@ class ParallelBuilder:
             # Stop Execution if Command Fails
             if return_value != 0:
                 exit(-1)
-        print("{}: [{}] in {}".format(str(datetime.now().time())[:8], command_name, command_dir_abs))
+        logger.info("[{}] in {}".format(command_name, command_dir_abs))
         return ParallelBuilder._run_shell(command_string, command_dir_abs, print_command=True).wait()
 
     def _execute_build_rule_and_dependencies(self, command_name: str, command_dir_abs: str) -> None:
@@ -165,10 +169,10 @@ class ParallelBuilder:
         :param command_dir_abs: Directory which contains build.config
         """
         # Create Dependency Graph
-        print("\nExploring Dependencies...")
+        logger.info("Exploring Dependencies...")
         self._unresolved_commands = set()
         self._explore_and_build_dependency_graph(command_name, command_dir_abs)
-        print("\nDone exploring dependencies")
+        logger.info("Done exploring dependencies")
 
         # Generate Topological Sort
         self._topologically_sorted_build_rule_names = TopologicalSort.sort(self._dependency_graph)
@@ -180,7 +184,7 @@ class ParallelBuilder:
         rule_to_futures = {}
 
         # Execute the Build Rules. starting from the deepest dependency
-        print("\nExecuting Build Rules...")
+        logger.info("Executing Build Rules...")
         with ThreadPoolExecutor(max_workers=self._max_threads) as executor:
             for build_rule_tuple in self._topologically_sorted_build_rule_names:
                 (rule_name, rule_dir_abs) = build_rule_tuple
@@ -194,7 +198,7 @@ class ParallelBuilder:
                     ParallelBuilder._execute_rule_thread, rule_name, rule_command_string,
                     rule_dir_abs, dependency_futures)
                 rule_to_futures[build_rule_tuple] = thread
-        print("\nFinished Building")
+        logger.info("Finished Building")
 
     def execute(self, command_name: str, command_dir_abs: str, watch_for_file_changes=False) -> None:
         """ Interface for ParallelBuilder.
@@ -205,9 +209,9 @@ class ParallelBuilder:
                                         being re-run
         """
         # Create Dependency Graph
-        print("\nExploring Dependencies...")
+        logger.info("Exploring Dependencies...")
         self._explore_and_build_dependency_graph(command_name, command_dir_abs)
-        print("\nDone exploring dependencies")
+        logger.info("Done exploring dependencies")
 
         # Generate Topological Sort
         self._topologically_sorted_build_rule_names = TopologicalSort.sort(self._dependency_graph)

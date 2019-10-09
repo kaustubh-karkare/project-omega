@@ -1,8 +1,6 @@
 import unittest
-import tempfile
 import json
 from Builder.lib.buildconfig import BuildConfig
-from Builder.global_constants import GlobalConstants
 
 
 class TestJsonParser(unittest.TestCase):

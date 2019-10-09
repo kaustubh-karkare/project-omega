@@ -2,6 +2,11 @@ from os import stat
 from typing import List, Callable, Dict
 from Builder.global_constants import GlobalConstants
 from time import sleep
+import logging
+
+# Logging Configuration
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class FileWatcher:
@@ -18,16 +23,16 @@ class FileWatcher:
     @staticmethod
     def watch_and_execute(file_list: List[str], function: Callable[[None], None]) -> None:
         """Execute a function whenever a file from file_list changes"""
-        print("Listening for changes on {}...".format(file_list))
+        logger.info("Listening for changes on {}...".format(file_list))
         file_edit_times = FileWatcher._get_file_edit_times(file_list)
-        print("Executing for the first time...")
+        logger.info("Executing for the first time...")
         function()
         while True:
             sleep(FileWatcher.FILE_WATCH_INTERVAL_SECONDS)
             new_file_edit_times = FileWatcher._get_file_edit_times(file_list)
             if new_file_edit_times != file_edit_times:
                 file_edit_times = new_file_edit_times
-                print("Detected change of file. Executing...")
+                logger.info("Detected change of file. Executing...")
                 function()
 
 
