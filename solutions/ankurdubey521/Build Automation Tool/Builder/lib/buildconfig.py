@@ -26,9 +26,9 @@ from Builder.global_constants import GlobalConstants
 
 class BuildRule:
     """Stores Command Information"""
-    def __init__(self, *, name: str, command_string: str, deps: List[str] = [], files: List[str] = []) -> None:
+    def __init__(self, *, name: str, command: str, deps: List[str] = [], files: List[str] = []) -> None:
         self._name = name
-        self._command_string = command_string
+        self._command = command
         self._files = files
         self._dependencies = deps
 
@@ -38,8 +38,8 @@ class BuildRule:
     def get_files(self) -> List[str]:
         return self._files
 
-    def get_command_string(self) -> str:
-        return self._command_string
+    def get_command(self) -> str:
+        return self._command
 
     def get_dependencies(self) -> List[str]:
         return self._dependencies
@@ -53,30 +53,29 @@ class BuildRule:
 
 class BuildConfig:
     """Parses and Stores build.config in the form of BuildRule objects"""
-    def __init__(self, json_containing_folder: str) -> None:
+    @classmethod
+    def load_from_build_directory(cls, json_containing_directory: str):
         # Parse JSON
-        json_path = json_containing_folder + "/" + GlobalConstants.CONFIG_FILE_NAME
+        json_path = json_containing_directory + "/" + GlobalConstants.CONFIG_FILE_NAME
         with open(json_path) as file_handle:
-            self._raw_json = json.load(file_handle)
+            raw_json_str = file_handle.read()
+        return cls(raw_json_str)
 
-        self._name_to_command_object = {}
-        for command_entry in self._raw_json:
-            name = command_entry['name']
-            command_string = command_entry['command']
-            if 'deps' in command_entry:
-                deps = command_entry['deps']
-            else:
-                deps = []
-            if 'files' in command_entry:
-                files = command_entry['files']
-            else:
-                files = []
-            self._name_to_command_object[name] =\
-                BuildRule(name=name, command_string=command_string, deps=deps, files=files)
+    def __init__(self, raw_json_str: str) -> None:
+        # Parse JSON
+        raw_json = json.loads(raw_json_str)
+        self._name_to_build_rule = {}
+        for raw_build_rule in raw_json:
+            name = raw_build_rule.get('name')
+            command = raw_build_rule.get('command')
+            deps = raw_build_rule.get('deps', [])
+            files = raw_build_rule.get('files', [])
+            self._name_to_build_rule[name] =\
+                BuildRule(name=name, command=command, deps=deps, files=files)
 
-    def get_command(self, command_name: str) -> BuildRule:
-        if command_name in self._name_to_command_object:
-            return self._name_to_command_object[command_name]
+    def get_build_rule(self, command_name: str) -> BuildRule:
+        if command_name in self._name_to_build_rule:
+            return self._name_to_build_rule[command_name]
         else:
             raise BuildConfig.UnknownCommandException('No such command "{}" found.'.format(command_name))
 

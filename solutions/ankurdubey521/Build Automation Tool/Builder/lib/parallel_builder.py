@@ -23,17 +23,20 @@ class ParallelBuilder:
         :param root_dir_abs: Absolute path of directory which is to b considered as root (or '//')
         :param max_threads: Max no. of threads to spawn while processing dependencies
         """
+        # Config
+        self._max_threads = max_threads
+        self._root_dir_abs = root_dir_abs
+
         # Directed graph, (u, v) => v depends on u. u, v are pairs of (rule_name, rule_dir_abs)
         # Used for generating Topological Sort
         self._dependency_graph = {}
-        self._dependency_topological_sort = []
+        self._topologically_sorted_build_rule_names = []
 
         # List of (dependency_name, dependency_dir_abs) for each build rule
         self._dependency_list = {}
 
-        self._root_dir_abs = root_dir_abs
+        # Space for rough work :P
         self._unresolved_commands = set()
-        self._max_threads = max_threads
 
     class CircularDependencyException(Exception):
         pass
@@ -50,8 +53,8 @@ class ParallelBuilder:
             self._root_dir_abs = self._root_dir_abs[:-1]
 
         # Parse build.json in current directory
-        config = BuildConfig(command_dir_abs)
-        command = config.get_command(command_name)
+        config = BuildConfig.load_from_build_directory(command_dir_abs)
+        command = config.get_build_rule(command_name)
 
         # Mark the command's dependencies as unresolved
         self._unresolved_commands.add((command_name, command_dir_abs))
@@ -109,7 +112,8 @@ class ParallelBuilder:
         # BFS
         while not queue.empty():
             rule_name, rule_dir_abs = queue.get()
-            rule_files_rel_path = BuildConfig(rule_dir_abs).get_command(rule_name).get_files()
+            rule_files_rel_path = \
+                BuildConfig.load_from_build_directory(rule_dir_abs).get_build_rule(rule_name).get_files()
             # Get absolute paths of files and add to file_list
             rules_files_abs_path = [rule_dir_abs + "/" + path for path in rule_files_rel_path]
             file_list.extend(rules_files_abs_path)
@@ -167,10 +171,10 @@ class ParallelBuilder:
         print("\nDone exploring dependencies")
 
         # Generate Topological Sort
-        self._dependency_topological_sort = TopologicalSort.sort(self._dependency_graph)
+        self._topologically_sorted_build_rule_names = TopologicalSort.sort(self._dependency_graph)
         # Handle case when no dependency exist (empty dependency graph => empty toposort)
-        if len(self._dependency_topological_sort) == 0:
-            self._dependency_topological_sort.append((command_name, command_dir_abs))
+        if len(self._topologically_sorted_build_rule_names) == 0:
+            self._topologically_sorted_build_rule_names.append((command_name, command_dir_abs))
 
         # Dict[Tuple[name, abs_dir]: Futures]
         rule_to_futures = {}
@@ -178,9 +182,10 @@ class ParallelBuilder:
         # Execute the Build Rules. starting from the deepest dependency
         print("\nExecuting Build Rules...")
         with ThreadPoolExecutor(max_workers=self._max_threads) as executor:
-            for build_rule_tuple in self._dependency_topological_sort:
+            for build_rule_tuple in self._topologically_sorted_build_rule_names:
                 (rule_name, rule_dir_abs) = build_rule_tuple
-                rule_command_string = BuildConfig(rule_dir_abs).get_command(rule_name).get_command_string()
+                rule_command_string = \
+                    BuildConfig.load_from_build_directory(rule_dir_abs).get_build_rule(rule_name).get_command()
                 dependency_futures = []
                 if build_rule_tuple in self._dependency_list:
                     dependency_futures = \
@@ -205,16 +210,19 @@ class ParallelBuilder:
         print("\nDone exploring dependencies")
 
         # Generate Topological Sort
-        self._dependency_topological_sort = TopologicalSort.sort(self._dependency_graph)
+        self._topologically_sorted_build_rule_names = TopologicalSort.sort(self._dependency_graph)
         # Handle case when no dependency exist (empty dependency graph => empty toposort)
-        if len(self._dependency_topological_sort) == 0:
-            self._dependency_topological_sort.append((command_name, command_dir_abs))
+        if len(self._topologically_sorted_build_rule_names) == 0:
+            self._topologically_sorted_build_rule_names.append((command_name, command_dir_abs))
 
-        if not watch_for_file_changes:
-            self._execute_build_rule_and_dependencies(command_name, command_dir_abs)
-        else:
+        if watch_for_file_changes:
             file_list_abs = self._build_file_list_from_dependency_list(command_name, command_dir_abs)
-            FileWatcher.watch_and_execute(
-                file_list_abs, self._execute_build_rule_and_dependencies, command_name, command_dir_abs)
+
+            def callable_build_rule_executor():
+                self._execute_build_rule_and_dependencies(command_name, command_dir_abs)
+            FileWatcher.watch_and_execute(file_list_abs, callable_build_rule_executor)
+        else:
+            self._execute_build_rule_and_dependencies(command_name, command_dir_abs)
+
 
 

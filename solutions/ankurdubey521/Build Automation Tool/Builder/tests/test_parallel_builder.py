@@ -3,7 +3,6 @@ from Builder.lib.parallel_builder import ParallelBuilder
 import subprocess
 from multiprocessing import Process
 from time import sleep
-import pprint
 import os
 import tempfile
 import shutil
@@ -40,7 +39,6 @@ class TestParallelBuilder(unittest.TestCase):
                 dependency_graph[node_tuple[0]] = []
                 for item in parallel_builder._dependency_graph[node_tuple]:
                     dependency_graph[node_tuple[0]].append(item[0])
-            pprint.pprint(dependency_graph, indent=4)
             correct_dependency_graph = {'X': ['Z'], 'XX': ['X'], 'XY': ['X'], 'Y': ['Z'], 'YX': ['Y'], 'YY': ['Y']}
             self.assertEqual(correct_dependency_graph, dependency_graph)
 
@@ -51,7 +49,7 @@ class TestParallelBuilder(unittest.TestCase):
             shutil.copytree(local_path, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('Z', path)
-            toposort = [item[0] for item in parallel_builder._dependency_topological_sort]
+            toposort = [item[0] for item in parallel_builder._topologically_sorted_build_rule_names]
             print(toposort)
             self.assertEqual(['XX', 'XY', 'YX', 'YY', 'X', 'Y', 'Z'], toposort)
 
