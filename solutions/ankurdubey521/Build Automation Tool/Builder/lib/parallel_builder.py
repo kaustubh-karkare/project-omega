@@ -12,7 +12,7 @@ from Builder.lib.algorithms import TopologicalSort
 from Builder.lib.file_watcher import FileWatcher
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor, Future
-from typing import List
+from typing import List, Dict
 import subprocess
 import logging
 
@@ -36,6 +36,9 @@ class ParallelBuilder:
         self._dependency_graph = {}
         self._topologically_sorted_build_rule_names = []
 
+        # Boolean representing status of last build
+        self._last_build_passed = False
+
         # List of (dependency_name, dependency_dir_abs) for each build rule
         self._dependency_list = {}
 
@@ -44,6 +47,9 @@ class ParallelBuilder:
 
     class CircularDependencyException(Exception):
         pass
+
+    def get_last_build_pass_status(self) -> bool:
+        return self._last_build_passed
 
     def _explore_and_build_dependency_graph(self, command_name: str, command_dir_abs: str) -> None:
         """ Populates self._dependency_graph and self._dependency_list and checks for CircularDependencies
@@ -94,6 +100,7 @@ class ParallelBuilder:
 
             # Check for circular dependencies
             if dependency_tuple in self._unresolved_commands:
+                self._last_build_passed = False
                 raise self.CircularDependencyException(
                     "Detected a Circular Dependency between {}:{} and {}:{}"
                     .format(dep_dir_abs, dep_name, command_dir_abs, command_name))
@@ -128,6 +135,7 @@ class ParallelBuilder:
                         visited.add(dep)
                         queue.put(dep)
                     else:
+                        self._last_build_passed = False
                         raise ParallelBuilder.CircularDependencyException()
         return file_list
 
@@ -145,28 +153,30 @@ class ParallelBuilder:
 
     @staticmethod
     def _execute_rule_thread(command_name: str, command_string: str, command_dir_abs: str,
-                             dependency_futures: List[Future]) -> int:
+                             dependency_futures: Dict[str, Future] = {}) -> int:
         """ Waits for dependencies to finish executing, spawns a process for executing command_name.
             This function is meant to be spawned as a separate thread for parallel execution
         :param command_name: .
         :param command_string: full shell command to be run
         :param command_dir_abs:  Directory which contains build.config
-        :param dependency_futures: List of Future objects of spawned threads for running dependencies. Used to wait
-                                    until deps have finished executing
+        :param dependency_futures: Dict of [dep_name to Future] of spawned threads for running dependencies.
+                                   Used for waiting until deps have finished executing
         :return: return value of process
         """
-        for dependency_future in dependency_futures:
-            return_value = dependency_future.result()
+        for dependency_name in dependency_futures:
+            return_value = dependency_futures[dependency_name].result()
             # Stop Execution if Command Fails
             if return_value != 0:
-                exit(-1)
+                logger.error("Building {} failed with exit code {}".format(dependency_name, return_value))
+                return -1
         logger.info("[{}] in {}".format(command_name, command_dir_abs))
         return ParallelBuilder._run_shell(command_string, command_dir_abs, print_command=True).wait()
 
-    def _execute_build_rule_and_dependencies(self, command_name: str, command_dir_abs: str) -> None:
+    def _execute_build_rule_and_dependencies(self, command_name: str, command_dir_abs: str) -> bool:
         """ Main execution logic
         :param command_name: .
         :param command_dir_abs: Directory which contains build.config
+        :return: boolean indicating build success of build rule
         """
         # Create Dependency Graph
         logger.info("Exploring Dependencies...")
@@ -183,22 +193,50 @@ class ParallelBuilder:
         # Dict[Tuple[name, abs_dir]: Futures]
         rule_to_futures = {}
 
+        # Flags for indicating overall build status
+        overall_build_success = True
+        build_failed_for_dependency = False
+
         # Execute the Build Rules. starting from the deepest dependency
         logger.info("Executing Build Rules...")
         with ThreadPoolExecutor(max_workers=self._max_threads) as executor:
             for build_rule_tuple in self._topologically_sorted_build_rule_names:
-                (rule_name, rule_dir_abs) = build_rule_tuple
-                rule_command_string = \
-                    BuildConfig.load_from_build_directory(rule_dir_abs).get_build_rule(rule_name).get_command()
-                dependency_futures = []
-                if build_rule_tuple in self._dependency_list:
-                    dependency_futures = \
-                        [rule_to_futures[dependency] for dependency in self._dependency_list[build_rule_tuple]]
-                thread = executor.submit(
-                    ParallelBuilder._execute_rule_thread, rule_name, rule_command_string,
-                    rule_dir_abs, dependency_futures)
-                rule_to_futures[build_rule_tuple] = thread
-        logger.info("Finished Building")
+                if not build_failed_for_dependency:
+                    (rule_name, rule_dir_abs) = build_rule_tuple
+                    rule_command_string = \
+                        BuildConfig.load_from_build_directory(rule_dir_abs).get_build_rule(rule_name).get_command()
+
+                    # Generate Dict for Popen of objects of Dependencies
+                    dependency_futures = {}
+                    if build_rule_tuple in self._dependency_list:
+                        for (dep_name, dep_dir_abs) in self._dependency_list[build_rule_tuple]:
+                            dependency_futures[dep_name] = rule_to_futures[(dep_name, dep_dir_abs)]
+
+                    # Spawn the process for executing build rules and it's dependencies
+                    # If a dependency fails during execution, build_failed_for_dependency will be set as True
+                    # Cease operation at that moment
+                    def build_success_validator(future: Future) -> None:
+                        if future.result() != 0:
+                            global build_failed_for_dependency, overall_build_success
+                            build_failed_for_dependency = True
+                            overall_build_success = False
+
+                    thread = executor.submit(
+                        ParallelBuilder._execute_rule_thread, rule_name, rule_command_string, rule_dir_abs,
+                        dependency_futures)
+                    thread.add_done_callback(build_success_validator)
+                    rule_to_futures[build_rule_tuple] = thread
+
+        # Verify that all build rules succeeded (exited with 0)
+        for rule_tuple in rule_to_futures:
+            if rule_to_futures[rule_tuple].result() != 0:
+                overall_build_success = False
+
+        if overall_build_success:
+            logger.info("Build Succeeded")
+        else:
+            logger.error("Build Failed")
+        return overall_build_success
 
     def execute(self, command_name: str, command_dir_abs: str, watch_for_file_changes=False) -> None:
         """ Interface for ParallelBuilder.
@@ -223,10 +261,10 @@ class ParallelBuilder:
             file_list_abs = self._build_file_list_from_dependency_list(command_name, command_dir_abs)
 
             def callable_build_rule_executor():
-                self._execute_build_rule_and_dependencies(command_name, command_dir_abs)
+                self._last_build_passed = self._execute_build_rule_and_dependencies(command_name, command_dir_abs)
             FileWatcher.watch_and_execute(file_list_abs, callable_build_rule_executor)
         else:
-            self._execute_build_rule_and_dependencies(command_name, command_dir_abs)
+            self._last_build_passed = self._execute_build_rule_and_dependencies(command_name, command_dir_abs)
 
 
 

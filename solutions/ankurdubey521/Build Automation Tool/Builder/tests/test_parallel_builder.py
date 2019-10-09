@@ -1,8 +1,7 @@
 import unittest
 from Builder.lib.parallel_builder import ParallelBuilder
 import subprocess
-from multiprocessing import Process
-from time import sleep
+import time
 import os
 import tempfile
 import shutil
@@ -75,6 +74,7 @@ class TestParallelBuilder(unittest.TestCase):
             self.assertRaises(
                 parallel_builder.CircularDependencyException, parallel_builder.execute, 'A',
                 path)
+            self.assertFalse(parallel_builder.get_last_build_pass_status())
 
     def test_basic_circular_dependency2_throws_exception(self):
         local_path = os.getcwd() + '/test_builder_files/test_basic_circular_dependency2_throws_exception'
@@ -85,6 +85,7 @@ class TestParallelBuilder(unittest.TestCase):
             self.assertRaises(
                 parallel_builder.CircularDependencyException, parallel_builder.execute, 'A',
                 path)
+            self.assertFalse(parallel_builder.get_last_build_pass_status())
 
     def test_compilation_basic(self):
         local_path = os.getcwd() + '/test_builder_files/test_compilation_basic'
@@ -101,6 +102,7 @@ class TestParallelBuilder(unittest.TestCase):
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('clean', path)
             self.assertFalse(os.path.isfile(path + "/test.out"))
+            self.assertTrue(parallel_builder.get_last_build_pass_status())
 
     def test_commands_referenced_from_root(self):
         local_path = os.getcwd() + '/test_builder_files/test_commands_referenced_from_root'
@@ -118,6 +120,7 @@ class TestParallelBuilder(unittest.TestCase):
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('clean', path)
             self.assertFalse(os.path.isfile(path + "/output"))
+            self.assertTrue(parallel_builder.get_last_build_pass_status())
 
     def test_parallel_sleep_commands(self):
         local_path = os.getcwd() + '/test_builder_files/test_parallel_sleep_commands'
@@ -125,10 +128,11 @@ class TestParallelBuilder(unittest.TestCase):
             path = tmpdir + "/test"
             shutil.copytree(local_path, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
-            process = Process(target=parallel_builder.execute,
-                              args=('Z', path))
-            sleep(16)
-            self.assertEqual(False, process.is_alive())
+            start_time = time.time()
+            parallel_builder.execute('Z', path)
+            end_time = time.time()
+            self.assertTrue(end_time - start_time < 16)
+            self.assertTrue(parallel_builder.get_last_build_pass_status())
 
     def test_files_list_generation_adds_files_of_dependencies(self):
         local_path = os.getcwd() + '/test_builder_files/test_files_list_generation_adds_files_of_dependencies'
@@ -140,6 +144,15 @@ class TestParallelBuilder(unittest.TestCase):
             file_list = parallel_builder._build_file_list_from_dependency_list('Z', path).sort()
             correct_file_list = [path + rel_path for rel_path in ['/z_file', '/X/x_file', '/Y/y_file']].sort()
             self.assertEqual(correct_file_list, file_list)
+
+    def test_failed_dependency(self):
+        local_path = os.getcwd() + '/test_builder_files/test_failed_dependency'
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = tmpdir + "/test"
+            shutil.copytree(local_path, path)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder.execute('rule', path)
+            self.assertFalse(parallel_builder.get_last_build_pass_status())
 
 
 if __name__ == '__main__':
