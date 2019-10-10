@@ -1,7 +1,7 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-string sort_bubble()
+string sort_quick()
 {
 	return "sort_quick";
 }
