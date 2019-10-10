@@ -7,15 +7,16 @@ and threads are assigned to watch for their completion.
 """
 
 
-from Builder.lib.buildconfig import BuildConfig
-from Builder.lib.algorithms import TopologicalSort
-from Builder.lib.file_watcher import FileWatcher
-from queue import Queue
-from concurrent.futures import ThreadPoolExecutor, Future
-from typing import List, Dict
-import subprocess
 import logging
 import os
+import subprocess
+from concurrent.futures import Future, ThreadPoolExecutor
+from queue import Queue
+from typing import Dict, List
+
+from Builder.lib.algorithms import TopologicalSort
+from Builder.lib.buildconfig import BuildConfig
+from Builder.lib.file_watcher import FileWatcher
 
 # Logging Configuration
 logger = logging.getLogger(__name__)

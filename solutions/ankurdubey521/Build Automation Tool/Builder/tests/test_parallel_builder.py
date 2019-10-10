@@ -1,13 +1,14 @@
-import unittest
-from Builder.lib.parallel_builder import ParallelBuilder
-from Builder.global_constants import GlobalConstants
-from pathlib import Path
-import subprocess
-import time
-import os
-import tempfile
 import json
 import logging
+import os
+import subprocess
+import tempfile
+import time
+import unittest
+from pathlib import Path
+
+from Builder.global_constants import GlobalConstants
+from Builder.lib.parallel_builder import ParallelBuilder
 
 MAX_THREAD_COUNT = 12
 
@@ -558,12 +559,12 @@ def write_test_files(test_name: str, path: str) -> None:
 class TestParallelBuilder(unittest.TestCase):
     def test_basic_shell_command(self):
         command = "echo 'Hello World!'"
-        exit_code = ParallelBuilder._run_shell(command, cwd='/').wait()
+        exit_code = ParallelBuilder._run_shell(command, cwd=os.getcwd()).wait()
         self.assertEqual(0, exit_code)
 
     def test_nonzero_exit_code_for_shell_command(self):
         command = "exit 1"
-        exit_code = ParallelBuilder._run_shell(command, cwd='/').wait()
+        exit_code = ParallelBuilder._run_shell(command, cwd=os.getcwd()).wait()
         self.assertEqual(1, exit_code)
 
     def test_dependency_graph_creation(self):
@@ -617,13 +618,13 @@ class TestParallelBuilder(unittest.TestCase):
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('run', path)
-            exec_path = '"' + path + '/test.out' + '"'
+            exec_path = '"' + os.path.join(path, "test.out") + '"'
             result = subprocess.run(exec_path, shell=True, capture_output=True, text=True)
             self.assertEqual('1 2 3 4 5 \n1 2 3 4 5 \n1 2 3 4 5 \n', result.stdout)
             # CLEANUP
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('clean', path)
-            self.assertFalse(os.path.isfile(path + "/test.out"))
+            self.assertFalse(os.path.isfile(os.path.join(path, "test.out")))
             self.assertTrue(parallel_builder.get_last_build_pass_status())
 
     def test_commands_referenced_from_root(self):
@@ -633,14 +634,14 @@ class TestParallelBuilder(unittest.TestCase):
             write_test_files(self._testMethodName, path)
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('run', path)
-            output_file_path = path + '/output'
+            output_file_path = os.path.join(path, 'output')
             with open(output_file_path) as file_handle:
                 result = file_handle.readable()
             self.assertEqual(True, result)
             # CLEANUP
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder.execute('clean', path)
-            self.assertFalse(os.path.isfile(path + "/output"))
+            self.assertFalse(os.path.isfile(os.path.join(path, "output")))
             self.assertTrue(parallel_builder.get_last_build_pass_status())
 
     def test_parallel_sleep_commands(self):
@@ -661,7 +662,7 @@ class TestParallelBuilder(unittest.TestCase):
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
             parallel_builder._explore_and_build_dependency_graph('Z', path)
             file_list = parallel_builder._build_file_list_from_dependency_list('Z', path).sort()
-            correct_file_list = [path + rel_path for rel_path in ['/z_file', '/X/x_file', '/Y/y_file']].sort()
+            correct_file_list = [os.path.join(path, rel_path) for rel_path in ['z_file', 'X/x_file', 'Y/y_file']].sort()
             self.assertEqual(correct_file_list, file_list)
 
     def test_failed_dependency(self):

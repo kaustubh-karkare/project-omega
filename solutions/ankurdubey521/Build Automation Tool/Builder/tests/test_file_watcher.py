@@ -1,11 +1,11 @@
-import unittest
-from Builder.lib.file_watcher import FileWatcher
-from time import sleep
-from multiprocessing import Process
-import tempfile
 import logging
 import os
+import tempfile
+import unittest
+from multiprocessing import Process
+from time import sleep
 
+from Builder.lib.file_watcher import FileWatcher
 
 # Configure Logging
 logger = logging.getLogger()
@@ -24,7 +24,7 @@ class TestFileWatcher(unittest.TestCase):
     def test_copy_file_on_file_change(self):
         with tempfile.TemporaryDirectory() as file_path:
             input_file = os.path.join(file_path, "input.txt")
-            output_file = os.path.join(file_path + "output.txt")
+            output_file = os.path.join(file_path, "output.txt")
             with open(input_file, 'w') as file_handle:
                 file_handle.write("Hello World 1.0")
             with open(output_file, 'w') as file_handle:

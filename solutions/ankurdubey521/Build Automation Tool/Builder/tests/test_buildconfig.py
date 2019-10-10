@@ -1,5 +1,6 @@
-import unittest
 import json
+import unittest
+
 from Builder.lib.buildconfig import BuildConfig
 
 

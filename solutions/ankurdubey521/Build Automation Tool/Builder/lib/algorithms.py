@@ -1,5 +1,5 @@
-from typing import List, Dict, TypeVar
 from queue import Queue
+from typing import Dict, List, TypeVar
 
 T = TypeVar('T')
 

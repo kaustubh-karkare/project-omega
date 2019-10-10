@@ -1,8 +1,9 @@
-from os import stat
-from typing import List, Callable, Dict
-from Builder.global_constants import GlobalConstants
-from time import sleep
 import logging
+from os import stat
+from time import sleep
+from typing import Callable, Dict, List
+
+from Builder.global_constants import GlobalConstants
 
 # Logging Configuration
 logger = logging.getLogger(__name__)
