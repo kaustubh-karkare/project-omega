@@ -38,10 +38,10 @@ class Parser:
     def check_required(self, keys):
         for check in self.arguments:
             flag = False
-            if check.required == False:
+            if not check.required:
                 continue
             for key in keys:
-                if key == check.argument and check.required == True:
+                if key == check.argument and check.required:
                     flag = True
             if not flag:
                 return False, check.argument
@@ -82,7 +82,7 @@ class Parser:
             flag = False
             for obj in self.arguments:
                 if obj.argument == key:
-                    flag = True;
+                    flag = True
             if not flag:
                 raise ParseError("Error: invalid argument '" + key + "'")
             if '=' not in args:
@@ -90,7 +90,7 @@ class Parser:
             flag = False
             for obj in self.arguments:
                 if obj.types == "integer" and obj.argument == key:
-                    flag = True;
+                    flag = True
             if flag:
                 if not value.isdigit():
                     raise ParseError("Error: The value for argument '" + key + "' must be integer")
