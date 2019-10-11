@@ -1,38 +1,50 @@
 import json
 
+class ParseError(Exception):
+    """
+    Class for raising exceptions
+    """
+    
+    def __init__(self, message):
+        super(ParseError, self).__init__(message)
+
+class Options(object):
+    """
+    Class for storing argument information
+    """
+    
+    def __init__(self, argument, types, required):
+        self.argument = argument
+        self.types = types
+        self.required = required
+        
 class Parser:
     """
     Class for adding the command line arguments
     storing errors, storing results and displaying them
     """
-    Integer, String, Others, Required = set(), set(), set(), set()
-    Json = dict()
+    
+    def __init__(self):
+        self.arguments = []
+        self.Json = {}
 
     def add_argument(self, argument, required, types):
-        if types == 'integer':
-            self.Integer.add(argument)
-            if required == 'yes':
-                self.Required.add(argument)
-        elif types == 'string':
-            self.String.add(argument)
-            if required == 'yes':
-                self.Required.add(argument)
-        else:
-            self.Others.add(argument)
-            if required == 'yes':
-                self.Required.add(argument)
+        add = Options(argument, types, required)
+        self.arguments.append(add)
 
     def store_result(self, key, value):
         self.Json[key] = value
 
     def check_required(self, keys):
-        for check in self.Required:
+        for check in self.arguments:
             flag = False
+            if check.required == False:
+                continue
             for key in keys:
-                if key == check:
+                if key == check.argument and check.required == True:
                     flag = True
             if not flag:
-                return False, check
+                return False, check.argument
         return True, "ok"
 
     def check_local_and_remote(self, argument):
@@ -56,9 +68,9 @@ class Parser:
     def main(self, argument):
         length_of_arguments = len(argument)
         if length_of_arguments == 1:
-            return "Error: no arguments given in input"
+            raise ParseError("Error: no arguments given in input")
         if self.check_local_and_remote(argument):
-            return "Error: The '--local' and '--remote' arguments cannot be used together"
+            raise ParseError("Error: The '--local' and '--remote' arguments cannot be used together")
         keys = list()
         for arguments in range(1, length_of_arguments):
             args = argument[arguments]
@@ -67,19 +79,26 @@ class Parser:
             keys.append(key)
             if key not in ("--remote", "--local"):
                 self.store_result(key, value)
-            if (key not in self.Integer) and (key not in self.String) and(key not in self.Others):
-                return "Error: invalid argument '" + key + "'"
+            flag = False
+            for obj in self.arguments:
+                if obj.argument == key:
+                    flag = True;
+            if not flag:
+                raise ParseError("Error: invalid argument '" + key + "'")
             if '=' not in args:
-                return "Error: The value for argument '" + key + "' is missing"
-            if key in self.Integer:
+                raise ParseError("Error: The value for argument '" + key + "' is missing")
+            flag = False
+            for obj in self.arguments:
+                if obj.types == "integer" and obj.argument == key:
+                    flag = True;
+            if flag:
                 if not value.isdigit():
-                    return "Error: The value for argument '" + key + "' must be integer"
-            if key in self.String:
+                    raise ParseError("Error: The value for argument '" + key + "' must be integer")
+            if not flag:
                 if not value.isalpha():
-                    return "Error: The value for argument '" + key + "' must be string"
+                    raise ParseError("Error: The value for argument '" + key + "' must be string")
 
         response, key = self.check_required(keys)
         if not response:
-            return "Error : argument '" + key + "' is required but missing"
+            raise ParseError("Error : argument '" + key + "' is required but missing")
         return self.display_result()
-
