@@ -43,12 +43,10 @@ class Parser:
             The User passed values if everything goes well , otherwise returns the error
         """
         # Storing required Args for Error Checking
-        required_args = set(
+        required_args_name = set(
             [name for name, value in self._expected_args.items() for x1, x2 in value.items() if x2 == True])
 
         unique_key_nums = 0
-        present_unique_key = ""
-        previous_unique_key = ""
         user_passed_args = {}
         conflict_checker = {}
         uniquekey_count = 0
@@ -70,16 +68,15 @@ class Parser:
                 if uniquekey is not None:
                     if uniquekey in conflict_checker:
                         conflict_checker[uniquekey] = 2
+                        raise ParserError("conflict")
                     else:
                         conflict_checker[uniquekey] = 1
                         uniquekey_count = uniquekey_count + 1
-
-                if uniquekey_count > 1:
-                    raise ParserError("conflict")
             else:
                 raise ParserError("Unexpected Format")
 
-        for commands in required_args:
-            if commands not in user_passed_args:
-                raise ParserError("mandatoryerror")
+        for name in required_args_name:
+            if name not in user_passed_args:
+                raise ParserError(
+                    "mandatoryerror Required Argument Missing", name)
         return user_passed_args

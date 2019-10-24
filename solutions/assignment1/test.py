@@ -1,16 +1,18 @@
 import library
 import unittest
 import sys
+import random
 
 
 class SimpleTest(unittest.TestCase):
     def setUp(self):
+
         self.parser = library.Parser()
         self.parser.add_option('key', required=True,
                                type=int, unique_key="local")
-        self.parser.add_option('name',  type=str, unique_key="remote")
+        self.parser.add_option('name',  type=str, unique_key="local")
         self.parser.add_option('key2',  type=float)
-        self.parser.add_option('name1', unique_key="local", type=str)
+        self.parser.add_option('name1', unique_key="remote", type=str)
         pass
 
     def test_print(self):
