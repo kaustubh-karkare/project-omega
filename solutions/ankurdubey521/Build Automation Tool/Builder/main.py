@@ -1,9 +1,9 @@
-from Builder.lib.parallel_builder import ParallelBuilder
-from Builder.lib.default_logger import DefaultLogger
 import argparse
-import sys
 import os
+import sys
 
+from Builder.lib.default_logger import DefaultLogger
+from Builder.lib.parallel_builder import ParallelBuilder
 
 if __name__ == '__main__':
     # Parse Args

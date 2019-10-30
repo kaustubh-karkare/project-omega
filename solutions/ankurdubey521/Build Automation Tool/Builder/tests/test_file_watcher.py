@@ -1,12 +1,11 @@
-import logging
 import os
 import tempfile
 import unittest
 from multiprocessing import Process
 from time import sleep
 
-from Builder.lib.file_watcher import FileWatcher
 from Builder.lib.default_logger import DefaultLogger
+from Builder.lib.file_watcher import FileWatcher
 
 logger = DefaultLogger.get_instance()
 
