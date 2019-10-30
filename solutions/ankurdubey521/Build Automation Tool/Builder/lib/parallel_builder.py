@@ -122,7 +122,8 @@ class ParallelBuilder:
             self._explore_and_build_dependency_graph(dep_name, dep_dir_abs)
 
     def _build_file_list_from_dependency_list(self, build_rule_name: str, build_dir_abs: str) -> List[str]:
-        """" Uses self._rule_to_dependency_list to generate a list of files which build_rule_name or it's dependencies reference
+        """" Uses self._rule_to_dependency_list to generate a list of files which build_rule_name or it's dependencies
+             reference
              self._explore_and_build_dependency_graph must be run before to populate self._rule_to_dependency_list
         :param build_rule_name: .
         :param build_dir_abs: Directory which contains build.config
@@ -164,32 +165,12 @@ class ParallelBuilder:
             self.logger.info(command_string)
         return subprocess.Popen(command_string, shell=True, cwd=cwd)
 
-    def _execute_rule_thread(self, build_rule_name: str, command_string: str, build_dir_abs: str,
-                             dependency_futures: Dict[str, Future] = {}) -> int:
-        """ Waits for dependencies to finish executing, spawns a process for executing build_rule_name.
-            This function is meant to be spawned as a separate thread for parallel execution
-        :param build_rule_name: .
-        :param command_string: full shell command to be run
-        :param build_dir_abs:  Directory which contains build.config
-        :param dependency_futures: Dict of [dep_name to Future] of spawned threads for running dependencies.
-                                   Used for waiting until deps have finished executing
-        :return: return value of process
-        """
-        for dependency_name in dependency_futures:
-            return_value = dependency_futures[dependency_name].result()
-            # Stop Execution if Command Fails
-            if return_value != 0:
-                self.logger.error("Building {} failed with exit code {}".format(dependency_name, return_value))
-                return -1
-        self.logger.info("[{}] in {}".format(build_rule_name, build_dir_abs))
-        return self._run_shell(command_string, build_dir_abs, print_command=True).wait()
-
     def _execute_build_rule_and_dependencies(self) -> bool:
         """ Main execution logic
         :return: boolean indicating build success of build rule
         """
         # Dict[Tuple[name, abs_dir]: Futures]
-        rule_to_futures = {}
+        rule_to_popen = {}
 
         # Flags for indicating overall build status
         overall_build_success = True
@@ -197,37 +178,37 @@ class ParallelBuilder:
 
         # Execute the Build Rules. starting from the deepest dependency
         self.logger.info("Executing Build Rules...")
-        with ThreadPoolExecutor(max_workers=self._max_threads) as executor:
-            for build_rule_tuple in self._topologically_sorted_build_rule_names:
-                if not build_failed_for_dependency:
-                    (rule_name, rule_dir_abs) = build_rule_tuple
-                    rule_command_string = \
-                        BuildConfig.load_from_build_directory(rule_dir_abs).get_build_rule(rule_name).get_command()
 
-                    # Generate Dict for Popen of objects of Dependencies
-                    dependency_futures = {}
-                    if build_rule_tuple in self._rule_to_dependency_list:
-                        for (dep_name, dep_dir_abs) in self._rule_to_dependency_list[build_rule_tuple]:
-                            dependency_futures[dep_name] = rule_to_futures[(dep_name, dep_dir_abs)]
+        # Maintain a set of running build rules, used for controlling no. of simultaneous running rules
+        running_rule_popen = set()
 
-                    # Spawn the process for executing build rules and it's dependencies
-                    # If a dependency fails during execution, build_failed_for_dependency will be set as True
-                    # Cease operation at that moment
-                    def build_success_validator(future: Future) -> None:
-                        if future.result() != 0:
-                            global build_failed_for_dependency, overall_build_success
-                            build_failed_for_dependency = True
+        for build_rule_tuple in self._topologically_sorted_build_rule_names:
+            if not build_failed_for_dependency:
+                # Wait for dependencies to finish
+                if build_rule_tuple in self._rule_to_dependency_list:
+                    for (dep_name, dep_dir_abs) in self._rule_to_dependency_list[build_rule_tuple]:
+                        return_code = rule_to_popen[(dep_name, dep_dir_abs)].wait()
+                        running_rule_popen.remove(rule_to_popen[(dep_name, dep_dir_abs)])
+                        if return_code != 0:
                             overall_build_success = False
-
-                    thread = executor.submit(
-                        self._execute_rule_thread, rule_name, rule_command_string, rule_dir_abs,
-                        dependency_futures)
-                    thread.add_done_callback(build_success_validator)
-                    rule_to_futures[build_rule_tuple] = thread
+                            build_failed_for_dependency = True
+                            self.logger.error("Building {} failed with exit code {}".format(dep_name, return_code))
+                # Wait for other builds to finish if max limit is reached
+                while len(running_rule_popen) >= self._max_threads:
+                    for rule_popen in running_rule_popen:
+                        if rule_popen.poll() is not None:
+                            running_rule_popen.remove(rule_popen)
+                (rule_name, rule_dir_abs) = build_rule_tuple
+                self.logger.info("[{}] in {}".format(*build_rule_tuple))
+                rule_command_string = \
+                    BuildConfig.load_from_build_directory(rule_dir_abs).get_build_rule(rule_name).get_command()
+                build_rule_popen = self._run_shell(rule_command_string, rule_dir_abs)
+                rule_to_popen[build_rule_tuple] = build_rule_popen
+                running_rule_popen.add(build_rule_popen)
 
         # Verify that all build rules succeeded (exited with 0)
-        for rule_tuple in rule_to_futures:
-            if rule_to_futures[rule_tuple].result() != 0:
+        for rule_tuple in rule_to_popen:
+            if rule_to_popen[rule_tuple].wait() != 0:
                 overall_build_success = False
 
         if overall_build_success:

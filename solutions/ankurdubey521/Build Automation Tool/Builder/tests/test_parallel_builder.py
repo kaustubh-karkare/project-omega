@@ -539,7 +539,8 @@ class TestParallelBuilder(unittest.TestCase):
                     [
                       {
                         "name": "Y",
-                        "command": "sleep 5"
+                        "command": "sleep 5",
+                        "deps": ["YX/YX", "YY/YY"]
                       }
                     ]
                 )
