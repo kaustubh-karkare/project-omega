@@ -55,12 +55,18 @@ class BuildRule:
 
 class BuildConfig:
     """Parses and Stores build.config in the form of BuildRule objects"""
+
+    CACHED_JSONS_BY_CONTAINING_FOLDER_PATH = {}
+
     @classmethod
     def load_from_build_directory(cls, json_containing_directory: str):
         # Parse JSON
+        if json_containing_directory in BuildConfig.CACHED_JSONS_BY_CONTAINING_FOLDER_PATH:
+            return cls(BuildConfig.CACHED_JSONS_BY_CONTAINING_FOLDER_PATH[json_containing_directory])
         json_path = os.path.join(json_containing_directory, GlobalConstants.CONFIG_FILE_NAME)
         with open(json_path) as file_handle:
             raw_json = json.load(file_handle)
+        BuildConfig.CACHED_JSONS_BY_CONTAINING_FOLDER_PATH[json_containing_directory] = raw_json
         return cls(raw_json)
 
     def __init__(self, raw_json: Dict[str, str]) -> None:
