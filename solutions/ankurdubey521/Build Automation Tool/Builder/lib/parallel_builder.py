@@ -184,10 +184,8 @@ class ParallelBuilder:
         self.logger.info("[{}] in {}".format(build_rule_name, build_dir_abs))
         return self._run_shell(command_string, build_dir_abs, print_command=True).wait()
 
-    def _execute_build_rule_and_dependencies(self, build_rule_name: str, build_dir_abs: str) -> bool:
+    def _execute_build_rule_and_dependencies(self) -> bool:
         """ Main execution logic
-        :param build_rule_name: .
-        :param build_dir_abs: Directory which contains build.config
         :return: boolean indicating build success of build rule
         """
         # Dict[Tuple[name, abs_dir]: Futures]
@@ -263,10 +261,10 @@ class ParallelBuilder:
             file_list_abs = self._build_file_list_from_dependency_list(build_rule_name, build_dir_abs)
 
             def callable_build_rule_executor():
-                self._last_build_passed = self._execute_build_rule_and_dependencies(build_rule_name, build_dir_abs)
+                self._last_build_passed = self._execute_build_rule_and_dependencies()
             FileWatcher.watch_and_execute(file_list_abs, callable_build_rule_executor, self.logger)
         else:
-            self._last_build_passed = self._execute_build_rule_and_dependencies(build_rule_name, build_dir_abs)
+            self._last_build_passed = self._execute_build_rule_and_dependencies()
 
 
 
