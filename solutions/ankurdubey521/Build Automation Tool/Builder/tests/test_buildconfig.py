@@ -1,4 +1,3 @@
-import json
 import unittest
 
 from Builder.lib.buildconfig import BuildConfig
@@ -6,25 +5,23 @@ from Builder.lib.buildconfig import BuildConfig
 
 class TestJsonParser(unittest.TestCase):
     def setUp(self):
-        json_string = json.dumps(
-            [
-                {
-                    "name": "clean",
-                    "deps": [
-                        "algorithms/clean"
-                    ],
-                    "command": "rm -f test.o && rm -f test.exe"
-                },
-                {
-                    "name": "test",
-                    "files": [
-                        "test.cpp"
-                    ],
-                    "command": "g++ -std=c++11 -c test.cpp"
-                }
-            ]
-        )
-        self.config = BuildConfig(json_string)
+        json = [
+            {
+                "name": "clean",
+                "deps": [
+                    "algorithms/clean"
+                ],
+                "command": "rm -f test.o && rm -f test.exe"
+            },
+            {
+                "name": "test",
+                "files": [
+                    "test.cpp"
+                ],
+                "command": "g++ -std=c++11 -c test.cpp"
+            }
+        ]
+        self.config = BuildConfig(json)
 
     def test_build_clean_parses_correctly(self):
         command_clean = self.config.get_build_rule('clean')

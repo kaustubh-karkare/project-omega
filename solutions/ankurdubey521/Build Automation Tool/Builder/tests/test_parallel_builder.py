@@ -565,9 +565,9 @@ class TestParallelBuilder(unittest.TestCase):
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder._explore_and_build_dependency_graph('Z', path)
             dependency_graph = {}
-            for node_tuple in parallel_builder._dependency_graph:
+            for node_tuple in parallel_builder._rule_to_dependency_graph_adjlist:
                 dependency_graph[node_tuple[0]] = []
-                for item in parallel_builder._dependency_graph[node_tuple]:
+                for item in parallel_builder._rule_to_dependency_graph_adjlist[node_tuple]:
                     dependency_graph[node_tuple[0]].append(item[0])
             correct_dependency_graph = {'X': ['Z'], 'XX': ['X'], 'XY': ['X'], 'Y': ['Z'], 'YX': ['Y'], 'YY': ['Y']}
             self.assertEqual(correct_dependency_graph, dependency_graph)
@@ -579,7 +579,6 @@ class TestParallelBuilder(unittest.TestCase):
             parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder.execute('Z', path)
             toposort = [item[0] for item in parallel_builder._topologically_sorted_build_rule_names]
-            print(toposort)
             self.assertEqual(['XX', 'XY', 'YX', 'YY', 'X', 'Y', 'Z'], toposort)
 
     def test_basic_circular_dependency_throws_exception(self):
@@ -613,7 +612,6 @@ class TestParallelBuilder(unittest.TestCase):
             result = subprocess.run(exec_path, shell=True, capture_output=True, text=True)
             self.assertEqual('1 2 3 4 5 \n1 2 3 4 5 \n1 2 3 4 5 \n', result.stdout)
             # CLEANUP
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder.execute('clean', path)
             self.assertFalse(os.path.isfile(os.path.join(path, "test.out")))
             self.assertTrue(parallel_builder.get_last_build_pass_status())
@@ -630,7 +628,6 @@ class TestParallelBuilder(unittest.TestCase):
                 result = file_handle.readable()
             self.assertEqual(True, result)
             # CLEANUP
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder.execute('clean', path)
             self.assertFalse(os.path.isfile(os.path.join(path, "output")))
             self.assertTrue(parallel_builder.get_last_build_pass_status())
