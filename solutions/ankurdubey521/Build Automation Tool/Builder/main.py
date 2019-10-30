@@ -1,6 +1,6 @@
 from Builder.lib.parallel_builder import ParallelBuilder
+from Builder.lib.default_logger import DefaultLogger
 import argparse
-import logging
 import sys
 import os
 
@@ -14,17 +14,7 @@ if __name__ == '__main__':
     parser.add_argument('--max-threads', type=int)
     args = parser.parse_args(sys.argv[1:])
 
-    # Configure Logging
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    debug_handler = logging.StreamHandler()
-    debug_handler.setLevel(logging.DEBUG)
-    debug_handler.setFormatter(logging.Formatter(fmt='%(asctime)s - %(message)s', datefmt="%H:%M:%S"))
-    logger.addHandler(debug_handler)
-    error_handler = logging.StreamHandler()
-    error_handler.setLevel(logging.WARNING)
-    error_handler.setFormatter(logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt="%H:%M:%S"))
-    logger.addHandler(error_handler)
+    logger = DefaultLogger.get_instance()
 
     # Parse Command
     command = args.build_rule
@@ -34,7 +24,7 @@ if __name__ == '__main__':
     else:
         root_dir = os.getcwd()
 
-    builder = ParallelBuilder(root_dir, args.max_threads)
+    builder = ParallelBuilder(root_dir, args.max_threads, logger)
     relative_path = ''
     if '/' in command:
         # Handle relative paths

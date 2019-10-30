@@ -6,18 +6,9 @@ from multiprocessing import Process
 from time import sleep
 
 from Builder.lib.file_watcher import FileWatcher
+from Builder.lib.default_logger import DefaultLogger
 
-# Configure Logging
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-debug_handler = logging.StreamHandler()
-debug_handler.setLevel(logging.DEBUG)
-debug_handler.setFormatter(logging.Formatter(fmt='%(asctime)s - %(message)s', datefmt="%H:%M:%S"))
-logger.addHandler(debug_handler)
-error_handler = logging.StreamHandler()
-error_handler.setLevel(logging.WARNING)
-error_handler.setFormatter(logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt="%H:%M:%S"))
-logger.addHandler(error_handler)
+logger = DefaultLogger.get_instance()
 
 
 class TestFileWatcher(unittest.TestCase):
@@ -38,7 +29,7 @@ class TestFileWatcher(unittest.TestCase):
 
             # Activate Watcher and change tracked file
             file_watcher = FileWatcher()
-            process = Process(target=file_watcher.watch_and_execute, args=([input_file], copy_file))
+            process = Process(target=file_watcher.watch_and_execute, args=([input_file], copy_file, logger))
             process.start()
             with open(input_file, 'w') as file_handle:
                 file_handle.write("Hello World 2.0")

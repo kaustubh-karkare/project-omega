@@ -5,10 +5,6 @@ from typing import Callable, Dict, List
 
 from Builder.global_constants import GlobalConstants
 
-# Logging Configuration
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
-
 
 class FileWatcher:
     FILE_WATCH_INTERVAL_SECONDS = GlobalConstants.FILE_WATCH_INTERVAL_SECONDS
@@ -22,7 +18,7 @@ class FileWatcher:
         return file_edit_times
 
     @staticmethod
-    def watch_and_execute(file_list: List[str], function: Callable[[], None]) -> None:
+    def watch_and_execute(file_list: List[str], function: Callable[[], None], logger: logging.Logger) -> None:
         """Execute a function whenever a file from file_list changes"""
         logger.info("Listening for changes on {}...".format(file_list))
         file_edit_times = FileWatcher._get_file_edit_times(file_list)

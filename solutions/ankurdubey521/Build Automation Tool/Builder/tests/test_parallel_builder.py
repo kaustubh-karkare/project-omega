@@ -9,6 +9,7 @@ from pathlib import Path
 
 from Builder.global_constants import GlobalConstants
 from Builder.lib.parallel_builder import ParallelBuilder
+from Builder.lib.default_logger import DefaultLogger
 
 MAX_THREAD_COUNT = 12
 
@@ -534,17 +535,7 @@ file_list = {
     ]
 }
 
-# Configure Logging
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-debug_handler = logging.StreamHandler()
-debug_handler.setLevel(logging.DEBUG)
-debug_handler.setFormatter(logging.Formatter(fmt='%(asctime)s - %(message)s', datefmt="%H:%M:%S"))
-logger.addHandler(debug_handler)
-error_handler = logging.StreamHandler()
-error_handler.setLevel(logging.WARNING)
-error_handler.setFormatter(logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s', datefmt="%H:%M:%S"))
-logger.addHandler(error_handler)
+logger = DefaultLogger.get_instance()
 
 
 def write_test_files(test_name: str, path: str) -> None:
@@ -559,19 +550,19 @@ def write_test_files(test_name: str, path: str) -> None:
 class TestParallelBuilder(unittest.TestCase):
     def test_basic_shell_command(self):
         command = "echo 'Hello World!'"
-        exit_code = ParallelBuilder._run_shell(command, cwd=os.getcwd()).wait()
+        exit_code = ParallelBuilder('/', 12, logger)._run_shell(command, cwd=os.getcwd()).wait()
         self.assertEqual(0, exit_code)
 
     def test_nonzero_exit_code_for_shell_command(self):
         command = "exit 1"
-        exit_code = ParallelBuilder._run_shell(command, cwd=os.getcwd()).wait()
+        exit_code = ParallelBuilder('/', 12, logger)._run_shell(command, cwd=os.getcwd()).wait()
         self.assertEqual(1, exit_code)
 
     def test_dependency_graph_creation(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder._explore_and_build_dependency_graph('Z', path)
             dependency_graph = {}
             for node_tuple in parallel_builder._dependency_graph:
@@ -585,7 +576,7 @@ class TestParallelBuilder(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder.execute('Z', path)
             toposort = [item[0] for item in parallel_builder._topologically_sorted_build_rule_names]
             print(toposort)
@@ -595,7 +586,7 @@ class TestParallelBuilder(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             self.assertRaises(
                 parallel_builder.CircularDependencyException, parallel_builder.execute, 'A',
                 path)
@@ -605,7 +596,7 @@ class TestParallelBuilder(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             self.assertRaises(
                 parallel_builder.CircularDependencyException, parallel_builder.execute, 'A',
                 path)
@@ -616,13 +607,13 @@ class TestParallelBuilder(unittest.TestCase):
             # RUN
             path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder.execute('run', path)
             exec_path = '"' + os.path.join(path, "test.out") + '"'
             result = subprocess.run(exec_path, shell=True, capture_output=True, text=True)
             self.assertEqual('1 2 3 4 5 \n1 2 3 4 5 \n1 2 3 4 5 \n', result.stdout)
             # CLEANUP
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder.execute('clean', path)
             self.assertFalse(os.path.isfile(os.path.join(path, "test.out")))
             self.assertTrue(parallel_builder.get_last_build_pass_status())
@@ -632,14 +623,14 @@ class TestParallelBuilder(unittest.TestCase):
             # RUN
             path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder.execute('run', path)
             output_file_path = os.path.join(path, 'output')
             with open(output_file_path) as file_handle:
                 result = file_handle.readable()
             self.assertEqual(True, result)
             # CLEANUP
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder.execute('clean', path)
             self.assertFalse(os.path.isfile(os.path.join(path, "output")))
             self.assertTrue(parallel_builder.get_last_build_pass_status())
@@ -648,7 +639,7 @@ class TestParallelBuilder(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             start_time = time.time()
             parallel_builder.execute('Z', path)
             end_time = time.time()
@@ -659,7 +650,7 @@ class TestParallelBuilder(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder._explore_and_build_dependency_graph('Z', path)
             file_list = parallel_builder._build_file_list_from_dependency_list('Z', path).sort()
             correct_file_list = [os.path.join(path, rel_path) for rel_path in ['z_file', 'X/x_file', 'Y/y_file']].sort()
@@ -669,7 +660,7 @@ class TestParallelBuilder(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test")
             write_test_files(self._testMethodName, path)
-            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT)
+            parallel_builder = ParallelBuilder(path, MAX_THREAD_COUNT, logger)
             parallel_builder.execute('rule', path)
             self.assertFalse(parallel_builder.get_last_build_pass_status())
 

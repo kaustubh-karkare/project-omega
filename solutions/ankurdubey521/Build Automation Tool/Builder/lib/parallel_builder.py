@@ -18,16 +18,13 @@ from Builder.lib.algorithms import TopologicalSort
 from Builder.lib.buildconfig import BuildConfig
 from Builder.lib.file_watcher import FileWatcher
 
-# Logging Configuration
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
-
 
 class ParallelBuilder:
-    def __init__(self, root_dir_abs: str, max_threads: int):
+    def __init__(self, root_dir_abs: str, max_threads: int, logger: logging.Logger):
         """ Constructor
         :param root_dir_abs: Absolute path of directory which is to b considered as root (or '//')
         :param max_threads: Max no. of threads to spawn while processing dependencies
+        :param logger: logger object
         """
         # Config
         self._max_threads = max_threads
@@ -43,6 +40,9 @@ class ParallelBuilder:
 
         # List of (dependency_name, dependency_dir_abs) for each build rule
         self._dependency_list = {}
+
+        # Logger
+        self.logger = logger
 
         # Space for rough work :P
         self._unresolved_commands = set()
@@ -141,8 +141,7 @@ class ParallelBuilder:
                         raise ParallelBuilder.CircularDependencyException()
         return file_list
 
-    @staticmethod
-    def _run_shell(command_string: str, cwd: str = '/', print_command: bool = False) -> subprocess.Popen:
+    def _run_shell(self, command_string: str, cwd: str = '/', print_command: bool = False) -> subprocess.Popen:
         """ Spawns a process to run the command
         :param command_string: full shell command to be run
         :param cwd: working directory
@@ -150,11 +149,10 @@ class ParallelBuilder:
         :return: Popen object of spawned process
         """
         if print_command:
-            logger.info(command_string)
+            self.logger.info(command_string)
         return subprocess.Popen(command_string, shell=True, cwd=cwd)
 
-    @staticmethod
-    def _execute_rule_thread(command_name: str, command_string: str, command_dir_abs: str,
+    def _execute_rule_thread(self, command_name: str, command_string: str, command_dir_abs: str,
                              dependency_futures: Dict[str, Future] = {}) -> int:
         """ Waits for dependencies to finish executing, spawns a process for executing command_name.
             This function is meant to be spawned as a separate thread for parallel execution
@@ -169,10 +167,10 @@ class ParallelBuilder:
             return_value = dependency_futures[dependency_name].result()
             # Stop Execution if Command Fails
             if return_value != 0:
-                logger.error("Building {} failed with exit code {}".format(dependency_name, return_value))
+                self.logger.error("Building {} failed with exit code {}".format(dependency_name, return_value))
                 return -1
-        logger.info("[{}] in {}".format(command_name, command_dir_abs))
-        return ParallelBuilder._run_shell(command_string, command_dir_abs, print_command=True).wait()
+        self.logger.info("[{}] in {}".format(command_name, command_dir_abs))
+        return self._run_shell(command_string, command_dir_abs, print_command=True).wait()
 
     def _execute_build_rule_and_dependencies(self, command_name: str, command_dir_abs: str) -> bool:
         """ Main execution logic
@@ -181,10 +179,10 @@ class ParallelBuilder:
         :return: boolean indicating build success of build rule
         """
         # Create Dependency Graph
-        logger.info("Exploring Dependencies...")
+        self.logger.info("Exploring Dependencies...")
         self._unresolved_commands = set()
         self._explore_and_build_dependency_graph(command_name, command_dir_abs)
-        logger.info("Done exploring dependencies")
+        self.logger.info("Done exploring dependencies")
 
         # Generate Topological Sort
         self._topologically_sorted_build_rule_names = TopologicalSort.sort(self._dependency_graph)
@@ -200,7 +198,7 @@ class ParallelBuilder:
         build_failed_for_dependency = False
 
         # Execute the Build Rules. starting from the deepest dependency
-        logger.info("Executing Build Rules...")
+        self.logger.info("Executing Build Rules...")
         with ThreadPoolExecutor(max_workers=self._max_threads) as executor:
             for build_rule_tuple in self._topologically_sorted_build_rule_names:
                 if not build_failed_for_dependency:
@@ -224,7 +222,7 @@ class ParallelBuilder:
                             overall_build_success = False
 
                     thread = executor.submit(
-                        ParallelBuilder._execute_rule_thread, rule_name, rule_command_string, rule_dir_abs,
+                        self._execute_rule_thread, rule_name, rule_command_string, rule_dir_abs,
                         dependency_futures)
                     thread.add_done_callback(build_success_validator)
                     rule_to_futures[build_rule_tuple] = thread
@@ -235,9 +233,9 @@ class ParallelBuilder:
                 overall_build_success = False
 
         if overall_build_success:
-            logger.info("Build Succeeded")
+            self.logger.info("Build Succeeded")
         else:
-            logger.error("Build Failed")
+            self.logger.error("Build Failed")
         return overall_build_success
 
     def execute(self, command_name: str, command_dir_abs: str, watch_for_file_changes=False) -> None:
@@ -249,9 +247,9 @@ class ParallelBuilder:
                                         being re-run
         """
         # Create Dependency Graph
-        logger.info("Exploring Dependencies...")
+        self.logger.info("Exploring Dependencies...")
         self._explore_and_build_dependency_graph(command_name, command_dir_abs)
-        logger.info("Done exploring dependencies")
+        self.logger.info("Done exploring dependencies")
 
         # Generate Topological Sort
         self._topologically_sorted_build_rule_names = TopologicalSort.sort(self._dependency_graph)
@@ -264,7 +262,7 @@ class ParallelBuilder:
 
             def callable_build_rule_executor():
                 self._last_build_passed = self._execute_build_rule_and_dependencies(command_name, command_dir_abs)
-            FileWatcher.watch_and_execute(file_list_abs, callable_build_rule_executor)
+            FileWatcher.watch_and_execute(file_list_abs, callable_build_rule_executor, self.logger)
         else:
             self._last_build_passed = self._execute_build_rule_and_dependencies(command_name, command_dir_abs)
 
