@@ -64,9 +64,9 @@ class TestBuildAutomationTool(unittest.TestCase):
         
 	def test_sort_merge(self):
         
-		BAT_obj2 = BAT.Action()
+		BAT_obj = BAT.Action()
 
-		BAT_obj2.get_command(os.getcwd(), 'build', 'test_sort_merge')
+		BAT_obj.get_command(os.getcwd(), 'build', 'test_sort_merge')
         
 		self.assertEqual(path.exists('test.o'), True)
         
