@@ -9,41 +9,38 @@ class Parser(object):
     Class to handle parsing
     """
 
-    def __init__(self, test=False):
-        self.args = {}		#storing arguments as objects as values and their names as keys
-        self.test = test
+    def __init__(self):
+        self.args = dict()
+        self.mutually_exclusive_args = list()
 
-    def add_argument(self, arg_name, **kwargs):
-        """
-        Initializes Argument class
-        """
+    def add_argument(self, arg_name, *, required=False, used=False, mutually_exclusive_arg=False, **kwargs):
+
         self.args[arg_name] = dict()
-        self.args[arg_name]["used"] = False
-        self.args[arg_name]["cant_be_used_with"] = None
-        self.args[arg_name]["required"] = False
-		
+        self.args[arg_name]["required"] = required
+        self.args[arg_name]["used"] = used
         for name, value in kwargs.items():
             self.args[arg_name][name] = value
-            
 
-    def parse_arguments(self, *args):
+        if mutually_exclusive_arg:
+            self.mutually_exclusive_args.append(arg_name)
+
+    def parse_arguments(self, argv=None):
         """
         Parses argument and assignes value to argument dictionary
         """
-        if self.test:
-            arguments = args
-        else:
-            arguments = sys.argv[1:]
+        if not argv:
+            argv = sys.argv[1:]
 
-        for argument in arguments:
+        for argument in argv:
             name, sign, value = argument.partition('=')
             name = name.split("-")[-1]
             try:
-                value = int(value) if (self.args[name]["type"] == int) else value        #typecasting
-                value = float(value) if (self.args[name]["type"] == float) else value	   
+                value = self.args[name]["type"](value)
+            except TypeError:
+                pass
             except ValueError:
                 pass
-            if value:                
+            if value:
                 if not isinstance(value, self.args[name]["type"]):
                     raise WrongTypeError(type(value), self.args[name]["type"], name)
             if not name in self.args:
@@ -53,16 +50,21 @@ class Parser(object):
             self.args[name]["used"] = True
 
         for arg in self.args:       #checking if an argument can be used with the others
-            if self.args[arg]["used"]:
-                if self.args[arg]["cant_be_used_with"]:
-                    for other_arg in self.args[arg]["cant_be_used_with"]:
-                        if self.args[other_arg]["used"]:
-                            raise SimultaneousUsageError(arg, self.args[arg]["cant_be_used_with"])
+            if self.args[arg]["used"] and (arg in self.mutually_exclusive_args):
+                for other_arg in self.mutually_exclusive_args:
+                    if self.args[other_arg]["used"]:
+                        raise SimultaneousUsageError(arg, self.mutually_exclusive_args)
 
         for argument in self.args:      #checking if the required argument is being used or not
             if self.args[argument]["required"]:
                 if not self.args[argument]["used"]:
                     raise ReqArgError(argument)
+
+        output_dict = dict()
+        for arg in self.args:
+            if self.args[arg]["used"]:
+                output_dict[arg] = self.args[arg]["value"]
+        return output_dict
 
 class NoSuchArgError(Exception):
 
