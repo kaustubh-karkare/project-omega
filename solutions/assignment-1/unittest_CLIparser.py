@@ -1,5 +1,5 @@
 import unittest
-import v3
+import CLIparser
 
 class TestParser(unittest.TestCase):
 
@@ -7,7 +7,7 @@ class TestParser(unittest.TestCase):
         parser = v3.Parser()
         parser.add_argument('key', type=int)
         parser.add_argument('name', type=str)
-        self.assertEqual(parser.parse_arguments(["--key=12345", "--name=drs"]), (eval('{"key": 12345, "name":"drs"}')))
+        self.assertEqual(parser.parse_arguments(["--key=12345", "--name=drs"]), {"key": 12345, "name":"drs"})
 
     def test_type(self):
         parser = v3.Parser()
@@ -26,8 +26,9 @@ class TestParser(unittest.TestCase):
 
     def test_simultaneous_usage(self):
         parser = v3.Parser()
-        parser.add_argument('local', type=None, mutually_exclusive_arg=True)
-        parser.add_argument('remote', type=None, mutually_exclusive_arg=True)
+        parser.add_argument('local', type=None)
+        parser.add_argument('remote', type=None)
+        parser.add_mutually_exclusive_args('local', 'remote')
         with self.assertRaises(v3.SimultaneousUsageError):
             parser.parse_arguments(["--remote", "--local"])
 
