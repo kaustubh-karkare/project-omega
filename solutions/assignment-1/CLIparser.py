@@ -13,21 +13,23 @@ class Parser(object):
         self.args = dict()
         self.mutually_exclusive_args = list()
 
-    def add_argument(self, arg_name, *, required=False, used=False, mutually_exclusive_arg=False, **kwargs):
+    def add_argument(self, arg_name, *, required=False, **kwargs):
 
         self.args[arg_name] = dict()
         self.args[arg_name]["required"] = required
-        self.args[arg_name]["used"] = used
-        for name, value in kwargs.items():
-            self.args[arg_name][name] = value
+        for attribute_name, attribute_value in kwargs.items():
+            self.args[arg_name][attribute_name] = attribute_value
 
-        if mutually_exclusive_arg:
-            self.mutually_exclusive_args.append(arg_name)
+    def add_mutually_exclusive_args(self, *args):
+
+        self.mutually_exclusive_args.append(args)
 
     def parse_arguments(self, argv=None):
         """
         Parses argument and assignes value to argument dictionary
         """
+        arg_parsed = dict()
+
         if not argv:
             argv = sys.argv[1:]
 
@@ -36,35 +38,33 @@ class Parser(object):
             name = name.split("-")[-1]
             try:
                 value = self.args[name]["type"](value)
-            except TypeError:
+            except TypeError:        #to catch None calling as a function error which should be ignored
                 pass
-            except ValueError:
+            except ValueError:          #the typecasting is being done to convert str to respective types but sometimes the entered value is a wrong type which is later raised by the isinstance function
                 pass
+
             if value:
                 if not isinstance(value, self.args[name]["type"]):
                     raise WrongTypeError(type(value), self.args[name]["type"], name)
             if not name in self.args:
                 raise NoSuchArgError(name)
+            
+            arg_parsed[name] = value
 
-            self.args[name]["value"] = value
-            self.args[name]["used"] = True
-
-        for arg in self.args:       #checking if an argument can be used with the others
-            if self.args[arg]["used"] and (arg in self.mutually_exclusive_args):
-                for other_arg in self.mutually_exclusive_args:
-                    if self.args[other_arg]["used"]:
-                        raise SimultaneousUsageError(arg, self.mutually_exclusive_args)
+        for arg in arg_parsed:       #checking if an argument can be used with the others
+            for group in self.mutually_exclusive_args:
+                if arg in group:
+                    for other_arg in group:
+                        if other_arg in arg_parsed:
+                            raise SimultaneousUsageError(arg, group)
 
         for argument in self.args:      #checking if the required argument is being used or not
             if self.args[argument]["required"]:
-                if not self.args[argument]["used"]:
+                if not argument in arg_parsed:
                     raise ReqArgError(argument)
 
-        output_dict = dict()
-        for arg in self.args:
-            if self.args[arg]["used"]:
-                output_dict[arg] = self.args[arg]["value"]
-        return output_dict
+        return arg_parsed
+
 
 class NoSuchArgError(Exception):
 
