@@ -1,0 +1,5 @@
+ROOT = '.vcs'
+HEAD = '.vcs\\Head'
+OBJECTS = '.vcs\\objects'
+REFS = '.vcs\\refs'
+MASTER = '.vcs\\refs\\master'
