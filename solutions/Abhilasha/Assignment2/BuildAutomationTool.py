@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Dec  6 14:36:59 2019
+
+@author: Abhilasha
+"""
+
 import os
 
 import json
@@ -138,7 +145,9 @@ class ActionGraph():
         
         order_count = max(self.orders) 
         
-        for i in range(order_count+1):
+        for cnt in range(order_count+1):
+            
+            i = order_count-cnt
             
             thread_list = []
 
