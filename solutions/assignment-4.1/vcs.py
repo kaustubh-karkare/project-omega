@@ -24,6 +24,8 @@ The most commonly used git commands are:
     diff        Find differences in the working directory to the given commit (default HEAD commit)
     log         Show all the commits
     status      Show the modified, deteled and untracked files since the last commit
+    reset       Discard all changes since the last commit.
+    checkout    Load the specified commit
 ''')
         parser.add_argument('command', type=str, help="Subcommand to run")
         args = parser.parse_args(sys.argv[1:2])
