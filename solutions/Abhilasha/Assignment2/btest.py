@@ -22,8 +22,10 @@ class TestBuildAutomationTool(unittest.TestCase):
         
         with self.test_dir as tmpdirname:
             new_root_dir = tmpdirname+os.path.sep+"code"
-            shutil.copytree(self.root+os.path.sep+"code", new_root_dir )  
+            shutil.copytree(self.root+os.path.sep+"code", new_root_dir ) 
+            os.chdir(new_root_dir)
             BAT_obj = BAT.ActionGraph(new_root_dir)
+            BAT_obj.create_action_map()
             BAT_obj.get_command_to_be_executed('build', 'test_all')
             self.assertEqual(path.exists('test.o'), True)
             self.assertEqual(path.exists('test_sort_bubble.exe'), True)
@@ -40,8 +42,10 @@ class TestBuildAutomationTool(unittest.TestCase):
         
         with self.test_dir as tmpdirname:
             new_root_dir = tmpdirname+os.path.sep+"code"
-            shutil.copytree(self.root+os.path.sep+"code", new_root_dir )  
+            shutil.copytree(self.root+os.path.sep+"code", new_root_dir )
+            os.chdir(new_root_dir)
             BAT_obj = BAT.ActionGraph(new_root_dir)
+            BAT_obj.create_action_map()
             BAT_obj.get_command_to_be_executed('build', 'clean')
             self.assertEqual(path.exists('test.o'), False)
             self.assertEqual(path.exists('test_sort_bubble.exe'), False)
@@ -58,8 +62,10 @@ class TestBuildAutomationTool(unittest.TestCase):
         
         with self.test_dir as tmpdirname:
             new_root_dir = tmpdirname+os.path.sep+"code"
-            shutil.copytree(self.root+os.path.sep+"code", new_root_dir )  
+            shutil.copytree(self.root+os.path.sep+"code", new_root_dir )
+            os.chdir(new_root_dir)
             BAT_obj = BAT.ActionGraph(new_root_dir)
+            BAT_obj.create_action_map()
             BAT_obj.get_command_to_be_executed('build', 'test_sort_merge')       
             self.assertEqual(path.exists('test.o'), True)
             self.assertEqual(path.exists('test_sort_merge.exe'), True)
@@ -72,8 +78,10 @@ class TestBuildAutomationTool(unittest.TestCase):
        
         with self.test_dir as tmpdirname:
             new_root_dir = tmpdirname+os.path.sep+"code"
-            shutil.copytree(self.root+os.path.sep+"code", new_root_dir )  
+            shutil.copytree(self.root+os.path.sep+"code", new_root_dir ) 
+            os.chdir(new_root_dir)
             BAT_obj = BAT.ActionGraph(new_root_dir)
+            BAT_obj.create_action_map()
             with self.assertRaisesRegex(Exception, 'Command not recognized.'):
                 BAT_obj.get_command_to_be_executed('build', 'test_sort_selection')
             os.chdir(self.root)

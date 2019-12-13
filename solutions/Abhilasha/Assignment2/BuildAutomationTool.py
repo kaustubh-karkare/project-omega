@@ -1,101 +1,144 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Dec  6 14:36:59 2019
-
-@author: Abhilasha
-"""
-
 import os
 import json
-import threading
-
+import subprocess
+from pathlib import Path
+from os.path import relpath
+ 
 
 class ActionGraph():  
     
-    '''loads name, action and dependencies from build.json'''
+    '''loads commands, dependencies and initialises the status for all the actions from all build.json files.'''
     
-    def __init__(self,root_dir):
+    def __init__(self, root_dir):
         
         self.root_dir = root_dir
+        self.all_action_status = {}
+        self.all_action_commands = {}
+        self.all_action_dependencies = {}
         
+    def create_action_map(self):
+        
+        for filename in Path(self.root_dir).rglob('*.json'):
+            rel_location = relpath(filename,self.root_dir)
+            if len(str(rel_location).split(os.path.sep)) == 1:
+                rel_location = ''
+            else:
+                rel_location = str(rel_location).split(os.path.sep)[0]
+            with open(filename) as json_file:
+                all_data = json.load(json_file)
+                for data in all_data:
+                    if rel_location != '':
+                        action = rel_location+'/'+data['name']
+                    else:
+                        action = data['name']
+                    self.all_action_status[action] = 'not started'
+                    if 'command' in data:
+                        self.all_action_commands[action] = data['command']
+                    else:
+                        self.all_action_commands[action] = 'none'                
+                    if 'deps' in data:
+                        self.all_action_dependencies[action] = data['deps']
+                    else:
+                        self.all_action_dependencies[action] = 'none'
 
-    def get_command_to_be_executed(self, command, action):
-    
-        os.chdir(self.root_dir)
-        action_found = False
-        with open(self.root_dir+os.path.sep+"build.json") as json_file:
-            all_text = json.load(json_file)            
-            for text in all_text:                
-                if text['name'] == action:
-                    order = 0                   
-                    action_found = True
-                    Action_obj = Action()
-                    Action_obj.compute_execution_order(text, self.root_dir, order)
-                    Action_obj.execute_commands()
-            if action_found is False:
-                raise Exception('Command not recognized.')
-                return
-        return
-
-  
+            
+    def get_command_to_be_executed(self, build, action):
+        
+        if action not in self.all_action_status:
+            raise Exception('Command not recognized.')
+            return        
+        else:
+            Action_obj = Action(self.all_action_status, self.all_action_commands, self.all_action_dependencies)
+            Action_obj.get_dependencies(action)
+            Action_obj.update_dependencies_status(action)
+            Action_obj.execute_commands()
+            return 
+                    
+              
 class Action():
     
-     '''computes the order of execution and executes the commands'''
 
-     def __init__(self):
+     def __init__(self, all_action_status, all_action_commands, all_action_dependencies):
      
-        self.commands = []
-        self.working_directories = []       
-        self.orders = []
+        self.all_action_status = all_action_status
+        self.all_action_commands = all_action_commands
+        self.all_action_dependencies = all_action_dependencies        
+        self.current_action_status = {}
+        self.current_action_commands = {}
+        self.current_action_dependencies = {}              
+        self.ongoing_subprocesses = []
+        self.action_name_for_ongoing_subprocess = []
         
-
-     def compute_execution_order(self, text, cwd, order):
-
-        if 'deps' in text:
-            for dependency in text['deps']:
-                if len(str(dependency).split('/')) == 2:        
-                    next_json_file_loc = os.path.join(str(dependency).split('/')[0]+os.path.sep+"build.json")
-                    dependency = str(dependency).split('/')[1]
-                    with open(next_json_file_loc) as json_file:
-                        all_text_new = json.load(json_file)                      
-                        for text_new in all_text_new:                            
-                            if text_new['name'] == dependency:
-                                self.compute_execution_order(text_new, cwd+os.path.sep+"algorithms", order+1)
-                else:
-                    with open(os.path.join("build.json")) as json_file:
-                        all_text_new = json.load(json_file)
-                        for text_new in all_text_new:                            
-                            if text_new['name'] == dependency:
-                                self.compute_execution_order(text_new, cwd, order+1)
-        if 'command' in text:                
-            if text['command'] not in self.commands:                
-                self.commands.append(text['command'])
-                self.working_directories.append(cwd)
-                self.orders.append(order)
+        
+     def get_dependencies(self, action):
+         
+        '''stores the status, commands, dependencies of the action to be executed and all its dependencies'''
+        
+        self.current_action_status[action] = self.all_action_status[action]
+        self.current_action_commands[action] = self.all_action_commands[action]
+        self.current_action_dependencies[action] = self.all_action_dependencies[action]       
+        if self.all_action_dependencies[action] != 'none':       
+            for name in self.all_action_dependencies[action]:
+                self.get_dependencies(name)                    
         return
-   
+                   
+        
+     def update_dependencies_status(self, action):
+         
+         ''' updates the status of the actions- ready or processing or done '''
+         
+         if self.current_action_dependencies[action] == 'none':
+             self.current_action_status[action] = 'ready'
+         else:             
+             total_no_of_dependencies = len(self.current_action_dependencies[action])
+             no_of_dependencies_done = 0;
+             for dep in self.current_action_dependencies[action]:                             
+                 if self.current_action_status[dep] == 'not started':
+                     self.update_dependencies_status(dep)
+                 if self.current_action_status[dep] == 'done':
+                     no_of_dependencies_done += 1      
+             if no_of_dependencies_done == total_no_of_dependencies:
+                 self.current_action_status[action] = 'ready'                  
+         return
 
-     def process(self, command, work_dir):
 
-        os.chdir(work_dir)
-        os.system(command)
-        return
-            
-
+                    
      def execute_commands(self):
-     
-        order_count = max(self.orders)        
-        for cnt in range(order_count+1):           
-            i = order_count-cnt         
-            thread_list = []
-            count = 0
-            for command, work_dir, order in zip(self.commands, self.working_directories, self.orders):
-                if order == i:               
-                    thread = threading.Thread(target = self.process, args = (command, work_dir))
-                    thread_list.append(thread)
-                    thread_list[count].start()
-                    count += 1
-            for thread in thread_list:
-                thread.join()   
-        return
- 
+        
+         for name in self.current_action_status:
+             if(self.current_action_status[name] == 'ready'):                 
+                 self.current_action_status[name] = 'processing'
+                 cwd = os.getcwd()
+                 if '/' in name:            
+                     loc = name[:name.rindex('/')]                     
+                 else:                     
+                     loc = ''   
+                                      
+                 if self.current_action_commands[name] != 'none':
+                     if loc != '':
+                         os.chdir(cwd+os.path.sep+loc)
+                     command = str(self.current_action_commands[name])
+                     p = subprocess.Popen(command, shell=True)
+                     os.chdir(cwd)
+                     self.ongoing_subprocesses.append(p)
+                     self.action_name_for_ongoing_subprocess.append(name)
+                                         
+                 else:                     
+                     self.current_action_status[name] = 'done'                     
+                     for name in self.current_action_status:
+                         if(self.current_action_status[name] == 'not_started'):
+                             self.update_dependencies_status(name)
+                     self.execute_commands()
+                              
+         while not len(self.ongoing_subprocesses) == 0:
+             
+             p = self.ongoing_subprocesses.pop(0)
+             p.wait()
+             action = self.action_name_for_ongoing_subprocess.pop(0)
+             self.current_action_status[action] = 'done'             
+             for name in self.current_action_status:
+                 if(self.current_action_status[name] == 'not started'):     
+                     self.update_dependencies_status(name)                             
+             self.execute_commands()                
+         return
+                     
