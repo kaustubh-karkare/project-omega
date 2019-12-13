@@ -17,8 +17,7 @@ class Builder(object):
             if dep not in resolved:
                 if dep in unresolved:
                     raise Exception("Circular dependency detected! %s depends on %s" % (rule.name, dep.name))
-                dep = dep[::-1].partition('/')[0][::-1]
-                self.rule_exe(self.graph_dict[dep], resolved, unresolved)
+                self.rule_exe(self.graph_dict[dep.rpartition("/")[-1], resolved, unresolved)
         if rule.command:
             if rule.name in self.graph_loc:
                 os.chdir(self.graph_loc[rule.name])
