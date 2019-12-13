@@ -1,5 +1,4 @@
 import subprocess
-import argparse
 import os
 import sys
 import json
@@ -13,34 +12,41 @@ class Builder(object):
         self.graph_loc = {"base_addr" : os.getcwd()}
 
     def rule_exe(self, rule, resolved, unresolved):
-        unresolved.append(rule)
+        unresolved.append(rule.name)
         for dep in rule.deps:
             if dep not in resolved:
                 if dep in unresolved:
                     raise Exception("Circular dependency detected! %s depends on %s" % (rule.name, dep.name))
-                rule_exe(dep, resolved, unresolved)
+                dep = dep[::-1].partition('/')[0][::-1]
+                self.rule_exe(self.graph_dict[dep], resolved, unresolved)
         if rule.command:
             if rule.name in self.graph_loc:
                 os.chdir(self.graph_loc[rule.name])
+                print(rule.command, "executed...")
                 subprocess.run(rule.command, shell=True)
-                #print(rule.command, "executed...")
                 os.chdir(self.graph_loc["base_addr"])
             else:
+                print(rule.command, "executed...")
                 subprocess.run(rule.command, shell=True)
-                #print(rule.command, "executed...")
-        resolved.append(rule)
-        unresolved.remove(rule)
+
+        resolved.append(rule.name)
+        unresolved.remove(rule.name)
 
     def create_graph(self, build_file):
         rule_json = json.load(build_file)
         for obj in rule_json:
             self.graph_dict[obj["name"]] = Rule(obj["name"])
-            #print(obj["name"], "created successfully...")
+            #if obj["name"] == "test":
+                #print(obj["command"])
             if "deps" in obj:
                 for dep in obj["deps"]:
+
                     self.graph_dict[obj["name"]].addDeps(dep)
-                    if "command" in obj:
-                        self.graph_dict[obj["name"]].command = obj["command"]
+                    #print("adding dependency", self.graph_dict[obj["name"]].deps)
+            if "command" in obj:
+                #print(obj["name"])
+                self.graph_dict[obj["name"]].command = obj["command"]
+                        #print(self.graph_dict[obj["name"]].command)
 
 class Rule(object):
 
@@ -57,8 +63,7 @@ if __name__ == "__main__":
     rule = sys.argv[1]
     for root, dirs, files in os.walk(os.getcwd()):
         if 'build.json' in files:
-            os.chdir(root)
-            with open('build.json') as build_file:
+            with open(root + '/build.json') as build_file:
                 build_obj.create_graph(build_file)
+    #print(build_obj.graph_dict)
     build_obj.rule_exe(build_obj.graph_dict[rule], [], [])
-    #print(build_obj.graph_dict["test"].deps)
