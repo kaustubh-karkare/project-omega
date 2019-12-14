@@ -1,49 +1,51 @@
 import Object
 import Diff
-import os, shutil
+import os
+import shutil
+from typing import Set, Dict, Union
+
 
 class checkout(object):
-    def __init__(self, commit_object_a, commit_object_b ):
-        self.commit_object_a = commit_object_a
-        self.commit_object_b = commit_object_b
-        self.common_files = set()
-        self.files_to_be_deleted = set()
-        self.modified_files = dict()
-        self.files_to_be_added = dict()
-        self.diff = Diff.diff(self.commit_object_a)
-        self.commit_commit_compare('.', commit_object_a.get_tree(), commit_object_b.get_tree())
+    def __init__(self, old_commit, new_commit):
+        self.old_obj = old_commit
+        self.new_obj = new_commit
+        self.common_files: Set[str] = set()
+        self.files_to_be_deleted: Set[str] = set()
+        self.modified_files: Dict[str, Object.blob] = dict()
+        self.files_to_be_added: Dict[str, Union[Object.tree, Object.blob]] = dict()
+        self.diff = Diff.diff(self.old_obj)
+        self.commit_commit_compare('.', self.old_obj.get_tree(), self.new_obj.get_tree())
 
-
-    def commit_commit_compare(self, filepath: str, a, b):
-        # print(f'filepath: {filepath} , {a.object_type} , {b.object_type}, {a.get_hash()}, {b.get_hash()}')
-        if a.get_hash() == b.get_hash():
+    def commit_commit_compare(self, filepath: str, old_obj, new_obj):
+        if old_obj.get_hash() == new_obj.get_hash():
             self.common_files.add(filepath)
             return
-        elif a.object_type == 'blob':
-            self.modified_files[filepath] = b
+        elif old_obj.object_type == 'blob':
+            self.modified_files[filepath] = new_obj
             return
 
-        for filename in a.trees:
-            if filename in b.trees:
-                self.commit_commit_compare(os.path.join(filepath, filename), a.trees[filename], b.trees[filename])
+        for filename in old_obj.trees:
+            if filename in new_obj.trees:
+                self.commit_commit_compare(os.path.join(filepath, filename), old_obj.trees[filename], new_obj.trees[filename])
             else:
                 self.files_to_be_deleted.add(os.path.join(filepath, filename))
 
-        for filename in a.blobs:
-            if filename in b.blobs:
-                self.commit_commit_compare(os.path.join(filepath, filename), a.blobs[filename], b.blobs[filename])
+        for filename in old_obj.blobs:
+            if filename in new_obj.blobs:
+                self.commit_commit_compare(os.path.join(filepath, filename), old_obj.blobs[filename], new_obj.blobs[filename])
             else:
                 self.files_to_be_deleted.add(os.path.join(filepath, filename))
 
-        for filename in b.trees:
-            if not filename in a.trees:
-                self.files_to_be_added[os.path.join(filepath, filename)] = b.trees[filename]
+        for filename in new_obj.trees:
+            if filename not in old_obj.trees:
+                self.files_to_be_added[os.path.join(filepath, filename)] = new_obj.trees[filename]
 
-        for filename in b.blobs:
-            if not filename in a.blobs:
-                self.files_to_be_added[os.path.join(filepath, filename)] = b.blobs[filename]
+        for filename in new_obj.blobs:
+            if filename not in old_obj.blobs:
+                self.files_to_be_added[os.path.join(filepath, filename)] = new_obj.blobs[filename]
 
     def make_changes(self):
+        # First check if the chekout is possible completely. If not possible abort the process else continue.
         for filename in self.modified_files:
             if not self.is_modifiable(filename):
                 return f'Aborting checkout\nUnsaved changes detected\n{filename} is modified and needs to be committed before checkout'
@@ -53,19 +55,19 @@ class checkout(object):
         for filename in self.files_to_be_added:
             if not self.is_addable(filename):
                 return f'Aborting checkout\nUnsaved changes detected\n{filename} is untracked and needs to be committed before checkout'
+
         self.modify_files()
         self.delete_files()
         self.add_files()
-        Object.set_HEAD(self.commit_object_b.get_hash())
-        return f'Updated head : {self.commit_object_b.get_hash()}'
+        Object.set_HEAD(self.new_obj.get_hash())
+        return f'Updated head : {self.new_obj.get_hash()}'
 
-    def is_modifiable(self, filepath):
+    def is_modifiable(self, filepath):  # Checking for some unsaved changes
         if filepath in self.diff.files_modified:
             return False
         if not os.path.exists(filepath):
             return False
         return True
-
 
     def is_deletable(self, filepath):
         if filepath in self.diff.files_deleted:
@@ -77,7 +79,7 @@ class checkout(object):
         if not os.path.isdir(filepath):
             return True
         for filename in os.listdir(filepath):
-            if not self.is_deletable(os.path.join(filepath,filename)):
+            if not self.is_deletable(os.path.join(filepath, filename)):
                 return False
         return True
 
