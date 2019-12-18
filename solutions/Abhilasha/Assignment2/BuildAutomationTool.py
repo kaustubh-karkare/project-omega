@@ -1,8 +1,16 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Dec  6 14:36:59 2019
+
+@author: Abhilasha
+"""
+
 import os
 import json
 import subprocess
 from pathlib import Path
 from os.path import relpath
+import time
  
 
 class ActionGraph():  
@@ -132,13 +140,27 @@ class Action():
                               
          while not len(self.ongoing_subprocesses) == 0:
              
-             p = self.ongoing_subprocesses.pop(0)
-             p.wait()
-             action = self.action_name_for_ongoing_subprocess.pop(0)
-             self.current_action_status[action] = 'done'             
-             for name in self.current_action_status:
-                 if(self.current_action_status[name] == 'not started'):     
-                     self.update_dependencies_status(name)                             
-             self.execute_commands()                
-         return
+             any_subprocess_completed = False    
+             no_of_subprocesses_polled = 0
+             for p, action in zip(self.ongoing_subprocesses, self.action_name_for_ongoing_subprocess):
+                 no_of_subprocesses_polled += 1
+                 if not(p.poll() is None):
+                     any_subprocess_completed = True
+                     break
+                 if p.poll() is None and no_of_subprocesses_polled == len(self.ongoing_subprocesses):
+                     break
+                 else:
+                     continue
                      
+             if any_subprocess_completed == True:
+                 self.ongoing_subprocesses.remove(p)
+                 self.action_name_for_ongoing_subprocess.remove(action)
+                 self.current_action_status[action] = 'done'
+                 for name in self.current_action_status:
+                     if(self.current_action_status[name] == 'not started'):     
+                         self.update_dependencies_status(name)                             
+                 self.execute_commands() 
+             else:
+                 time.sleep(1)
+         return
+                  
