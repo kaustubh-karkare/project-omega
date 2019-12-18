@@ -141,13 +141,9 @@ class Action():
          while not len(self.ongoing_subprocesses) == 0:
              
              any_subprocess_completed = False    
-             no_of_subprocesses_polled = 0
              for p, action in zip(self.ongoing_subprocesses, self.action_name_for_ongoing_subprocess):
-                 no_of_subprocesses_polled += 1
                  if not(p.poll() is None):
                      any_subprocess_completed = True
-                     break
-                 if p.poll() is None and no_of_subprocesses_polled == len(self.ongoing_subprocesses):
                      break
                  else:
                      continue
