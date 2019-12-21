@@ -1,5 +1,3 @@
-// C++ program for implementation of Bubble sort
-//code from GeeksForGeeks
 #include <vector>
 #include <algorithm>
 
