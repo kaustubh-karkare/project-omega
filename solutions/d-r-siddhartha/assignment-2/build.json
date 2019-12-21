@@ -1,0 +1,30 @@
+[
+  {
+    "name": "clean",
+    "deps": ["algorithms/clean"],
+    "command": "rm -f test.o && rm -f test_*.exe"
+  },
+  {
+    "name": "test",
+    "command": "g++ -std=c++11 -c test.cpp"
+  },
+  {
+    "name": "test_sort_bubble",
+    "deps": ["test", "algorithms/sort_bubble"],
+    "command": "g++ test.o algorithms/sort_bubble.o -o test_sort_bubble.exe && ./test_sort_bubble.exe"
+  },
+  {
+    "name": "test_sort_merge",
+    "deps": ["test", "algorithms/sort_merge"],
+    "command": "g++ test.o algorithms/sort_merge.o -o test_sort_merge.exe && ./test_sort_merge.exe"
+  },
+  {
+    "name": "test_sort_quick",
+    "deps": ["test", "algorithms/sort_quick"],
+    "command": "g++ test.o algorithms/sort_quick.o -o test_sort_quick.exe && ./test_sort_quick.exe"
+  },
+  {
+    "name": "test_all",
+    "deps": ["test_sort_bubble", "test_sort_merge", "test_sort_quick"]
+  }
+]
