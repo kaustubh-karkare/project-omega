@@ -52,13 +52,14 @@ class ActionGraph():
         if action not in self.all_action_status:
             raise Exception('Command not recognized.')
                   
-        else:
-            Action_obj = ActionExecutor(self.all_action_status, self.all_action_commands, self.all_action_dependencies)
-            Action_obj.get_dependencies(action)
-            Action_obj.store_dependents_for_all_action()
-            Action_obj.initialize_dependencies_status(action)
-            Action_obj.execute_commands()
-            return
+        
+        Action_obj = ActionExecutor(self.all_action_status, self.all_action_commands, self.all_action_dependencies)
+        Action_obj.get_dependencies(action)
+        Action_obj.store_dependents_for_all_action()
+        Action_obj.initialize_dependencies_status(action)
+        Action_obj.initialize_pending_actions()
+        Action_obj.execute_commands()
+        return
                     
               
 class ActionExecutor():
@@ -76,6 +77,13 @@ class ActionExecutor():
         self.ongoing_subprocesses = []
         self.action_name_for_ongoing_subprocess = []
         self.action_name = ''
+        self.pending_actions = []
+        
+        
+    def initialize_pending_actions(self):
+        for action in self.current_action_status:
+            self.pending_actions.append(action)
+        return
         
         
     def get_dependencies(self, action):
@@ -93,10 +101,10 @@ class ActionExecutor():
                    
     def store_dependents_for_all_action(self):
          
-        for action in self.current_action_status.keys():
+        for action in self.current_action_status:
             self.dependents.setdefault(action, [])
                
-        for action in self.current_action_status.keys():
+        for action in self.current_action_status:
             self.action_name = action
             self.get_dependents(action)
         return
@@ -136,55 +144,59 @@ class ActionExecutor():
          if no_of_dependencies_done == total_no_of_dependencies:
              self.current_action_status[action] = 'ready'
          return
-
-                    
+     
+     
     def execute_commands(self):
-        
-         for name in self.current_action_status:
-             if self.current_action_status[name] == 'ready':
-                 self.current_action_status[name] = 'processing'
-                 cwd = os.getcwd()
-                 if '/' in name:
-                     loc = name[:name.rindex('/')]
-                 else:
-                     loc = ''
-                                      
-                 if not self.current_action_commands[name] is None:
+           
+        while len(self.pending_actions) != 0:
+            action_has_no_command = False
+            for name in self.current_action_status:
+                 if self.current_action_status[name] == 'ready':
+                     self.current_action_status[name] = 'processing'
+                     cwd = os.getcwd()
+                     if '/' in name:
+                         loc = name[:name.rindex('/')]
+                     else:
+                         loc = ''
                      if loc != '':
                          cwd = cwd+os.path.sep+loc
-                     command = str(self.current_action_commands[name])
-                     p = subprocess.Popen(command, shell=True, cwd=cwd)
-                     self.ongoing_subprocesses.append(p)
-                     self.action_name_for_ongoing_subprocess.append(name)
-                                         
-                 else:
-                     self.current_action_status[name] = 'done'
-                     if len(self.dependents[name]) != 0:
-                         for action in self.dependents[name]:
-                             if(self.current_action_status[action] == 'not started'):
-                                 self.update_dependencies_status(action)                                  
-                         self.execute_commands()
-                    
-                              
-         while not len(self.ongoing_subprocesses) == 0:
-             
-             any_subprocess_completed = False
-             for p, action in zip(self.ongoing_subprocesses, self.action_name_for_ongoing_subprocess):
-                 if not p.poll() is None:
-                     any_subprocess_completed = True
-                     break
-                 else:
-                     continue
+                     command = self.current_action_commands[name]
                      
-             if any_subprocess_completed == True:
-                 self.ongoing_subprocesses.remove(p)
-                 self.action_name_for_ongoing_subprocess.remove(action)
-                 self.current_action_status[action] = 'done'
-                 if len(self.dependents[action]) != 0:
-                     for name in self.dependents[action]:
-                         if self.current_action_status[name] == 'not started':
-                             self.update_dependencies_status(name)                                  
-                     self.execute_commands()
-             else:
+                     if command is None:                         
+                         action_has_no_command = True
+                         self.current_action_status[name] = 'done'
+                         self.pending_actions.remove(name)
+                         if len(self.dependents[name]) != 0:
+                             for action in self.dependents[name]:
+                                 if self.current_action_status[action] == 'not started':
+                                     self.update_dependencies_status(action)
+                         break
+                     
+                     else:
+                         p = subprocess.Popen(command, shell=True, cwd=cwd)
+                         self.ongoing_subprocesses.append(p)
+                         self.action_name_for_ongoing_subprocess.append(name)
+                         
+            if action_has_no_command:
+                continue
+               
+            while True:                
+                 any_subprocess_completed = False                
+                 for p, action in zip(self.ongoing_subprocesses, self.action_name_for_ongoing_subprocess):
+                     if not p.poll() is None:
+                         any_subprocess_completed = True
+                         break     
+                 if any_subprocess_completed:
+                     break
                  time.sleep(1)
-         return
+                            
+            self.ongoing_subprocesses.remove(p)
+            self.action_name_for_ongoing_subprocess.remove(action)
+            self.current_action_status[action] = 'done'
+            self.pending_actions.remove(action)
+            if len(self.dependents[action]) != 0:
+                for name in self.dependents[action]:
+                    if self.current_action_status[name] == 'not started':
+                        self.update_dependencies_status(name)
+        return 
+    
