@@ -22,7 +22,7 @@ class TestBuildAutomationTool(unittest.TestCase):
         
         with self.test_dir as tmpdirname:
             new_root_dir = tmpdirname+os.path.sep+"code"
-            shutil.copytree(self.root+os.path.sep+"code", new_root_dir ) 
+            shutil.copytree(self.root+os.path.sep+"code", new_root_dir) 
             os.chdir(new_root_dir)
             BAT_obj = BAT.ActionGraph(new_root_dir)
             BAT_obj.create_action_map()
@@ -42,7 +42,7 @@ class TestBuildAutomationTool(unittest.TestCase):
         
         with self.test_dir as tmpdirname:
             new_root_dir = tmpdirname+os.path.sep+"code"
-            shutil.copytree(self.root+os.path.sep+"code", new_root_dir )
+            shutil.copytree(self.root+os.path.sep+"code", new_root_dir)
             os.chdir(new_root_dir)
             BAT_obj = BAT.ActionGraph(new_root_dir)
             BAT_obj.create_action_map()
@@ -62,15 +62,19 @@ class TestBuildAutomationTool(unittest.TestCase):
         
         with self.test_dir as tmpdirname:
             new_root_dir = tmpdirname+os.path.sep+"code"
-            shutil.copytree(self.root+os.path.sep+"code", new_root_dir )
+            shutil.copytree(self.root+os.path.sep+"code", new_root_dir)
             os.chdir(new_root_dir)
             BAT_obj = BAT.ActionGraph(new_root_dir)
             BAT_obj.create_action_map()
             BAT_obj.get_command_to_be_executed('build', 'test_sort_merge')       
             self.assertEqual(path.exists('test.o'), True)
             self.assertEqual(path.exists('test_sort_merge.exe'), True)
+            self.assertEqual(path.exists('test_sort_bubble.exe'), False)
+            self.assertEqual(path.exists('test_sort_quick.exe'), False)
             os.chdir(os.path.join("algorithms"))
-            self.assertEqual(path.exists('sort_merge.o'), True) 
+            self.assertEqual(path.exists('sort_merge.o'), True)
+            self.assertEqual(path.exists('sort_bubble.o'), False)
+            self.assertEqual(path.exists('sort_quick.o'), False)
             os.chdir(self.root)
         
         
@@ -78,7 +82,7 @@ class TestBuildAutomationTool(unittest.TestCase):
        
         with self.test_dir as tmpdirname:
             new_root_dir = tmpdirname+os.path.sep+"code"
-            shutil.copytree(self.root+os.path.sep+"code", new_root_dir ) 
+            shutil.copytree(self.root+os.path.sep+"code", new_root_dir) 
             os.chdir(new_root_dir)
             BAT_obj = BAT.ActionGraph(new_root_dir)
             BAT_obj.create_action_map()
