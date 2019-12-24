@@ -8,11 +8,12 @@ class Builder(object):
     '''
     main class dealing with building
     '''
-    
+
     def __init__(self):
         self.graph_dict = dict()
         self.graph_loc = {"base_addr" : os.getcwd()}
         self.file_deps = dict()
+        self.file_watch = dict()
 
     def serial_exe(self, rule, resolved=[], unresolved=[]):
         '''
@@ -24,9 +25,9 @@ class Builder(object):
             if dep not in resolved:
                 if dep in unresolved:
                     raise Exception("Circular dependency detected!")
-                self.rule_exe(dep, resolved, unresolved)
+                self.serial_exe(dep, resolved, unresolved)
         if rule_obj.command:
-            subprocess.Popen((rule_obj.command), cwd=self.graph_loc[rule], shell=True)
+            subprocess.run((rule_obj.command), cwd=self.graph_loc[rule], shell=True)
         resolved.append(rule)
         unresolved.remove(rule)
 
@@ -51,6 +52,16 @@ class Builder(object):
                                 self.graph_dict[dep].parents.append(rule_name)
                         if "command" in obj:
                             self.graph_dict[rule_name].command = obj["command"]
+
+    def map_file_command(self, rule):
+        if rule in self.file_deps.values():
+            return
+        files = input("Enter depended files for %s(Press Enter if none): " % (rule)).split()
+        for file in files:
+            self.file_deps[file] = rule
+        for dep in self.graph_dict[rule].unresolved_deps:
+            self.map_file_command(dep)
+
 
     def parallel_exe(self, rule):
         '''
@@ -90,14 +101,26 @@ class Builder(object):
                 if dep not in visited:
                     stack.append(dep)
                     if not self.graph_dict[dep].unresolved_deps:
-                        process_to_execute.add(dep)
+                        independent_deps.add(dep)
                     visited.add(dep)
         return independent_deps
 
 
     def watch_changes(self):
-        #under construction
-        pass
+        if not self.file_deps: return
+        while True:
+            for root, dirs, files in os.walk(os.getcwd()):
+                for file in files:
+                    if file in self.file_deps:
+                        if file in self.file_watch:
+                            if self.file_watch[file] != os.stat(root+'/'+file).st_mtime:
+                                self.serial_exe(self.file_deps[file], [], [])
+                                for parent in self.graph_dict[self.file_deps[file]].parents:
+                                    self.serial_exe(parent, [], [])
+                                self.file_watch[file] = os.stat(root+'/'+file).st_mtime
+                        else:                            
+                            self.file_watch[file] = os.stat(root+'/'+file).st_mtime
+            time.sleep(1)
 
 class Rule(object):
 
