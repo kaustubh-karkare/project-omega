@@ -60,10 +60,10 @@ class Action():
         self.dependents = {}
         
     
-    def action_sequence(self, root, build, action):
+    def action_sequence(self, root, action):
             
-        ActionGraph_obj = ActionGraph()
-        self.all_action_commands, self.all_action_dependencies = ActionGraph_obj.create_action_map(root)
+        graph = ActionGraph()
+        self.all_action_commands, self.all_action_dependencies = graph.create_action_map(root)
         
         if action not in self.all_action_commands:
             raise Exception('Command not recognized.')
@@ -72,7 +72,10 @@ class Action():
         self.store_dependents_for_all_action()
         self.initialize_dependencies_status(action)
         
-        return self.current_action_status, self.current_action_commands, self.current_action_dependencies, self.dependents
+        return (self.current_action_status,
+                self.current_action_commands,
+                self.current_action_dependencies,
+                self.dependents)
     
 
     def get_dependencies(self, action):         
@@ -142,8 +145,12 @@ class ActionExecutor():
         if build != 'build':
             raise Exception('Command not recognized.')
             
-        Action_obj = Action()
-        self.current_action_status, self.current_action_commands, self.current_action_dependencies, self.dependents = Action_obj.action_sequence(self.root_dir, build, action)
+        action_obj = Action()
+        (self.current_action_status,
+        self.current_action_commands,
+        self.current_action_dependencies,
+        self.dependents) = action_obj.action_sequence(self.root_dir, action)
+        
         self.initialize_pending_actions()
         self.execute_commands()
 
