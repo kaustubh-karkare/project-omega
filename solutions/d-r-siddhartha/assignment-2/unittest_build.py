@@ -20,10 +20,10 @@ class BuildToolTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as TempDir:
             copy_tree(self.BASE_ADDR, TempDir)
             os.chdir(TempDir)
-            BuildGraph = build.Graph()
-            BuildGraph.create_graph()
-            Executor = build.SerialExe(BuildGraph.rule_name_to_rule)
-            Executor.exe(RULE)
+            build_tool_graph = build.Graph()
+            build_tool_graph.create_graph()
+            executor = build.SerialExe(build_tool_graph)
+            executor.exe(RULE)
             files = ["test.o", "algorithms/sort_merge.o", "test_sort_merge.exe"]
             for file in files:
                 self.assertTrue(os.path.exists(os.path.join(TempDir, file)))
@@ -36,10 +36,10 @@ class BuildToolTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as TempDir:
             copy_tree(self.BASE_ADDR, TempDir)
             os.chdir(TempDir)
-            BuildGraph = build.Graph()
-            BuildGraph.create_graph()
-            Executor = build.ParallelExe(BuildGraph.rule_name_to_rule)
-            Executor.exe(RULE)
+            build_tool_graph = build.Graph()
+            build_tool_graph.create_graph()
+            executor = build.ParallelExe(build_tool_graph)
+            executor.exe(RULE)
             files = ["test.o","algorithms/sort_merge.o", "algorithms/sort_bubble.o", "algorithms/sort_quick.o", "test_sort_bubble.exe", "test_sort_quick.exe", "test_sort_merge.exe"]
             for file in files:
                 self.assertTrue(os.path.exists(os.path.join(TempDir, file)))
@@ -47,11 +47,11 @@ class BuildToolTest(unittest.TestCase):
 
     def test_circualar_dependency(self):
 
-        RULE = "test_all"
+        RULE = "test_sort_bubble"
 
-        BuildGraph = build.Graph()
-        BuildGraph.create_graph()
-        self.assertFalse(BuildGraph.detect_circular_dependency(RULE))
+        build_tool_graph = build.Graph()
+        build_tool_graph.create_graph()
+        self.assertFalse(build_tool_graph.detect_circular_dependency(RULE))
 
 
 if __name__ == "__main__":
