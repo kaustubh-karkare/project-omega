@@ -2,6 +2,7 @@ import build
 import argparse
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('rule')
@@ -9,17 +10,17 @@ if __name__ == "__main__":
     parser.add_argument("--watch", action='store_true')
     args = parser.parse_args()
 
-    BuildGraph = build.Graph()
-    BuildGraph.create_graph()
-    BuildGraph.detect_circular_dependency(args.rule)
+    build_tool_graph = build.Graph()
+    build_tool_graph.create_graph()
+    build_tool_graph.detect_circular_dependency(args.rule)
 
     if args.parallel:
-        Executor = build.ParallelExe(BuildGraph.rule_name_to_rule)
-        Executor.exe(args.rule)
+        executor = build.ParallelExe(build_tool_graph)
+        executor.exe(args.rule)
     else:
-        Executor = build.SerialExe(BuildGraph.rule_name_to_rule)
-        Executor.exe(args.rule)
+        executor = build.SerialExe(build_tool_graph)
+        executor.exe(args.rule)
     if args.watch:
-        Watch = build.WatchChanges(Executor)
-        Watch.map_file_command(args.rule)
-        Watch.watch_init()
+        watch = build.WatchChanges(executor)
+        watch.map_file_command(args.rule)
+        watch.watch_changes()
