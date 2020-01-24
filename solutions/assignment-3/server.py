@@ -1,37 +1,50 @@
 import socket
 import os
-import re
+import time
 
-class Server():
+class FileServer():
+    BLOCK_SIZE = 256 * 1000  # 256 kb
 
-    def __init__(self, interface, port):
+    def __init__(self, interface, port,  logger, server_location=os.getcwd()):
         self.interface = interface
         self.port = port
         self.homepage = 'http://' + interface + ':' + str(port)
+        self.server_location = server_location
+        self.logger = logger
 
     def start(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.interface, self.port))
-        self._handle_request()
+
+    def run(self):
+        try:
+            self._handle_request()
+        except KeyboardInterrupt:
+            self.sock.close()
 
     def stop(self):
-        print("Exiting...")
+        self.logger.info("Exiting...")
+        self.sock.shutdown(socket.SHUT_RDWR)
         self.sock.close()
 
     def _handle_request(self):
-        self.sock.listen(10)
+        self.sock.listen(1)
         while True:
-            print('Listening at ', self.homepage)
+            self.logger.info('Listening at %s' % (self.homepage))
             try:
                 self.conn_obj, self.client_addr = self.sock.accept()
             except KeyboardInterrupt:
                 self.stop()
                 break
             request_received = self._recvall()
+            #print("Response received..")
             self._parse_request(request_received)
-            print(self.resource, 'requested...')
-            self._process_request()
+            self.logger.info('%s requested...' % (self.resource))
+            if "Range" in self.headers:
+                self._process_range_request()
+            else:
+                self._process_request()
 
     def _parse_request(self, request_data):
         headers = request_data.strip().split('\r\n')
@@ -43,36 +56,61 @@ class Server():
             self.headers[header] = data
 
     def _process_request(self):
-        path = os.path.join(os.getcwd(), self.resource.strip('/'))
+        is_big_file = False
+
+        path = os.path.join(self.server_location, self.resource.strip('/'))
         if os.path.isdir(path):
             index_path = os.path.join(path, 'index.html')
             if os.path.exists(index_path):
-                with open(index_path, 'r') as upload_file:
-                    print("sending index.html...")
-                    send_data = (upload_file.read().encode())
-                    resp_status_msg = '200 OK'
+                upload_file = open(index_path, 'rb')
+
+                    #data_chunk = upload_file.read(BLOCK_SIZE)
+                self.logger.info("sending index.html...")
+                    #send_data = (upload_file.read().encode())
+                resp_status_msg = '200 OK'
+                is_big_file = True
+                content_length = os.stat(index_path).st_size
             else:
-                print("generating directory listing and sending...")
+                self.logger.info("generating directory listing and sending...")
                 send_data = self._generate_index_of(self.resource).encode()
                 resp_status_msg = '200 OK'
 
         elif os.path.isfile(self.resource.strip('/')):
             if os.path.exists(path):
-                with open(path, 'rb') as upload_file:
-                    print("sending file...")
-                    send_data = (upload_file.read())
-                    resp_status_msg = '200 OK'
+                upload_file = open(path, 'rb')
+                #with open(path, 'rb') as upload_file:
+                self.logger.info("sending file...")
+                    #send_data = (upload_file.read())
+                resp_status_msg = '200 OK'
+                is_big_file = True
+                content_length = os.stat(path).st_size
             else:
-                print("file not found, sending error response...")
+                self.logger.info("file not found, sending error response...")
                 send_data = b''
                 resp_status_msg = '404 Not Found'
         else:
-            print("Bad Request")
+            self.logger.info("Bad Request")
             send_data = b''
             resp_status_msg = '400 Bad Request'
 
-        content_length = len(send_data)
-        self.conn_obj.sendall(self._generate_response_header(content_length, resp_status_msg) + send_data)
+        if is_big_file:
+            self.conn_obj.sendall(self._generate_response_header(content_length, resp_status_msg))
+            self._send_data_chunks(self.BLOCK_SIZE, upload_file)
+        else:
+            content_length = len(send_data)
+            self.conn_obj.sendall(self._generate_response_header(content_length, resp_status_msg) + send_data)
+
+    def _process_range_request(self):
+        pass
+
+    def _send_data_chunks(self, chunk_size, file_handler):
+        while True:
+            data_chunk = file_handler.read(chunk_size)
+            if not data_chunk:
+                break
+            self.conn_obj.sendall(data_chunk)
+            time.sleep(1)
+        file_handler.close()
 
     def _generate_response_header(self, content_length, resp_status_code):
         header = ('HTTP/1.1 %s\r\n'
@@ -82,28 +120,29 @@ class Server():
         return header.encode()
 
     def _generate_index_of(self, location):
-        regex_word = '</ul>\n'
-        pattern_obj = re.compile(regex_word)
-
         head_template = ('<html>\n'
                          '<head>\n'
                          '<title>Directory listing for %s</title>\n'
                          '</head>\n' % (self.resource))
 
+
+        all_lists = []
+        for content in os.listdir('.' + location):
+            link = os.path.join(self.homepage, self.resource, content)
+
+            listing = '<li><a href=%s>%s</a></li>\n' % (link, content)
+            all_lists.append(listing)
+        all_lists = ''.join(all_lists)
+
         body_template = ('<body>\n'
                          '<h1>Directory listing for %s</h1>\n'
                          '<hr>\n'
                          '<ul>\n'
+                         '%s'
                          '</ul>\n'
                          '<hr>\n'
                          '</body>\n'
-                         '</html>' % (self.resource))
-
-        for content in os.listdir('.' + location):
-            link = os.path.join(self.homepage, self.resource, content)
-            listing = '<li><a href=%s>%s</a></li>' % (link, content)
-            seek = pattern_obj.search(body_template).start()
-            body_template = body_template[:seek] + listing + '\n' + body_template[seek:]
+                         '</html>' % (self.resource, all_lists))
 
         return head_template + body_template
 
