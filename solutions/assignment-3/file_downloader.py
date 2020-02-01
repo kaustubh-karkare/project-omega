@@ -1,85 +1,135 @@
 import socket
 import os
-import re
-import time
+import threading
+from shutil import copyfileobj
+import utility
+
 
 class FileDownloader():
+    """
+    Downloads the resource from a given url and saves it in a file
+    with name specified.
 
-    def __init__(self, url, save_as):
-        self.host, self.port, self.resource = self._find_server_and_resouce(url)
+    :param url: url of resource to download
+    :param save_as: file name to save download as
+    :param logger: logger object used for debugging and other running information
+    :param threads: number of parts to download specified resource in
+    """
+
+    def __init__(self, url, save_as, logger, threads=1):
         self.url = url
         self.save_as = save_as
+        self.threads = threads
+        self.logger = logger
+        self.host, self.port, self.resource = utility.find_server_and_resouce(url)
 
     def start(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((self.host, self.port))
+        """
+        Prepares necessary information for downloading files
+        """
+        header_data = self._collect_header_data()
+        self._analyze_header_data(header_data)
+
+    def _analyze_header_data(self, header_data):
+        self.logger.info("Analyzing header data...")
+        headers = utility.parse_header_data(header_data, "200")
+        self.data_ranges = utility.compute_request_ranges(headers, self.threads)
+
+        self.logger.debug("Byte Ranges %s" % (self.data_ranges))
+        self.logger.info("Script ready to download!")
+
+    def _collect_header_data(self):
+        self.logger.info("Collecting header information...")
+
+        self.header_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.header_sock.connect((self.host, self.port))
+
+        request = utility.generate_request("HEAD", self.resource, self.host)
+        self.logger.debug("Request Sent: \n%s" % request)
+        self.header_sock.sendall(request.encode())
+
+        header_data = utility.get_headers(self.header_sock)
+        self.logger.debug("Headers Received: \n%s" % (header_data))
+
+        self.header_sock.close()
+
+        return header_data
 
     def download(self):
+        """
+        Downloads requested resources in either multiple parts(if threads more than one)
+        or singly.
+
+        If the file is being downloaded in multiple parts, the script creates multiple
+        threads and downloads file part sizes and then stitches all the files into one
+        main file.
+        """
+        if self.threads > 1:
+            self._download_multi()
+            self._stitch_downloads()
+        else:
+            self._download_single()
+
+    def _stitch_downloads(self):
+        with open(self.save_as, 'wb') as main_file:
+            for download_file in self.download_files:
+                with open(download_file, 'rb') as temp_file:
+                    copyfileobj(temp_file, main_file)
+                os.remove(download_file)
+
+    def _download_multi(self):
+        threads = list()
+        download_objs = dict()
+        for index in range(len(self.data_ranges)):
+            filename = self.save_as + ("%d" % (index))
+            download_objs[filename] = DownloadHandler(self.host, self.port, self.resource, filename, self.data_ranges[index])
+            thread_obj = threading.Thread(target=download_objs[filename].download())
+            threads.append(thread_obj)
+            thread_obj.start()
+        for thread in threads:
+            thread.join()
+
+        self.download_files = download_objs.keys()
+
+    def _download_single(self):
+        download_obj = DownloadHandler(self.host, self.port, self.resource, self.save_as)
+        download_obj.download()
+
+class DownloadHandler():
+    """
+    Handles downloading specified resource
+
+    :param host: host address of the server to download resource from
+    :param port: port to use
+    :param resource: resource path in the server
+    "param data_ranges: range of bytes to download, defaults to None if not provided"
+    """
+
+    def __init__(self, host, port, resource, save_as, data_ranges=None):
+        self.host = host
+        self.port = port
+        self.resource = resource
+        self.save_as = save_as
+        self.data_ranges = data_ranges
+
+    def download(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((self.host, self.port))
         self._send()
         self._receive()
         self.sock.close()
 
-    def stop(self):
-        self.sock.shutdown(socket.SHUT_RDWR)
-        self.sock.close()
-
     def _send(self):
-        request = self._generate_request(self.resource, self.host)
+        request = utility.generate_request("GET", self.resource, self.host, self.data_ranges).encode()
         self.sock.sendall(request)
 
     def _receive(self):
-        header_data = self._get_response_headers()
-        #print(header_data)
-        self._parse_header_data(header_data)
-        self._download_payload(int(self.headers['Content-Length']))
+        header_data = utility.get_headers(self.sock)
+        # expect 206 Partial Content response if range request issued otherwise expect normal response 200
+        expected_resp_code = "206" if self.data_ranges is not None else "200"
+        self.received_headers = utility.parse_header_data(header_data, expected_resp_code)
+        utility.download_payload(self.sock, self.save_as, int(self.received_headers['Content-Length']))
 
-    def _get_response_headers(self):
-        response_msg = ''
-        msg_buffer = self.sock.recv(1)
-        response_msg += msg_buffer.decode()
-        while response_msg[-4:] != '\r\n\r\n':
-            msg_buffer = self.sock.recv(1)
-            response_msg += msg_buffer.decode()
-        return response_msg
-
-    def _parse_header_data(self, header_data):
-        headers = header_data.strip().split('\r\n')
-        http_version, resp_code, resp_status_msg = headers.pop(0).split()
-        assert (resp_code == '200' and resp_status_msg == 'OK'), 'Expected 200 HTTP response code, got %s.\nResponse Status Message: %s\n' % (resp_code, resp_status_msg)
-        assert (http_version == 'HTTP/1.1')
-        self.headers = dict()
-        for header_line in headers:
-            header, data = header_line.split(': ')
-            self.headers[header] = data
-
-    def _download_payload(self, content_length):
-        download_length = 0
-        start_time = time.time()
-        with open(self.save_as, 'wb') as download_file:
-            while download_length < content_length:
-                packet = self.sock.recv(content_length - download_length)
-                if not packet:
-                    return None
-                download_length += len(packet)
-                download_file.write(packet)
-        end_time = time.time() - start_time
-        print("Download time:", end_time)
-
-    def _generate_request(self, resource, server_addr):
-        GET_request = ("GET %s HTTP/1.1\r\n"
-                       "Host: %s\r\n"
-                       "Accept: */*\r\n\r\n" % (resource, server_addr)).encode()
-        return GET_request
-
-
-    @staticmethod
-    def _find_server_and_resouce(url):
-        regex_pattern = '^(?:http://)([^:\/?]+)(?:[\:]?)([0-9]*)(?:\/?)([\S]*)$'
-        pattern_obj = re.compile(regex_pattern)
-        assert (url.partition('://')[0] == 'http'), "Error! Script can only work for HTTP based servers."
-        host, port, resource = pattern_obj.findall(url)[0]
-
-        port = int(port) if port else 80 #assign default TCP port 80 if none assigned
-        resource = '/' if not resource else resource
-
-        return host, port, resource
+    def stop(self):
+        self.sock.shutdown(socket.SHUT_RDWR)
+        self.sock.close()
