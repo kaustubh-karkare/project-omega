@@ -1,4 +1,6 @@
 import re
+import datetime
+from time import sleep
 
 def compute_request_ranges(headers, parts):
     '''
@@ -21,20 +23,20 @@ def compute_request_ranges(headers, parts):
         data_ranges.append(str(start) + "-" + str(file_size-1))
     return data_ranges
 
-def get_headers(socket):
+def get_headers(sock):
     '''
-    Received header data
+    Receive header data from socket
     '''
     response_msg = ''
-    msg_buffer = socket.recv(1)
+    msg_buffer = sock.recv(1)
     response_msg += msg_buffer.decode()
     while response_msg[-4:] != '\r\n\r\n':
-        msg_buffer = socket.recv(1)
+        msg_buffer = sock.recv(1)
         response_msg += msg_buffer.decode()
     return response_msg
 
-def parse_header_data(header_data, expected_resp_code):
-    headers = header_data.strip().split('\r\n')
+def parse_response(response_data, expected_resp_code):
+    headers = response_data.strip().split('\r\n')
     http_version, resp_code, resp_status_msg = headers.pop(0).split(" ", 2)
     assert (resp_code == expected_resp_code), 'Expected %s HTTP response code, got %s.\nResponse Status Message: %s\n' % (expected_resp_code, resp_code, resp_status_msg)
     assert (http_version == 'HTTP/1.1')
@@ -43,6 +45,16 @@ def parse_header_data(header_data, expected_resp_code):
         header, data = header_line.split(': ')
         parsed_headers[header] = data
     return parsed_headers
+
+def parse_request(request_data):
+    headers = request_data.strip().split('\r\n')
+    req_method, resource,  http_version = headers.pop(0).split()
+    assert (http_version == 'HTTP/1.1')
+    recv_headers = dict()
+    for header_line in headers:
+        header, data = header_line.split(': ')
+        recv_headers[header] = data
+    return (req_method, resource, http_version, recv_headers)
 
 def download_payload(socket, save_as, content_length):
     download_length = 0
@@ -54,6 +66,16 @@ def download_payload(socket, save_as, content_length):
                 return None
             download_length += len(packet)
             download_file.write(packet)
+
+def send_data_chunks(sock, chunk_size, file_handler, seek_start, seek_end):
+    file_handler.seek(seek_start)
+    while file_handler.tell() <= seek_end:
+        data_chunk = file_handler.read(chunk_size)
+        if not data_chunk:
+            break
+        sock.sendall(data_chunk)
+        sleep(1)
+    file_handler.close()
 
 def generate_request(req_method, resource, server_addr, data_range=None):
     request_line = "%s /%s HTTP/1.1\r\n" % (req_method, resource)
@@ -69,6 +91,23 @@ def generate_request(req_method, resource, server_addr, data_range=None):
     request = (request_line + "".join("%s: %s\r\n" % (key, value) for key, value in header_dict.items() if value is not None) + "\r\n")
     return request
 
+def generate_response(total_content_length, resp_status_msg, content_range=None):
+    response_line = 'HTTP/1.1 %s\r\n' % (resp_status_msg)
+    time_now = datetime.datetime.now()
+    if content_range is not None:
+        a, b = map(int, content_range.split('-'))
+        content_length = b-a
+        content_range = 'bytes %s/%s' %  (content_range, total_content_length)
+    else:
+        content_length = total_content_length
+    send_headers = { 'Server' : 'Python Script',
+                     'Content-Length' : content_length,
+                     'Content-Range' : content_range,
+                     'Accept-Ranges' : 'bytes',
+                     'Date' : time_now.strftime("%d %b %Y, %H:%M:%S GMT") }
+    send_data = ''.join("%s: %s\r\n" % (key, value) for key, value in send_headers.items() if value is not None)
+
+    return response_line + send_data + '\r\n'
 
 def find_server_and_resouce(url):
     '''
