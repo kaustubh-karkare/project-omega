@@ -1,135 +1,161 @@
 import socket
 import os
-import time
+import io
+import select
+import threading
+import utility
 
-class FileServer():
-    BLOCK_SIZE = 256 * 1000  # 256 kb
 
-    def __init__(self, interface, port,  logger, server_location=os.getcwd()):
+class FileServer:
+    """
+    Creates a server which sends requested resource. If request
+    is a directory then server sends existing index.html file else
+    generates a list of files and directories and sends that.
+    If the request is for a file, server sends that.
+
+    :param interface: ip address where the server will Host
+    :param port: port number to host server as
+    :param logger: logger object used for debugging and other running information
+    :param server_location: system path to run server at
+    :param speed_limit_bps: speed limit in bytes per second to send data
+    """
+
+    def __init__(self, interface, port, logger, server_location, speed_limit_bps):
         self.interface = interface
         self.port = port
         self.homepage = 'http://' + interface + ':' + str(port)
         self.server_location = server_location
+        os.chdir(self.server_location)
         self.logger = logger
+        self.speed_limit_bps = speed_limit_bps
+        self.run = False
 
     def start(self):
+        """
+        Create socket instance and bind ip address and host
+        """
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.interface, self.port))
+        self.logger.info("Server started")
+        self.run = True
+        self._handle_request()
 
-    def run(self):
-        try:
-            self._handle_request()
-        except KeyboardInterrupt:
-            self.sock.close()
-
-    def stop(self):
-        self.logger.info("Exiting...")
+    def stop(self, *args):
+        #issues with stopping the while loop, stopping process not quite ready yet
+        self.logger.info("Exiting")
+        self.run = False
         self.sock.shutdown(socket.SHUT_RDWR)
         self.sock.close()
 
     def _handle_request(self):
-        self.sock.listen(1)
-        while True:
-            self.logger.info('Listening at %s' % (self.homepage))
-            try:
-                self.conn_obj, self.client_addr = self.sock.accept()
-            except KeyboardInterrupt:
-                self.stop()
-                break
-            request_received = self._recvall()
-            #print("Response received..")
-            self._parse_request(request_received)
-            self.logger.info('%s requested...' % (self.resource))
-            if "Range" in self.headers:
-                self._process_range_request()
-            else:
-                self._process_request()
+        """
+        Handles incoming request in non-blocking way
+        """
+        self.sock.listen(10)
+        read_list = [self.sock]
 
-    def _parse_request(self, request_data):
-        headers = request_data.strip().split('\r\n')
-        get, self.resource,  http_version = headers.pop(0).split()
-        assert (http_version == 'HTTP/1.1')
-        self.headers = dict()
-        for header_line in headers:
-            header, data = header_line.split(': ')
-            self.headers[header] = data
+        while self.run:
+            read_ready, write_ready, execption_list = select.select(read_list, [], [])
+            for sock in read_ready:
+                if sock is self.sock:
+                    self.logger.info('Listening at %s' % (self.homepage))
+                    conn_obj, client_addr = self.sock.accept()
+                    read_list.append(conn_obj)
+                    self.logger.info("Accepted connection from %s" % (client_addr,))
+                else:
+                    # make threads and send back requested resource
+                    req_handler = RequestHandler(sock, self.__dict__)
+                    req_thread = threading.Thread(target=req_handler.run())
+                    req_thread.start()
+                    req_thread.join()
+                    read_list.remove(sock)
+
+
+class RequestHandler:
+    """
+    Processes request and sends back requested data
+
+    :param conn_obj: accepted connection
+    :param server_info: information about server
+    """
+
+    def __init__(self, conn_obj, server_info):
+        self.conn_obj = conn_obj
+        self.server_info = server_info
+        self.logger = server_info['logger']
+
+    def run(self):
+        self.logger.info("Receiving headers")
+        request_received = utility.get_headers(self.conn_obj)
+        self.logger.debug("Headers received: \n%s" % (request_received))
+        self.req_method, self.resource, http_ver, self.recv_headers = utility.parse_request(request_received)
+        self._process_request()
+        self.logger.info("Request processed")
+        self.conn_obj.close()
+        self.logger.info("Closing socket")
 
     def _process_request(self):
-        is_big_file = False
+        content_length = None
+        resp_status_msg = '200 OK'
+        content_range = None
+        resource = self.resource.strip('/')
+        path = os.path.join(self.server_info['server_location'], resource)
 
-        path = os.path.join(self.server_location, self.resource.strip('/'))
+        if 'Range' in self.recv_headers:
+            content_range = self.recv_headers['Range'].strip('bytes=')
+            seek_start, seek_end = map(int, content_range.split('-'))
+            resp_status_msg = '206 Partial Content'
+        else:
+            seek_start, seek_end = 0, None
+
         if os.path.isdir(path):
             index_path = os.path.join(path, 'index.html')
             if os.path.exists(index_path):
                 upload_file = open(index_path, 'rb')
-
-                    #data_chunk = upload_file.read(BLOCK_SIZE)
-                self.logger.info("sending index.html...")
-                    #send_data = (upload_file.read().encode())
-                resp_status_msg = '200 OK'
-                is_big_file = True
+                self.logger.info("Sending index.html")
                 content_length = os.stat(index_path).st_size
             else:
-                self.logger.info("generating directory listing and sending...")
-                send_data = self._generate_index_of(self.resource).encode()
-                resp_status_msg = '200 OK'
+                self.logger.info("Generating directory listing and sending")
+                upload_file = io.BytesIO()
+                list_page = self._generate_index_of('/' +  resource)
+                content_length = len(list_page)
+                upload_file.write(list_page.encode())
 
-        elif os.path.isfile(self.resource.strip('/')):
+        elif os.path.isfile(resource):
             if os.path.exists(path):
                 upload_file = open(path, 'rb')
-                #with open(path, 'rb') as upload_file:
-                self.logger.info("sending file...")
-                    #send_data = (upload_file.read())
-                resp_status_msg = '200 OK'
-                is_big_file = True
+                self.logger.info("Sending requested file")
                 content_length = os.stat(path).st_size
             else:
-                self.logger.info("file not found, sending error response...")
-                send_data = b''
+                self.logger.info("Requested file not found, sending error response")
                 resp_status_msg = '404 Not Found'
+
         else:
-            self.logger.info("Bad Request")
-            send_data = b''
-            resp_status_msg = '400 Bad Request'
+            self.logger.info("Requested resource not found")
+            resp_status_msg = '404 Not Found'
 
-        if is_big_file:
-            self.conn_obj.sendall(self._generate_response_header(content_length, resp_status_msg))
-            self._send_data_chunks(self.BLOCK_SIZE, upload_file)
-        else:
-            content_length = len(send_data)
-            self.conn_obj.sendall(self._generate_response_header(content_length, resp_status_msg) + send_data)
 
-    def _process_range_request(self):
-        pass
+        resp_headers = utility.generate_response(content_length, resp_status_msg, content_range)
+        self.logger.debug("Sending headers:\n%s" % (resp_headers))
+        self.conn_obj.sendall(resp_headers.encode())
 
-    def _send_data_chunks(self, chunk_size, file_handler):
-        while True:
-            data_chunk = file_handler.read(chunk_size)
-            if not data_chunk:
-                break
-            self.conn_obj.sendall(data_chunk)
-            time.sleep(1)
-        file_handler.close()
-
-    def _generate_response_header(self, content_length, resp_status_code):
-        header = ('HTTP/1.1 %s\r\n'
-                  'Server: server.py\r\n'
-                  'Content-Length: %s\r\n\r\n' % (resp_status_code, content_length))
-
-        return header.encode()
+        if self.req_method == "GET" and resp_status_msg != '404 Not Found':
+            if seek_end is None:
+                utility.send_data_chunks(self.conn_obj, self.server_info['speed_limit_bps'], upload_file, seek_start, content_length-1)
+            else:
+                utility.send_data_chunks(self.conn_obj, self.server_info['speed_limit_bps'], upload_file, seek_start, seek_end)
 
     def _generate_index_of(self, location):
+
         head_template = ('<html>\n'
                          '<head>\n'
                          '<title>Directory listing for %s</title>\n'
                          '</head>\n' % (self.resource))
 
-
         all_lists = []
         for content in os.listdir('.' + location):
-            link = os.path.join(self.homepage, self.resource, content)
-
+            link = os.path.join(self.server_info['homepage'], self.resource, content)
             listing = '<li><a href=%s>%s</a></li>\n' % (link, content)
             all_lists.append(listing)
         all_lists = ''.join(all_lists)
@@ -145,12 +171,3 @@ class FileServer():
                          '</html>' % (self.resource, all_lists))
 
         return head_template + body_template
-
-    def _recvall(self):
-        response_msg = ''
-        msg_buffer = self.conn_obj.recv(1)
-        response_msg += msg_buffer.decode()
-        while response_msg[-4:] != '\r\n\r\n':
-            msg_buffer = self.conn_obj.recv(1)
-            response_msg += msg_buffer.decode()
-        return response_msg
