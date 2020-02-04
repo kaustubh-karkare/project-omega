@@ -24,5 +24,4 @@ if __name__ == '__main__':
     logger.addHandler(console_handler)
 
     downloader = FileDownloader(args.url, args.save_as, logger, args.threads)
-    downloader.start()
     downloader.download()
