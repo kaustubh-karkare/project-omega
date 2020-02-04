@@ -23,24 +23,16 @@ class FileDownloader():
         self.logger = logger
         self.host, self.port, self.resource = utility.find_server_and_resouce(url)
 
-    def start(self):
-        """
-        Prepares necessary information for downloading files
-        """
-        header_data = self._collect_header_data()
-        self._analyze_header_data(header_data)
 
     def _analyze_header_data(self, header_data):
         self.logger.info("Analyzing header data...")
-        headers = utility.parse_header_data(header_data, "200")
+        headers = utility.parse_response(header_data, "200")
         self.data_ranges = utility.compute_request_ranges(headers, self.threads)
 
-        self.logger.debug("Byte Ranges %s" % (self.data_ranges))
+        self.logger.debug("Byte ranges created: %s" % (self.data_ranges))
         self.logger.info("Script ready to download!")
 
     def _collect_header_data(self):
-        self.logger.info("Collecting header information...")
-
         self.header_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.header_sock.connect((self.host, self.port))
 
@@ -65,10 +57,15 @@ class FileDownloader():
         main file.
         """
         if self.threads > 1:
+            header_data = self._collect_header_data()
+            self._analyze_header_data(header_data)
+            self.logger.info("Download started")
             self._download_multi()
             self._stitch_downloads()
         else:
+            self.logger.info("Download started")
             self._download_single()
+        self.logger.info("Download completed")
 
     def _stitch_downloads(self):
         with open(self.save_as, 'wb') as main_file:
@@ -82,7 +79,7 @@ class FileDownloader():
         download_objs = dict()
         for index in range(len(self.data_ranges)):
             filename = self.save_as + ("%d" % (index))
-            download_objs[filename] = DownloadHandler(self.host, self.port, self.resource, filename, self.data_ranges[index])
+            download_objs[filename] = DownloadHandler(self.host, self.port, self.resource, filename, self.logger, self.data_ranges[index])
             thread_obj = threading.Thread(target=download_objs[filename].download())
             threads.append(thread_obj)
             thread_obj.start()
@@ -92,7 +89,7 @@ class FileDownloader():
         self.download_files = download_objs.keys()
 
     def _download_single(self):
-        download_obj = DownloadHandler(self.host, self.port, self.resource, self.save_as)
+        download_obj = DownloadHandler(self.host, self.port, self.resource, self.save_as, self.logger)
         download_obj.download()
 
 class DownloadHandler():
@@ -105,11 +102,12 @@ class DownloadHandler():
     "param data_ranges: range of bytes to download, defaults to None if not provided"
     """
 
-    def __init__(self, host, port, resource, save_as, data_ranges=None):
+    def __init__(self, host, port, resource, save_as, logger, data_ranges=None):
         self.host = host
         self.port = port
         self.resource = resource
         self.save_as = save_as
+        self.logger = logger
         self.data_ranges = data_ranges
 
     def download(self):
@@ -121,13 +119,15 @@ class DownloadHandler():
 
     def _send(self):
         request = utility.generate_request("GET", self.resource, self.host, self.data_ranges).encode()
+        self.logger.debug("Request generated:\n%s" % (request))
         self.sock.sendall(request)
 
     def _receive(self):
         header_data = utility.get_headers(self.sock)
+        self.logger.debug("Header received:\n%s" % (header_data))
         # expect 206 Partial Content response if range request issued otherwise expect normal response 200
         expected_resp_code = "206" if self.data_ranges is not None else "200"
-        self.received_headers = utility.parse_header_data(header_data, expected_resp_code)
+        self.received_headers = utility.parse_response(header_data, expected_resp_code)
         utility.download_payload(self.sock, self.save_as, int(self.received_headers['Content-Length']))
 
     def stop(self):
