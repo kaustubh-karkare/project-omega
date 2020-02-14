@@ -188,7 +188,7 @@ class SocketBuffer:
 
     def recv(self, length=0):
         try:
-            msg_buffer = self.sock.recv(4)
+            msg_buffer = self.sock.recv(self.BLOCK_SIZE)
             self.data_recv += msg_buffer
         except socket.timeout:
             pass
