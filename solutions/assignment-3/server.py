@@ -3,6 +3,7 @@ import os
 import io
 import select
 import threading
+import time
 import utility
 
 
@@ -85,18 +86,21 @@ class RequestHandler:
         self.conn_obj = conn_obj
         self.server_info = server_info
         self.logger = server_info['logger']
-        self.request_util = utility.HttpRequest(self.conn_obj)
-        self.response_util = utility.HttpResponse(self.conn_obj)
+        self.buffer = utility.SocketBuffer(self.conn_obj)
+        self.request_util = utility.HttpRequest(socket_buffer=self.buffer)
+        self.response_util = utility.HttpResponse(socket_buffer=self.buffer)
+
 
     def run(self):
         self.logger.info("Receiving headers")
-        request_received = self.request_util.get_headers()
-        self.logger.debug("Headers received: \n%s" % (request_received))
-        recv_headers = self.request_util.parse_request(request_received)
-        assert (recv_headers['http-version'] == 'HTTP/1.1')
+        #request_received = self.request_util.get_headers()
+        #self.logger.debug("Headers received: \n%s" % (request_received))
+        recv_headers = self.request_util.parse_request()
+        self.logger.debug("Headers received: \n%s" % (recv_headers))
+        assert (recv_headers[self.request_util.HTTP_VERSION] == 'HTTP/1.1')
         self._process_request(recv_headers)
         self.logger.info("Request processed")
-        self.conn_obj.close()
+        #self.conn_obj.close()
         self.logger.info("Closing socket")
 
     def _process_request(self, recv_headers):
@@ -104,6 +108,7 @@ class RequestHandler:
         resp_status_msg = '200 OK'
         content_range = None
         resource = recv_headers['resource'].strip('/')
+        upload_file = None
         path = os.path.join(self.server_info['server_location'], resource)
         self.logger.debug("path: %s" % (path))
 
@@ -141,15 +146,27 @@ class RequestHandler:
             resp_status_msg = '404 Not Found'
 
 
-        resp_headers = self.response_util.generate_response(content_length, resp_status_msg, content_range)
-        self.logger.debug("Sending headers:\n%s" % (resp_headers))
-        self.conn_obj.sendall(resp_headers.encode())
+        #resp_headers = self.response_util.generate_response(content_length, resp_status_msg, content_range)
+        #self.logger.debug("Sending headers to %s:\n%s" % (self.conn_obj.getpeername(), resp_headers))
+        #send_data = resp_headers.encode()
+        #self.logger.debug("Response header length: %d" % (len(send_data)))
+        #send_status = self.conn_obj.sendall(send_data)
+        #if send_status is None:
+        #    self.logger.info("Header sent successfully!")
+        #else:
+        #    self.logger.warning("There was error in sending data!")
+        #time.sleep(1)
+
+        self.response_util.generate_response(content_length, resp_status_msg, content_range)
 
         if recv_headers['req_method'] == "GET" and resp_status_msg != '404 Not Found':
             if seek_end is None:
-                self.request_util.send_data_chunks(self.server_info['speed_limit_bps'], upload_file, seek_start, content_length-1)
+                self.request_util.sb.upload_from(upload_file, seek_start, content_length-1, self.server_info['speed_limit_bps'])
             else:
-                self.request_util.send_data_chunks(self.server_info['speed_limit_bps'], upload_file, seek_start, seek_end)
+                self.request_util.sb.upload_from(upload_file, seek_start, seek_end, self.server_info['speed_limit_bps'])
+
+        if upload_file:
+            upload_file.close()
 
     def _generate_index_of(self, location, recv_headers):
 
