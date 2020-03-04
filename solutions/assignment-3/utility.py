@@ -12,30 +12,14 @@ class HttpProtocol:
     def __init__(self, socket_buffer=None):
         self.sb = socket_buffer
 
-    def get_headers(self):
+    def get_headers(self, timeout_flag=False):
         '''
         Receive header data from socket
         '''
-        '''
-        response_msg = ''
-        header_recv = False
-        while not header_recv:
-            self.sb.recv()
-            while True:
-                msg_buffer = self.sb.read_buffer(1).decode()
-                if not msg_buffer:
-                    break
-                response_msg += msg_buffer
-                if response_msg[-4:] == '\r\n\r\n':
-                    header_recv = True
-                    break
-        return response_msg
-        '''
-
         headers = {}
         while True:
-            line = self.sb.readLine()
-            #print("GOT:", repr(line))
+            line = self.sb.readLine(timeout_flag)
+            print("GOT:", (line))
             if line == '':
                 #print("we done")
                 break
@@ -46,8 +30,6 @@ class HttpProtocol:
                 headers[key] = value
 
         return headers
-
-
 
     @staticmethod
     def find_server_and_resouce(url):
@@ -71,41 +53,6 @@ class HttpProtocol:
 
         return host, port, resource
 
-        '''
-        DEAD METHODS -
-        def send_data_chunks(self, chunk_size, file_handler, seek_start, seek_end):
-            file_handler.seek(seek_start)
-            while file_handler.tell() <= seek_end:
-                data_chunk = file_handler.read(min(chunk_size, seek_end - file_handler.tell()))
-                if not data_chunk:
-                    break
-                self.sock.sendall(data_chunk)
-                sleep(1)
-            #file_handler.close()
-
-        def download_payload(self, save_as, content_length):
-            download_length = 0
-
-            with open(save_as, 'wb') as download_file:
-                while download_length < content_length:
-                    self.sb.recv()
-                    packet = self.sb.empty_buffer()
-                    if not packet:
-                        return None
-                    download_length += len(packet)
-                    download_file.write(packet)
-        def parse_headers(self, headers_data: str):
-            headers = headers_data.strip().split(self.CRLF)
-            parsed_headers = dict()
-            for header_line in headers:
-                try:
-                    header, data = header_line.split(': ', maxsplit=1)
-                    parsed_headers[header] = data
-                except ValueError:
-                    raise ValueError #raise a meaningfull error
-            return parsed_headers
-        '''
-
 class HttpRequest(HttpProtocol):
 
     REQ_METHOD = 'req_method'
@@ -116,7 +63,7 @@ class HttpRequest(HttpProtocol):
         super(HttpRequest, self).__init__(*args, **kwargs)
 
     def parse_request(self):
-        headers = self.get_headers()
+        headers = self.get_headers(True)
         req_method, resource,  http_version = headers[self.HEADER_LINE].split()
         headers[self.REQ_METHOD] = req_method
         headers[self.RESOURCE] = resource
@@ -164,11 +111,13 @@ class HttpResponse(HttpProtocol):
                          'Date' : time_now.strftime("%d %b %Y, %H:%M:%S GMT") }
         send_data = ''.join("%s: %s%s" % (key, value, self.CRLF) for key, value in send_headers.items() if value is not None)
 
+
         self.sb.sock.sendall((response_line + send_data + self.CRLF).encode())
+        time.sleep(self.sb.WAIT_TIME)
 
 
     def parse_response(self):
-        headers = self.get_headers()
+        headers = self.get_headers(True)
         #print("HEADERS:", headers)
         http_version, resp_code, resp_status_msg = headers[self.HEADER_LINE].split(" ", maxsplit=2)
         headers[self.HTTP_VERSION] = http_version
@@ -185,34 +134,51 @@ class SocketBuffer:
     def __init__(self, sock):
         self.sock = sock
         self.data_buffer = b''
-        self.sock.settimeout(self.WAIT_TIME)
+        #self.sock.settimeout(self.WAIT_TIME)
 
-    def readLine(self):
+    def readLine(self, timeout=False):
 
-        if self.data_buffer[:2].decode() == self.CRLF:
-            self.data_buffer = self.data_buffer[2:]
-            return ''
+        if self.CRLF.encode() in self.data_buffer:
+            return_data = ''
+            seek = self.data_buffer.find(self.CRLF.encode())
+            return_data = self.data_buffer[:seek].decode()
+            self.data_buffer = self.data_buffer[seek+2:]
+            return return_data
+
+        if timeout and (self.sock.gettimeout != self.WAIT_TIME):
+            self.sock.settimeout(self.WAIT_TIME)
+        elif not timeout:
+            self.sock.settimeout(None)
+
+        msg_buffer = b''
+        #print(self.sock.getsockname(), "is blocking:", self.sock.getblocking())
         try:
-            self.data_buffer += self.sock.recv(self.BLOCK_SIZE)
-        except socket.timeout:
-            pass
-        line = ''
-        seek = 0
-        while True:
-            msg_buffer = self.read_buffer(1).decode()
-            if not msg_buffer:
-                break
-            line += msg_buffer
-            if line[-2:] == self.CRLF:
-                break
-        return line[:-2]
+            #print("im stuck in recv of:", self.sock.getsockname(), "timout:", self.sock.gettimeout())
+            msg_buffer = self.sock.recv(self.BLOCK_SIZE)
+
+        except socket.timeout as e:
+            err = e.args[0]
+            if err =='time out':
+                time.sleep(1)
+                #print('recv timed out for', self.sock.getsockname())
+        except socket.error as e:
+            print(e, self.sock.getsockname())
+
+        return_data = ''
+        self.data_buffer += msg_buffer
+        seek = self.data_buffer.find(self.CRLF.encode())
+        return_data = self.data_buffer[:seek].decode()
+        self.data_buffer = self.data_buffer[seek+2:]
+
+        #print("return recv data for", self.sock.getsockname(), ":", return_data)
+        return return_data
 
     def upload_from(self, file_handler, seek_start, seek_end, speed_bps=2048):
         file_handler.seek(seek_start)
 
         while file_handler.tell() <= seek_end:
 
-            data_chunk = file_handler.read(min(speed_bps, seek_end - file_handler.tell()))
+            data_chunk = file_handler.read(min(speed_bps, seek_end - file_handler.tell() + 1))
             if not data_chunk:
                 break
             self.sock.sendall(data_chunk)
@@ -228,29 +194,16 @@ class SocketBuffer:
             while download_length < size:
                 try:
                     data_recv = self.sock.recv(self.BLOCK_SIZE)
+
                 except socket.timeout:
                     #print()
-                    return
+                    #download_file.write(data_recv)
+                    return None
                 if not data_recv:
                     return None
+                #print("GOT:", data_recv)
                 download_length += len(data_recv)
                 download_file.write(data_recv)
-
-    def recv(self, length=0):
-        try:
-            msg_buffer = self.sock.recv(self.BLOCK_SIZE)
-            self.data_recv += msg_buffer
-        except socket.timeout:
-            pass
-
-        if length > 0:
-            return_data = self.data_recv[:length]
-            self.data_recv = self.data_recv[length:]
-        else:
-            return_data = None
-
-        return return_data
-
 
     def empty_buffer(self):
         return_data = self.data_buffer
