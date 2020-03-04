@@ -49,12 +49,12 @@ class FileDownloader:
             self._stitch_downloads(self.download_path, [handler.download_path for handler in handlers])
 
         else:
-            self.logger.info("Download started")
+            #self.logger.info("Download started")
             start_time = time.time()
             self._download_single()
             time_taken = time.time() - start_time
         self.logger.info("Download completed")
-        self.logger.info("Download time: %f sec" % (time_taken))
+        self.logger.info("Download time: %f sec" % (time_taken)) #now possibly contains extra time because of artificially added wait
 
     def _stitch_downloads(self, download_path, download_files):
         with open(download_path, 'wb') as main_file:
@@ -94,34 +94,6 @@ class FileDownloader:
             data_ranges.append(str(start) + "-" + str(content_length-1))
         return data_ranges
 
-    '''
-    DEAD METHODS -
-    def _download_multi(self):
-        threads = list()
-        download_objs = dict()
-        for index in range(len(self.data_ranges)):
-            filename = self.download_path + ("%d" % (index))
-            download_objs[filename] = DownloadHandler(self.host, self.port, self.resource, self.logger, data_ranges=self.data_ranges[index], download_path=filename)
-            thread_obj = threading.Thread(target=download_objs[filename].download)
-            threads.append(thread_obj)
-            thread_obj.start()
-        for thread in threads:
-            thread.join()
-
-        self.download_files = download_objs.keys()
-
-    def _analyze_header_data(self):
-        download_obj = DownloadHandler(self.host, self.port, self.resource, self.logger)
-        header_data = download_obj.headers_request()
-        self.logger.info("Analyzing header data...")
-        temp_response_util = utility.HttpResponse()
-        headers = temp_response_util.parse_response(header_data)
-        assert (headers['resp_code'] == '200')
-        self.data_ranges = self.compute_request_ranges(int(headers['Content-Length']), self.threads)
-        self.logger.debug("Byte ranges created: %s" % (self.data_ranges))
-        self.logger.info("Script ready to download!")
-
-    '''
 
 class DownloadHandler():
     """
@@ -145,9 +117,9 @@ class DownloadHandler():
         self.sock.connect((self.host, self.port))
         self.logger.debug("Downloader script address: %s" % (str(self.sock.getsockname())))
         self.logger.debug("Connected to: %s" % (str(self.sock.getpeername())))
-        buffer = utility.SocketBuffer(self.sock)
-        self.request_util = utility.HttpRequest(socket_buffer=buffer)
-        self.response_util = utility.HttpResponse(socket_buffer=buffer)
+        self.buffer = utility.SocketBuffer(self.sock)
+        self.request_util = utility.HttpRequest(socket_buffer=self.buffer)
+        self.response_util = utility.HttpResponse(socket_buffer=self.buffer)
 
     def download(self):
         self._send("GET")
@@ -156,6 +128,7 @@ class DownloadHandler():
 
     def headers_request(self):
         self._send("HEAD")
+        #time.sleep(self.buffer.WAIT_TIME)
         headers = self.response_util.parse_response()
         self.sock.close()
         return headers
@@ -164,6 +137,7 @@ class DownloadHandler():
         request = self.request_util.generate_request(req_method, self.resource, self.host, self.data_ranges)
         self.logger.debug("Request generated:\n%s" % (request))
         self.sock.sendall(request.encode())
+        time.sleep(self.buffer.WAIT_TIME)
         self.logger.info("Request sent")
 
     def _receive(self):
