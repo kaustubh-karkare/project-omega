@@ -129,6 +129,7 @@ class RequestHandler:
                 self.logger.info("Generating directory listing and sending")
                 upload_file = io.BytesIO()
                 list_page = self._generate_index_of('/' +  resource, recv_headers)
+                #print(list_page)
                 content_length = len(list_page)
                 upload_file.write(list_page.encode())
 
@@ -144,18 +145,6 @@ class RequestHandler:
         else:
             self.logger.info("Requested resource not found")
             resp_status_msg = '404 Not Found'
-
-
-        #resp_headers = self.response_util.generate_response(content_length, resp_status_msg, content_range)
-        #self.logger.debug("Sending headers to %s:\n%s" % (self.conn_obj.getpeername(), resp_headers))
-        #send_data = resp_headers.encode()
-        #self.logger.debug("Response header length: %d" % (len(send_data)))
-        #send_status = self.conn_obj.sendall(send_data)
-        #if send_status is None:
-        #    self.logger.info("Header sent successfully!")
-        #else:
-        #    self.logger.warning("There was error in sending data!")
-        #time.sleep(1)
 
         self.response_util.generate_response(content_length, resp_status_msg, content_range)
 
