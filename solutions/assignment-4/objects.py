@@ -75,7 +75,7 @@ class Blob(NgcObject):
         return data_chunk
 
     def _get_file_hash(self, file_path):
-        #print("AM I NOT BEING REDIRECTED HERE?")
+        
         compressed_filename = None
         hashf = hashlib.new(self.HASHING_FUNCTION)
         header = self._create_header(os.path.getsize(file_path))
@@ -84,13 +84,13 @@ class Blob(NgcObject):
 
         with open(file_path, "rb") as f_in:
             while True:
-                #print("OKAY WHAT ABOUT HERE?")
+
                 data = f_in.read(self.BUF_SIZE)
-                #print("WE GOT DATA BITCHES:", data)
+
                 if not data:
                     break
                 hashf.update(data)
-                #print("UPDATED HASH: %s" % (hashf.hexdigest()))
+
 
         compressed_filename = hashf.hexdigest()
         return compressed_filename

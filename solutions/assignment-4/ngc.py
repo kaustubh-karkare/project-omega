@@ -3,6 +3,7 @@ import time
 import objects
 import logging
 import json
+from pathlib import Path
 
 class Ngc:
 
@@ -13,16 +14,17 @@ class Ngc:
     def __init__(self, repo_path=os.getcwd()):
         self.repo_path = repo_path
         self.user_details = self._get_user_details()
-        self.author_details = {self.USER_NAME : None,
-                               self.USER_EMAIL : None,
-                               self.TIMESTAMP : None}
-        self.head = None
+        self.author_details = self._get_author_details()
+        self.head = self._get_current_commit_hash()
         self.obj_blob = objects.Blob()
         self.obj_tree = objects.Tree(self.create_logger("Tree log"), self.repo_path)
         self.obj_commit = objects.Commit(self.repo_path)
+        self.logger = self.create_logger("ngc_obj", log_level=logging.WARNING)
 
     def init(self):
         self.author_details = self.user_details
+        self.author_details[self.TIMESTAMP] = time.time()
+        self._set_author_details()
         ngc_path = os.path.join(self.repo_path, ".ngc")
         objects_path = os.path.join(ngc_path, "objects")
 
@@ -30,12 +32,11 @@ class Ngc:
         if not os.path.exists(objects_path): os.makedirs(objects_path)
 
     def status(self):
-        #TODO:
-        #   check for files removed
-        #   check for files added
+        modified_files = list()
         print(f"On branch {self.head}")
         print("Changes not committed:")
-        self._check_modified_files()
+        self._check_modified_files(mod_list=modified_files)
+        self._check_added_files(modified_files)
         print('Use "ngc commit" to add changes to a new commit')
 
     def diff(self):
@@ -53,9 +54,13 @@ class Ngc:
 
     def log(self, commit_hash=None):
         if commit_hash is None: commit_hash = self.head
+        self.logger.info("logging...")
 
         with open(os.path.join(self.repo_path, '.ngc/HEAD'), 'rb') as head_file:
             current_hash = head_file.read().decode()
+            self.logger.debug("current_hash variable: %s" % (current_hash))
+            self.logger.debug("commit_hash_hash variable: %s" % (commit_hash))
+            self.logger.debug("self.head variable: %s" % (self.head))
 
         while True:
             if current_hash == commit_hash:
@@ -80,11 +85,11 @@ class Ngc:
         self.user_details[self.USER_NAME] = user_name
         self.user_details[self.USER_EMAIL] = user_email
 
-        with open(os.path.join(self.repo_path, ".userinfo"), 'w') as user_info_file:
+        with open(os.path.join(str(Path.home()), ".userinfo"), 'w') as user_info_file:
             json.dump(self.user_details, user_info_file)
 
     def _get_user_details(self):
-        info_file_path = os.path.join(self.repo_path, ".userinfo")
+        info_file_path = os.path.join(str(Path.home()), ".userinfo")
         user_details = {self.USER_NAME : None,
                         self.USER_EMAIL : None,
                         self.TIMESTAMP : None}
@@ -94,6 +99,21 @@ class Ngc:
                 user_details = json.load(user_info_file)
 
         return user_details
+
+    def _set_author_details(self):
+        with open(os.path.join(self.repo_path, '.authorinfo'), 'w') as author_info_file:
+            json.dump(self.author_details, author_info_file)
+
+    def _get_author_details(self):
+        author_details = {self.USER_NAME : None,
+                          self.USER_EMAIL : None,
+                          self.TIMESTAMP : None}
+        author_file_path = os.path.join(self.repo_path, '.authorinfo')
+        if os.path.exists(author_file_path):
+            with open(author_file_path, 'r') as author_info_file:
+                author_details = json.load(author_info_file)
+
+        return author_details
 
     def _get_current_commit_hash(self):
         commit_hash = None
@@ -106,11 +126,12 @@ class Ngc:
 
     def _update_commit_hash(self, new_commit_hash):
         self.head = new_commit_hash
+        self.logger.info("Updated self.head to %s" % (self.head))
 
         with open(os.path.join(self.repo_path, ".ngc/HEAD"), "w") as head_file:
             head_file.write(new_commit_hash)
 
-    def _check_modified_files(self, tree=None, path=None):
+    def _check_modified_files(self, tree=None, path=None, mod_list=None):
         if path is None : path = self.repo_path
         if tree is None : tree = self.head
 
@@ -121,14 +142,36 @@ class Ngc:
         with open(os.path.join(self.repo_path, ".ngc/objects", tree), "rb") as tree_file:
             tree_json = json.load(tree_file)
         for file in tree_json[self.obj_tree.FILES]:
-            file_modified_time = os.stat(os.path.join(path, file)).st_mtime
-            blob_modified_time = os.stat(os.path.join(self.repo_path, ".ngc/objects", tree_json[self.obj_tree.FILES][file])).st_mtime
-            if file_modified_time > blob_modified_time:
-                print(f"modified:    {file}")
+            file_path = os.path.join(path, file)
+            if os.path.exists(file_path):
+                file_modified_time = os.stat(file_path).st_mtime
+                blob_modified_time = os.stat(os.path.join(self.repo_path, ".ngc/objects", tree_json[self.obj_tree.FILES][file])).st_mtime
+                if file_modified_time > blob_modified_time:
+                    if type(mod_list) is list:
+                        mod_list.append(file)
+                    print(f"modified:    {file}")
+            else:
+                print(f"deleted:    {file}")
         for subdir in tree_json[self.obj_tree.SUBDIRS]:
             new_path = os.path.join(path, subdir)
             new_tree = tree_json[self.obj_tree.SUBDIRS][subdir]
-            self._check_modified_files(tree=new_tree, path=new_path)
+            self._check_modified_files(tree=new_tree, path=new_path, mod_list=mod_list)
+
+    def _check_added_files(self, mod_list=None):
+
+        for dirpath, dirnames, filenames in os.walk(self.repo_path):
+            if "." in dirpath:
+                continue
+            for file in filenames:
+                if file.startswith("."):
+                    continue
+                file_path = os.path.join(dirpath, file)
+                hexdigest = self.obj_blob._get_file_hash(file_path)
+                if hexdigest not in os.listdir(os.path.join(self.repo_path, '.ngc/objects')):
+                    if type(mod_list) is list:
+                        if file in mod_list:
+                            continue
+                    print(f"added:  {file}")
 
     @staticmethod
     def create_logger(logger_name, log_level=logging.WARNING):
