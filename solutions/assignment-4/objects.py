@@ -74,8 +74,22 @@ class Blob(NgcObject):
 
         return data_chunk
 
+    def extract_content(self, file_path, dst):
+        header = b""
+
+        with gzip.open(file_path, "rb") as f_in:
+            with open(dst, "wb") as f_out:
+                while b"\x00" not in header:
+                    header = f_in.read(1)
+                while True:
+                    buf_data = f_in.read(self.BUF_SIZE)
+                    if not buf_data:
+                        break
+                    f_out.write(buf_data)
+
+
     def _get_file_hash(self, file_path):
-        
+
         compressed_filename = None
         hashf = hashlib.new(self.HASHING_FUNCTION)
         header = self._create_header(os.path.getsize(file_path))
@@ -168,6 +182,15 @@ class Tree(NgcObject):
     def readline(self, file_path):
         pass
 
+    def get_tree_dict(self, tree_hash):
+        tree_file_path = os.path.join(self.obj_path, tree_hash)
+        tree_dict = None
+
+        with open(tree_file_path, "rb") as tree_file:
+            tree_dict = json.load(tree_file)
+
+        return tree_dict
+
 
 class Commit(NgcObject):
 
@@ -220,3 +243,11 @@ class Commit(NgcObject):
         print(self.AUTHOR, commit_json[self.AUTHOR])
         print(self.COMMITTER, commit_json[self.COMMITTER])
         print('\n', commit_json[self.MSG])
+
+    def get_tree_hash(self, commit_hash):
+        commit_path = os.path.join(self.obj_path, commit_hash)
+
+        with open(commit_path, 'rb') as commit_file:
+            commit_json = json.load(commit_file)
+
+        return commit_json[self.TREE]

@@ -21,8 +21,13 @@ if __name__ == '__main__':
         if len(args.command) == 1:
             ngc_obj.log()
         else:
-            ngc_obj.log(args.command[1])
+            ngc_obj.log(commit_hash=args.command[1])
     elif args.command[0] == 'config_user':
-        ngc_obj.config_user(args.command[1], args.command[2])
+        ngc_obj.config_user(user_name=args.command[1], user_email=args.command[2])
+    elif args.command[0] == 'checkout':
+        if len(args.command) > 1:
+            ngc_obj.checkout(commit_hash=args.command[1])
+        else:
+            ngc_obj.checkout()
     else:
         print("Error: Command not recognized")

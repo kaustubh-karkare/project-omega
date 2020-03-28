@@ -78,8 +78,18 @@ class Ngc:
             else: current_hash = commit_data[self.obj_commit.PARENT]
 
 
-    def checkout(self):
-        pass
+    def checkout(self, commit_hash=None):
+        if commit_hash is None: commit_hash = self.head
+
+        for dirpath, dirnames, filenames in os.walk(self.repo_path):
+            if ".ngc" in dirpath:
+                continue
+            for file in filenames:
+                if file is ".authorinfo" : continue
+                os.remove(os.path.join(dirpath, file))
+
+        tree_hash = self.obj_commit.get_tree_hash(commit_hash)
+        self._restore_files(tree_hash, self.repo_path)
 
     def config_user(self, user_name, user_email):
         self.user_details[self.USER_NAME] = user_name
@@ -123,6 +133,20 @@ class Ngc:
         except FileNotFoundError:
             pass
         return commit_hash
+
+    def _restore_files(self, tree_hash, dir_path):
+        tree_dict = self.obj_tree.get_tree_dict(tree_hash)
+
+        for file in tree_dict[self.obj_tree.FILES]:
+            blob_name = tree_dict[self.obj_tree.FILES][file]
+            blob_path = os.path.join(self.repo_path, ".ngc/objects", blob_name)
+            file_path = os.path.join(dir_path, file)
+            self.obj_blob.extract_content(blob_path, file_path)
+
+        for subdir in tree_dict[self.obj_tree.SUBDIRS]:
+            subdir_path = os.path.join(dir_path, subdir)
+            subdir_hash = tree_dict[self.obj_tree.SUBDIRS][subdir]
+            self._restore_files(subdir_hash, subdir_path)
 
     def _update_commit_hash(self, new_commit_hash):
         self.head = new_commit_hash
