@@ -33,10 +33,21 @@ class Ngc:
 
     def status(self):
         modified_files = list()
+        def print_mod(file_path, blob_path):
+            file_name = file_path.split("/")[-1]
+            print(f"modified:    {file_name}")
+        def print_del(file_path, blob_path):
+            file_name = file_path.split("/")[-1]
+            print(f"deleted:    {file_name}")
+        def print_add(file_path):
+            file_name = file_path.split("/")[-1]
+            print(f"added:    {file_name}")
+
+
         print(f"On branch {self.head}")
         print("Changes not committed:")
-        self._check_modified_files(mod_list=modified_files)
-        self._check_added_files(modified_files)
+        self._check_modified_files(mod_list=modified_files, mod_func=print_mod, del_func=print_del)
+        self._check_added_files(mod_list=modified_files, add_func=print_add)
         print('Use "ngc commit" to add changes to a new commit')
 
     def diff(self):
@@ -50,7 +61,14 @@ class Ngc:
         self._update_commit_hash(commit_hash)
 
     def reset(self):
-        pass
+        modified_files = list()
+        def restore_file(file_path, blob_path):
+            self.obj_blob.extract_content(dst=file_path, file_path=blob_path)
+        def delete_file(file_path):
+            os.remove(file_path)
+
+        self._check_modified_files(mod_list=modified_files, mod_func=restore_file, del_func=restore_file)
+        self._check_added_files(mod_list=modified_files, add_func=delete_file)
 
     def log(self, commit_hash=None):
         if commit_hash is None: commit_hash = self.head
@@ -155,7 +173,7 @@ class Ngc:
         with open(os.path.join(self.repo_path, ".ngc/HEAD"), "w") as head_file:
             head_file.write(new_commit_hash)
 
-    def _check_modified_files(self, tree=None, path=None, mod_list=None):
+    def _check_modified_files(self, tree=None, path=None, mod_list=None, mod_func=None, del_func=None):
         if path is None : path = self.repo_path
         if tree is None : tree = self.head
 
@@ -167,21 +185,28 @@ class Ngc:
             tree_json = json.load(tree_file)
         for file in tree_json[self.obj_tree.FILES]:
             file_path = os.path.join(path, file)
+            blob_path = os.path.join(self.repo_path, ".ngc/objects", tree_json[self.obj_tree.FILES][file])
             if os.path.exists(file_path):
                 file_modified_time = os.stat(file_path).st_mtime
-                blob_modified_time = os.stat(os.path.join(self.repo_path, ".ngc/objects", tree_json[self.obj_tree.FILES][file])).st_mtime
+                blob_modified_time = os.stat(blob_path).st_mtime
                 if file_modified_time > blob_modified_time:
                     if type(mod_list) is list:
                         mod_list.append(file)
-                    print(f"modified:    {file}")
+                    try:
+                        mod_func(file_path, blob_path)
+                    except TypeError:
+                        pass
             else:
-                print(f"deleted:    {file}")
+                try:
+                    del_func(file_path, blob_path)
+                except TypeError:
+                    pass
         for subdir in tree_json[self.obj_tree.SUBDIRS]:
             new_path = os.path.join(path, subdir)
             new_tree = tree_json[self.obj_tree.SUBDIRS][subdir]
-            self._check_modified_files(tree=new_tree, path=new_path, mod_list=mod_list)
+            self._check_modified_files(tree=new_tree, path=new_path, mod_list=mod_list, mod_func=mod_func, del_func=del_func)
 
-    def _check_added_files(self, mod_list=None):
+    def _check_added_files(self, mod_list=None, add_func=None):
 
         for dirpath, dirnames, filenames in os.walk(self.repo_path):
             if "." in dirpath:
@@ -195,7 +220,10 @@ class Ngc:
                     if type(mod_list) is list:
                         if file in mod_list:
                             continue
-                    print(f"added:  {file}")
+                    try:
+                        add_func(file_path)
+                    except TypeError:
+                        pass
 
     @staticmethod
     def create_logger(logger_name, log_level=logging.WARNING):

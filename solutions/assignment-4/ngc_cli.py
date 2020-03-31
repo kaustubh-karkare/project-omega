@@ -29,5 +29,7 @@ if __name__ == '__main__':
             ngc_obj.checkout(commit_hash=args.command[1])
         else:
             ngc_obj.checkout()
+    elif args.command[0] == 'reset':
+        ngc_obj.reset()
     else:
         print("Error: Command not recognized")
