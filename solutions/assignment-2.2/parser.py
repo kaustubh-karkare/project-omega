@@ -6,7 +6,6 @@ URL_PATTERN = re.compile("^(.*://)?([A-Za-z0-9\-\.]+)(:[0-9]+)?(.*)$")
 
 
 class UrlParser(object):
-    """docstring for UrlParser"""
 
     def __init__(self, url):
         super(UrlParser, self).__init__()

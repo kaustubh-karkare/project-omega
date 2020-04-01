@@ -12,7 +12,6 @@ context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
 
 
 class UrlFileDownloader(object):
-    """docstring for FileDownloader"""
 
     def __init__(self, url):
         super(UrlFileDownloader, self).__init__()

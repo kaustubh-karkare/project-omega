@@ -4,7 +4,6 @@ NEW_LINE = "\r\n"
 
 
 class RequestHeaderBuilder(object):
-    """docstring for RequestHeaderBuilder"""
 
     def __init__(self):
         super(RequestHeaderBuilder, self).__init__()
@@ -19,7 +18,6 @@ class RequestHeaderBuilder(object):
 
 
 class ResponseHeaderParser(object):
-    """docstring for ResponseHeaderParser"""
 
     def __init__(self, raw_header: str):
         super(ResponseHeaderParser, self).__init__()
