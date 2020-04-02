@@ -187,9 +187,9 @@ class Ngc:
             file_path = os.path.join(path, file)
             blob_path = os.path.join(self.repo_path, ".ngc/objects", tree_json[self.obj_tree.FILES][file])
             if os.path.exists(file_path):
-                file_modified_time = os.stat(file_path).st_mtime
-                blob_modified_time = os.stat(blob_path).st_mtime
-                if file_modified_time > blob_modified_time:
+                file_content = open(file_path, 'rb').read()
+                blob_content = self.obj_blob.get_content(blob_path)
+                if file_content != blob_content:
                     if type(mod_list) is list:
                         mod_list.append(file)
                     try:

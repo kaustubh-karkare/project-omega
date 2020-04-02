@@ -36,12 +36,6 @@ class NgcObject:
         return hashf.hexdigest()
 
 
-    def _get_string_hash(self, string):
-        string_stream = io.StringIO(string)
-
-        with string_stream as str_s:
-            pass
-
 class Blob(NgcObject):
 
     def __init__(self):
@@ -73,6 +67,17 @@ class Blob(NgcObject):
             data_chunk = blob_obj.read(self.BUF_SIZE)
 
         return data_chunk
+
+    def get_content(self, file_path):
+        header = b""
+
+        with gzip.open(file_path, "rb") as f_in:
+            while b"\x00" not in header:
+                header = f_in.read(1)
+            content = f_in.read()
+
+        return content
+
 
     def extract_content(self, file_path, dst):
         header = b""
@@ -179,9 +184,6 @@ class Tree(NgcObject):
 
         return json.loads(tree_data)
 
-    def readline(self, file_path):
-        pass
-
     def get_tree_dict(self, tree_hash):
         tree_file_path = os.path.join(self.obj_path, tree_hash)
         tree_dict = None
@@ -206,7 +208,6 @@ class Commit(NgcObject):
 
     def create(self, tree_hash, author_details, committer_details, message, parent_hash=None):
         commit_obj = dict()
-        #if not committcommitter_details = dict()
         time_stamp = time.time()
 
         commit_obj[self.TREE] = tree_hash
