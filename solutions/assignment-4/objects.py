@@ -177,13 +177,6 @@ class Tree(NgcObject):
 
         return hashed_value
 
-    def read(self, file_path):
-
-        with open(file_path, 'rb') as tree_file:
-            tree_data = tree_file.read().decode()
-
-        return json.loads(tree_data)
-
     def get_tree_dict(self, tree_hash):
         tree_file_path = os.path.join(self.obj_path, tree_hash)
         tree_dict = None
