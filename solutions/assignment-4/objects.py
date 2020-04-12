@@ -53,11 +53,13 @@ class Blob(NgcObject):
         return compressed_filename
 
     def read_header(self, file_path):
+        temp = b''
         header = b''
 
-        with open(file_path, "rb") as blob_obj:
-            while b"\x00" not in header:
-                header = blob_obj.read(1)
+        with gzip.open(file_path, "rb") as blob_obj:
+            while b"\x00" not in temp:
+                temp = blob_obj.read(1)
+                header += temp
         return header.decode()
 
     def get_content_chunk(self, file_path, fptr):
@@ -69,14 +71,16 @@ class Blob(NgcObject):
         return data_chunk
 
     def get_content(self, file_path):
+        temp = b""
         header = b""
 
         with gzip.open(file_path, "rb") as f_in:
             while b"\x00" not in header:
-                header = f_in.read(1)
+                temp = f_in.read(1)
+                header += temp
             content = f_in.read()
 
-        return content
+        return content.decode()
 
 
     def extract_content(self, file_path, dst):
@@ -237,6 +241,14 @@ class Commit(NgcObject):
         print(self.AUTHOR, commit_json[self.AUTHOR])
         print(self.COMMITTER, commit_json[self.COMMITTER])
         print('\n', commit_json[self.MSG])
+
+    def get_commit_dict(self, commit_hash):
+        commit_path = os.path.join(self.obj_path, commit_hash)
+
+        with open(commit_path, 'rb') as commit_file:
+            commit_json = json.load(commit_file)
+
+        return commit_json
 
     def get_tree_hash(self, commit_hash):
         commit_path = os.path.join(self.obj_path, commit_hash)
